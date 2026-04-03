@@ -1,10 +1,14 @@
 import crypto from "node:crypto";
 
-const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "century-blog-secret";
+const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "change-this-secret";
 
 export function validateAdminCredentials(username, password) {
-  const validUsername = process.env.ADMIN_USERNAME || "admin";
-  const validPassword = process.env.ADMIN_PASSWORD || "century123";
+  const validUsername = process.env.ADMIN_USERNAME;
+  const validPassword = process.env.ADMIN_PASSWORD;
+
+  if (!validUsername || !validPassword) {
+    return false;
+  }
 
   return username === validUsername && password === validPassword;
 }

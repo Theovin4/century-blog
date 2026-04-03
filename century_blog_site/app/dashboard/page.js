@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cookies } from "next/headers";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { LoginForm } from "@/components/dashboard/LoginForm";
@@ -24,7 +25,22 @@ export default async function DashboardPage() {
     <main className="dashboard-page">
       <section className="dashboard-panel">
         <div className="dashboard-panel__header">
-          <span className="eyebrow">Admin Dashboard</span>
+          <div className="brand-lockup dashboard-brand-lockup">
+            <div className="brand-mark dashboard-brand-mark">
+              <Image
+                src="/century-blog-logo.png"
+                alt="Century Blog logo"
+                width={120}
+                height={120}
+                priority
+                className="brand-mark__image"
+              />
+            </div>
+            <div className="brand-copy">
+              <span className="eyebrow eyebrow-brand">Admin Dashboard</span>
+              <p className="brand-copy__tag">Manage stories, uploads, and publishing flow</p>
+            </div>
+          </div>
           <h1>Publish to Century Blog</h1>
           <p>
             Create new posts, keep the homepage fresh, and manage your editorial flow from one

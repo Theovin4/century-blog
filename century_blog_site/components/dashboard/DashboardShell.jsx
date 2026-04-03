@@ -19,22 +19,10 @@ export function DashboardShell({ initialPosts }) {
     setError("");
 
     const formData = new FormData(event.currentTarget);
-    const payload = {
-      title: String(formData.get("title") || ""),
-      excerpt: String(formData.get("excerpt") || ""),
-      content: String(formData.get("content") || ""),
-      category: String(formData.get("category") || ""),
-      author: String(formData.get("author") || ""),
-      sourceName: String(formData.get("sourceName") || ""),
-      sourceUrl: String(formData.get("sourceUrl") || "")
-    };
 
     const response = await fetch("/api/posts", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
+      body: formData
     });
 
     const data = await response.json();
@@ -117,14 +105,13 @@ export function DashboardShell({ initialPosts }) {
           </label>
 
           <label>
-            <span>Source Name</span>
-            <input name="sourceName" type="text" placeholder="Optional" />
+            <span>Upload image or video</span>
+            <input name="media" type="file" accept="image/*,video/*" />
           </label>
 
-          <label>
-            <span>Source URL</span>
-            <input name="sourceUrl" type="url" placeholder="https://example.com/story" />
-          </label>
+          <p className="editor-form__hint">
+            Upload one featured image or video. Supported files will be attached to the post.
+          </p>
 
           {message ? <p className="form-success">{message}</p> : null}
           {error ? <p className="form-error">{error}</p> : null}
@@ -146,6 +133,11 @@ export function DashboardShell({ initialPosts }) {
                 <span className="pill">{getCategoryMeta(post.category).label}</span>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
+                {post.mediaUrl ? (
+                  <p className="dashboard-post-card__meta">
+                    {post.mediaType?.startsWith("video/") ? "Video attached" : "Image attached"}
+                  </p>
+                ) : null}
               </article>
             ))}
           </div>

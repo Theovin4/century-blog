@@ -15,9 +15,9 @@ A dark themed, SEO-friendly Next.js blog for lifestyle, health, education, and d
 Create `.env.local` with:
 
 ```env
-NEXT_PUBLIC_SITE_URL=https://www.centurybloggs.com
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=change-me
+NEXT_PUBLIC_SITE_URL=https://centuryblogg.vercel.app
+ADMIN_USERNAME=theovin4
+ADMIN_PASSWORD=madrid433.
 ADMIN_SESSION_SECRET=change-this-secret
 ```
 
@@ -43,4 +43,4 @@ npm run dev
 
 ## Note
 
-The requested domain in the brief was `www.centurybloggs.come`. Confirm whether you meant `.com` or `.come` before attaching the final domain in Vercel.
+Current deployment URL: `https://centuryblogg.vercel.app`. Update `NEXT_PUBLIC_SITE_URL` again if you later attach a custom domain.

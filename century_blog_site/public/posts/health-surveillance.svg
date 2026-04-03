@@ -1,0 +1,21 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#06131A"/>
+  <circle cx="1320" cy="210" r="170" fill="#14B8A6" fill-opacity="0.22"/>
+  <circle cx="240" cy="760" r="210" fill="#38BDF8" fill-opacity="0.18"/>
+  <rect x="100" y="100" width="1400" height="700" rx="44" fill="url(#g2)" stroke="#ffffff" stroke-opacity="0.10"/>
+  <rect x="200" y="210" width="360" height="420" rx="40" fill="#0F172A" stroke="#ffffff" stroke-opacity="0.08"/>
+  <rect x="305" y="250" width="150" height="270" rx="26" fill="#E2E8F0"/>
+  <circle cx="380" cy="540" r="44" fill="#22C55E" fill-opacity="0.25" stroke="#22C55E" stroke-width="12"/>
+  <path d="M720 255H1325" stroke="#ffffff" stroke-opacity="0.18" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 345H1240" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 435H1260" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 525H1140" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 615H1190" stroke="#34D399" stroke-width="20" stroke-linecap="round"/>
+  <text x="180" y="155" fill="#E5E7EB" font-family="Arial, sans-serif" font-size="54" font-weight="700">Disease Surveillance</text>
+  <defs>
+    <linearGradient id="g2" x1="100" y1="100" x2="1500" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#134E4A"/>
+    </linearGradient>
+  </defs>
+</svg>

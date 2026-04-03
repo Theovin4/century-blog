@@ -16,16 +16,41 @@ export async function POST(request) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const formData = await request.formData();
+  const title = String(formData.get("title") || "").trim();
+  const excerpt = String(formData.get("excerpt") || "").trim();
+  const content = String(formData.get("content") || "").trim();
+  const category = String(formData.get("category") || "").trim();
+  const author = String(formData.get("author") || "").trim();
+  const media = formData.get("media");
 
-  if (!body?.title || !body?.excerpt || !body?.content || !body?.category) {
+  if (!title || !excerpt || !content || !category) {
     return NextResponse.json(
       { message: "Title, excerpt, content, and category are required." },
       { status: 400 }
     );
   }
 
-  const post = await createPost(body);
+  if (media && typeof media !== "string") {
+    const isSupported = media.type.startsWith("image/") || media.type.startsWith("video/");
+    if (media.size > 0 && !isSupported) {
+      return NextResponse.json(
+        { message: "Only image and video uploads are supported." },
+        { status: 400 }
+      );
+    }
+  }
+
+  const post = await createPost(
+    {
+      title,
+      excerpt,
+      content,
+      category,
+      author
+    },
+    media && typeof media !== "string" && media.size > 0 ? media : null
+  );
 
   return NextResponse.json(post, { status: 201 });
 }

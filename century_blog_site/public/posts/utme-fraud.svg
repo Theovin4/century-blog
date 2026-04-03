@@ -1,0 +1,20 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#120C02"/>
+  <circle cx="1320" cy="180" r="180" fill="#F59E0B" fill-opacity="0.20"/>
+  <circle cx="220" cy="730" r="230" fill="#FACC15" fill-opacity="0.14"/>
+  <rect x="100" y="110" width="1400" height="680" rx="44" fill="url(#g3)" stroke="#ffffff" stroke-opacity="0.10"/>
+  <rect x="180" y="220" width="420" height="340" rx="28" fill="#111827" stroke="#ffffff" stroke-opacity="0.08"/>
+  <rect x="240" y="280" width="300" height="220" rx="22" fill="#1D4ED8" fill-opacity="0.18" stroke="#60A5FA" stroke-width="10" stroke-dasharray="24 18"/>
+  <path d="M720 265H1320" stroke="#ffffff" stroke-opacity="0.18" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 355H1260" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 445H1180" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 535H1210" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M720 625H1100" stroke="#F59E0B" stroke-width="20" stroke-linecap="round"/>
+  <text x="180" y="160" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="54" font-weight="700">UTME 2026 Integrity Check</text>
+  <defs>
+    <linearGradient id="g3" x1="100" y1="110" x2="1500" y2="790" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1F2937"/>
+      <stop offset="1" stop-color="#78350F"/>
+    </linearGradient>
+  </defs>
+</svg>

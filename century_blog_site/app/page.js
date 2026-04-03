@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { PostCard } from "@/components/site/PostCard";
 import { NewsTicker } from "@/components/site/NewsTicker";
@@ -10,32 +11,72 @@ export default async function HomePage() {
   const posts = await getPosts();
   const featuredPost = posts.find((post) => post.featured) || posts[0];
   const secondaryPosts = posts.filter((post) => post.slug !== featuredPost?.slug);
+  const siteUrl = getSiteUrl();
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Blog",
-    name: "Century Blog",
-    description:
-      "Century Blog is a Nigerian blog focused on lifestyle, health, education, and daily gist.",
-    url: getSiteUrl(),
-    inLanguage: "en-NG",
-    blogPost: posts.slice(0, 3).map((post) => ({
-      "@type": "BlogPosting",
-      headline: post.title,
-      datePublished: post.publishedAt,
-      author: {
-        "@type": "Organization",
-        name: "Century Blog"
-      },
-      url: `${getSiteUrl()}/news/${post.slug}`
-    }))
-  };
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "Century Blog",
+      url: siteUrl,
+      logo: `${siteUrl}/century-blog-logo.png`
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Century Blog",
+      url: siteUrl,
+      inLanguage: "en-NG",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${siteUrl}/news/{search_term_string}`,
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Blog",
+      name: "Century Blog",
+      description:
+        "Century Blog is a Nigerian blog focused on lifestyle, health, education, and daily gist.",
+      url: siteUrl,
+      inLanguage: "en-NG",
+      blogPost: posts.slice(0, 3).map((post) => ({
+        "@type": "BlogPosting",
+        headline: post.title,
+        datePublished: post.publishedAt,
+        image: post.mediaUrl ? [`${siteUrl}${post.mediaUrl}`] : undefined,
+        author: {
+          "@type": "Organization",
+          name: "Century Blog"
+        },
+        url: `${siteUrl}/news/${post.slug}`
+      }))
+    }
+  ];
+
+  const featuredHasImage = featuredPost?.mediaUrl && featuredPost.mediaType?.startsWith("image/");
 
   return (
     <main className="page-shell">
       <section className="hero-grid">
         <div className="hero-copy">
-          <span className="eyebrow">Century Blog</span>
+          <div className="brand-lockup">
+            <div className="brand-mark">
+              <Image
+                src="/century-blog-logo.png"
+                alt="Century Blog logo"
+                width={140}
+                height={140}
+                priority
+                className="brand-mark__image"
+              />
+            </div>
+            <div className="brand-copy">
+              <span className="eyebrow eyebrow-brand">Century Blog</span>
+              <p className="brand-copy__tag">Lifestyle, health, education and daily gist</p>
+            </div>
+          </div>
           <h1>
             Dark, sharp, and built for the stories Nigerians are actually talking about.
           </h1>
@@ -55,6 +96,16 @@ export default async function HomePage() {
 
         {featuredPost ? (
           <article className={`feature-card ${featuredPost.coverStyle}`}>
+            {featuredHasImage ? (
+              <Image
+                src={featuredPost.mediaUrl}
+                alt={featuredPost.title}
+                fill
+                priority
+                sizes="(max-width: 980px) 100vw, 50vw"
+                className="feature-card__image"
+              />
+            ) : null}
             <div className="feature-card__inner">
               <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
               <p className="muted">

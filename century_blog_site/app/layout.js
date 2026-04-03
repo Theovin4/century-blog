@@ -1,6 +1,7 @@
+import Script from "next/script";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.centurybloggs.com";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
@@ -23,6 +24,8 @@ export const metadata = {
   authors: [{ name: "Century Blog" }],
   creator: "Century Blog",
   publisher: "Century Blog",
+  category: "news",
+  manifest: "/manifest.webmanifest",
   alternates: {
     canonical: "/"
   },
@@ -33,13 +36,30 @@ export const metadata = {
     url: siteUrl,
     siteName: "Century Blog",
     locale: "en_NG",
-    type: "website"
+    type: "website",
+    images: [
+      {
+        url: `${siteUrl}/century-blog-logo.png`,
+        width: 768,
+        height: 768,
+        alt: "Century Blog logo"
+      }
+    ]
   },
   twitter: {
     card: "summary_large_image",
     title: "Century Blog",
     description:
-      "A beautiful dark themed Nigerian blog for lifestyle, health, education, and daily gist."
+      "A beautiful dark themed Nigerian blog for lifestyle, health, education, and daily gist.",
+    images: [`${siteUrl}/century-blog-logo.png`]
+  },
+  icons: {
+    icon: "/century-blog-logo.png",
+    shortcut: "/century-blog-logo.png",
+    apple: "/century-blog-logo.png"
+  },
+  other: {
+    "google-adsense-account": "ca-pub-1037358753872630"
   },
   robots: {
     index: true,
@@ -57,7 +77,16 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Script
+          id="google-adsense"
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1037358753872630"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+        {children}
+      </body>
     </html>
   );
 }

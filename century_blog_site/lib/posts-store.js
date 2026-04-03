@@ -5,6 +5,7 @@ import { list, put } from "@vercel/blob";
 import { estimateReadTime, getCoverStyle, slugify } from "@/lib/site";
 
 const localFilePath = path.join(process.cwd(), "data", "posts.json");
+const localUploadsDir = path.join(process.cwd(), "public", "uploads");
 const blobKey = "century-blog/posts.json";
 
 async function readLocalPosts() {
@@ -38,6 +39,64 @@ async function writeBlobPosts(posts) {
 
 function shouldUseBlob() {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
+function getFileExtension(file) {
+  const filename = file?.name || "";
+  const extension = path.extname(filename);
+
+  if (extension) {
+    return extension.toLowerCase();
+  }
+
+  if (file?.type?.startsWith("image/")) {
+    return ".jpg";
+  }
+
+  if (file?.type?.startsWith("video/")) {
+    return ".mp4";
+  }
+
+  return "";
+}
+
+async function saveMediaFile(file, slug) {
+  if (!file) {
+    return {
+      mediaUrl: "",
+      mediaType: "",
+      mediaName: ""
+    };
+  }
+
+  const extension = getFileExtension(file);
+  const safeName = `${slug}-${crypto.randomUUID()}${extension}`;
+
+  if (shouldUseBlob()) {
+    const blob = await put(`century-blog/media/${safeName}`, file, {
+      access: "public",
+      addRandomSuffix: false,
+      contentType: file.type || undefined
+    });
+
+    return {
+      mediaUrl: blob.url,
+      mediaType: file.type || "",
+      mediaName: file.name || safeName
+    };
+  }
+
+  await fs.mkdir(localUploadsDir, { recursive: true });
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const targetPath = path.join(localUploadsDir, safeName);
+  await fs.writeFile(targetPath, buffer);
+
+  return {
+    mediaUrl: `/uploads/${safeName}`,
+    mediaType: file.type || "",
+    mediaName: file.name || safeName
+  };
 }
 
 async function readPostsSource() {
@@ -79,12 +138,13 @@ export async function getPostBySlug(slug) {
   return posts.find((post) => post.slug === slug) || null;
 }
 
-export async function createPost(input) {
+export async function createPost(input, mediaFile = null) {
   const posts = await getPosts();
   const slugBase = slugify(input.title);
   const duplicateCount = posts.filter((post) => post.slug.startsWith(slugBase)).length;
   const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
   const now = new Date().toISOString();
+  const media = await saveMediaFile(mediaFile, slug);
 
   const post = {
     id: crypto.randomUUID(),
@@ -94,8 +154,9 @@ export async function createPost(input) {
     content: input.content.trim(),
     category: input.category,
     author: input.author?.trim() || "Century Blog Editorial Team",
-    sourceName: input.sourceName?.trim() || "",
-    sourceUrl: input.sourceUrl?.trim() || "",
+    mediaUrl: media.mediaUrl,
+    mediaType: media.mediaType,
+    mediaName: media.mediaName,
     publishedAt: now,
     updatedAt: now,
     readTime: estimateReadTime(input.content),

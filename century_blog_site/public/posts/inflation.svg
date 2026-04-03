@@ -1,0 +1,20 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#0B1020"/>
+  <circle cx="1250" cy="180" r="180" fill="#7C3AED" fill-opacity="0.24"/>
+  <circle cx="260" cy="740" r="240" fill="#06B6D4" fill-opacity="0.18"/>
+  <rect x="110" y="120" width="1380" height="660" rx="40" fill="url(#g1)" fill-opacity="0.88" stroke="#ffffff" stroke-opacity="0.10"/>
+  <rect x="180" y="210" width="500" height="360" rx="28" fill="#111827" stroke="#ffffff" stroke-opacity="0.08"/>
+  <path d="M260 500C300 450 365 400 450 356C527 317 612 287 640 262" stroke="#F59E0B" stroke-width="26" stroke-linecap="round"/>
+  <path d="M260 500C305 526 356 542 420 552C482 562 556 562 640 540" stroke="#22C55E" stroke-width="20" stroke-linecap="round" opacity="0.85"/>
+  <path d="M740 300H1320" stroke="#ffffff" stroke-opacity="0.18" stroke-width="18" stroke-linecap="round"/>
+  <path d="M740 390H1260" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M740 480H1190" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <path d="M740 570H1100" stroke="#ffffff" stroke-opacity="0.12" stroke-width="18" stroke-linecap="round"/>
+  <text x="180" y="140" fill="#E5E7EB" font-family="Arial, sans-serif" font-size="54" font-weight="700">Nigeria Inflation Update</text>
+  <defs>
+    <linearGradient id="g1" x1="110" y1="120" x2="1490" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+</svg>

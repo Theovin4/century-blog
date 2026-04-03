@@ -22,7 +22,7 @@ const categoryMeta = {
 };
 
 export function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://www.centurybloggs.com";
+  return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 }
 
 export function formatLongDate(value) {

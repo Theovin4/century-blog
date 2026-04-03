@@ -14,7 +14,7 @@ export async function generateMetadata({ params }) {
     };
   }
 
-  return {
+  const metadata = {
     title: post.title,
     description: post.excerpt,
     alternates: {
@@ -34,6 +34,13 @@ export async function generateMetadata({ params }) {
       description: post.excerpt
     }
   };
+
+  if (post.mediaUrl && post.mediaType?.startsWith("image/")) {
+    metadata.openGraph.images = [{ url: post.mediaUrl, alt: post.title }];
+    metadata.twitter.images = [post.mediaUrl];
+  }
+
+  return metadata;
 }
 
 export async function generateStaticParams() {
@@ -68,6 +75,10 @@ export default async function PostPage({ params }) {
     articleSection: getCategoryMeta(post.category).label
   };
 
+  if (post.mediaUrl && post.mediaType?.startsWith("image/")) {
+    jsonLd.image = [post.mediaUrl];
+  }
+
   return (
     <main className="page-shell article-shell">
       <article className="article">
@@ -82,24 +93,23 @@ export default async function PostPage({ params }) {
           </div>
         </div>
 
+        {post.mediaUrl ? (
+          <div className="article-media-wrap">
+            {post.mediaType?.startsWith("video/") ? (
+              <video className="article-media" controls preload="metadata">
+                <source src={post.mediaUrl} type={post.mediaType} />
+              </video>
+            ) : (
+              <img className="article-media" src={post.mediaUrl} alt={post.title} />
+            )}
+          </div>
+        ) : null}
+
         <div className="article-body">
           {post.content.split("\n\n").map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
           ))}
         </div>
-
-        {post.sourceUrl ? (
-          <div className="source-box">
-            <h2>Source</h2>
-            <p>
-              This story was adapted from reporting by{" "}
-              <a href={post.sourceUrl} target="_blank" rel="noreferrer">
-                {post.sourceName}
-              </a>
-              .
-            </p>
-          </div>
-        ) : null}
       </article>
 
       <script
