@@ -1,5 +1,5 @@
 import { getPosts } from "@/lib/posts-store";
-import { getSiteUrl } from "@/lib/site";
+import { categoryOptions, getSiteUrl } from "@/lib/site";
 
 export default async function sitemap() {
   const siteUrl = getSiteUrl();
@@ -22,6 +22,10 @@ export default async function sitemap() {
       url: `${siteUrl}/privacy-policy`,
       lastModified: new Date()
     },
+    ...categoryOptions.map((category) => ({
+      url: `${siteUrl}/category/${category}`,
+      lastModified: new Date()
+    })),
     ...posts.map((post) => ({
       url: `${siteUrl}/news/${post.slug}`,
       lastModified: new Date(post.updatedAt || post.publishedAt)

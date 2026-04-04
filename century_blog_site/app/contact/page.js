@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ContactForm } from "@/components/forms/ContactForm";
 
 export const metadata = {
   title: "Contact",
@@ -16,11 +17,12 @@ export default function ContactPage() {
         <h1>Reach Century Blog</h1>
         <p>
           For editorial feedback, partnerships, corrections, or advertising enquiries, you can
-          contact the Century Blog team through this email.
+          contact the Century Blog team through this email or use the contact form below.
         </p>
         <p>
           <strong>1todoyou2@gmail.com</strong>
         </p>
+        <ContactForm />
       </section>
     </main>
   );

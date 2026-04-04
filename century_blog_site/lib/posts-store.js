@@ -138,6 +138,11 @@ export async function getPostBySlug(slug) {
   return posts.find((post) => post.slug === slug) || null;
 }
 
+export async function getPostById(id) {
+  const posts = await getPosts();
+  return posts.find((post) => String(post.id) === String(id)) || null;
+}
+
 export async function createPost(input, mediaFile = null) {
   const posts = await getPosts();
   const slugBase = slugify(input.title);
@@ -167,4 +172,57 @@ export async function createPost(input, mediaFile = null) {
   const updatedPosts = [post, ...posts];
   await writePostsSource(updatedPosts);
   return post;
+}
+
+export async function updatePost(id, input, mediaFile = null) {
+  const posts = await getPosts();
+  const existing = posts.find((post) => String(post.id) === String(id));
+
+  if (!existing) {
+    return null;
+  }
+
+  const nextTitle = input.title?.trim() || existing.title;
+  const slugBase = slugify(nextTitle);
+  const duplicateCount = posts.filter(
+    (post) => String(post.id) !== String(id) && post.slug.startsWith(slugBase)
+  ).length;
+  const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
+  const now = new Date().toISOString();
+  const media = mediaFile ? await saveMediaFile(mediaFile, slug) : null;
+
+  const updatedPost = {
+    ...existing,
+    slug,
+    title: nextTitle,
+    excerpt: input.excerpt?.trim() || existing.excerpt,
+    content: input.content?.trim() || existing.content,
+    category: input.category || existing.category,
+    author: input.author?.trim() || existing.author,
+    mediaUrl: media ? media.mediaUrl : existing.mediaUrl,
+    mediaType: media ? media.mediaType : existing.mediaType,
+    mediaName: media ? media.mediaName : existing.mediaName,
+    updatedAt: now,
+    readTime: estimateReadTime(input.content?.trim() || existing.content),
+    coverStyle: getCoverStyle(input.category || existing.category)
+  };
+
+  const updatedPosts = posts.map((post) =>
+    String(post.id) === String(id) ? updatedPost : post
+  );
+  await writePostsSource(updatedPosts);
+  return updatedPost;
+}
+
+export async function deletePost(id) {
+  const posts = await getPosts();
+  const exists = posts.some((post) => String(post.id) === String(id));
+
+  if (!exists) {
+    return false;
+  }
+
+  const updatedPosts = posts.filter((post) => String(post.id) !== String(id));
+  await writePostsSource(updatedPosts);
+  return true;
 }

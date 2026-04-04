@@ -1,4 +1,4 @@
-const categoryMeta = {
+export const categoryMeta = {
   lifestyle: {
     label: "Lifestyle",
     accent: "linear-gradient(135deg, #ff9966, #ff5e62)",
@@ -21,6 +21,8 @@ const categoryMeta = {
   }
 };
 
+export const categoryOptions = Object.keys(categoryMeta);
+
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 }
@@ -35,6 +37,10 @@ export function formatLongDate(value) {
 
 export function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta["daily-gist"];
+}
+
+export function isValidCategory(category) {
+  return categoryOptions.includes(category);
 }
 
 export function slugify(input) {
@@ -59,4 +65,20 @@ export function getCoverStyle(category) {
   };
 
   return styles[category] || styles["daily-gist"];
+}
+
+export function filterPosts(posts, filters = {}) {
+  const query = String(filters.query || "").trim().toLowerCase();
+  const category = String(filters.category || "").trim();
+
+  return posts.filter((post) => {
+    const matchesCategory = category ? post.category === category : true;
+    const matchesQuery = query
+      ? [post.title, post.excerpt, post.content, post.author]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(query))
+      : true;
+
+    return matchesCategory && matchesQuery;
+  });
 }
