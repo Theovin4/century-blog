@@ -646,3 +646,48 @@ button {
   width: 96px;
   height: 96px;
 }
+
+.footer-links {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2rem;
+  padding: 1rem 0 0;
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+}
+
+.footer-links a {
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.legal-page {
+  min-height: 70vh;
+}
+
+.legal-card {
+  max-width: 840px;
+  margin: 0 auto;
+  padding: 2rem;
+  border-radius: 32px;
+  border: 1px solid var(--line);
+  background: var(--bg-elevated);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow);
+}
+
+.legal-card h1 {
+  margin: 0.45rem 0 1rem;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 0.98;
+}
+
+.legal-card p {
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.8;
+}

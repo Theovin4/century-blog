@@ -82,13 +82,10 @@ export default async function HomePage() {
           </h1>
           <p className="hero-text">
             A dynamic blog covering lifestyle, health, education, and daily gist with a polished
-            reading experience and a dashboard that makes publishing simple.
+            reading experience designed for readers, not admin promotion.
           </p>
           <div className="hero-actions">
-            <Link href="/dashboard" className="button button-primary">
-              Open dashboard
-            </Link>
-            <a href="#latest" className="button button-secondary">
+            <a href="#latest" className="button button-primary">
               Explore latest posts
             </a>
           </div>
@@ -143,8 +140,8 @@ export default async function HomePage() {
             <h2>Fresh stories for your readers</h2>
           </div>
           <p>
-            These starter posts are already wired into the CMS data layer, so new posts from the
-            dashboard show up here automatically.
+            These stories are wired into the content layer so the homepage stays current and easy
+            to browse.
           </p>
         </div>
 
@@ -155,18 +152,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="dashboard-promo">
-        <div>
-          <span className="eyebrow">Publisher Ready</span>
-          <h2>Your admin dashboard is part of the site</h2>
-          <p>
-            Log in, create a post, choose a category, and publish. The homepage, article page,
-            sitemap, and internal links update from the same content source.
-          </p>
-        </div>
-        <Link href="/dashboard" className="button button-primary">
-          Manage posts
-        </Link>
+      <section className="footer-links">
+        <Link href="/about">About</Link>
+        <Link href="/contact">Contact</Link>
+        <Link href="/privacy-policy">Privacy Policy</Link>
       </section>
 
       <script
