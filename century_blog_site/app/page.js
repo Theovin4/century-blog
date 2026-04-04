@@ -109,12 +109,9 @@ export default async function HomePage({ searchParams }) {
         {featuredPost ? (
           <article className={`feature-card ${featuredPost.coverStyle}`}>
             {featuredHasImage ? (
-              <Image
+              <img
                 src={featuredPost.mediaUrl}
                 alt={featuredPost.title}
-                fill
-                priority
-                sizes="(max-width: 980px) 100vw, 50vw"
                 className="feature-card__image"
               />
             ) : null}
