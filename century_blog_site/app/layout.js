@@ -59,7 +59,8 @@ export const metadata = {
     apple: "/century-blog-logo.png"
   },
   other: {
-    "google-adsense-account": "ca-pub-1037358753872630"
+    "google-adsense-account": "ca-pub-1037358753872630",
+    "google-site-verification": "KkO1C4c8bxgmEBRKYl-EOspUpwfBT4yustVIkEu9pIE"
   },
   robots: {
     index: true,
