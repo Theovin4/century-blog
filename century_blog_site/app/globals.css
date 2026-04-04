@@ -709,3 +709,18 @@ button {
 .back-home-button--article {
   margin-bottom: 1.25rem;
 }
+
+.back-home-button {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.back-home-button:hover {
+  border-color: rgba(94, 242, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.back-home-button--article {
+  align-self: flex-start;
+}
