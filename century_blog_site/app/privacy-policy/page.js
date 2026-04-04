@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "Privacy Policy",
   description:
@@ -8,6 +10,9 @@ export default function PrivacyPolicyPage() {
   return (
     <main className="page-shell legal-page">
       <section className="legal-card">
+        <Link href="/" className="back-home-button">
+          Back to Home
+        </Link>
         <span className="eyebrow">Privacy Policy</span>
         <h1>How Century Blog handles data</h1>
         <p>

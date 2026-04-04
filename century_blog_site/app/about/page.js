@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "About",
   description:
@@ -8,6 +10,9 @@ export default function AboutPage() {
   return (
     <main className="page-shell legal-page">
       <section className="legal-card">
+        <Link href="/" className="back-home-button">
+          Back to Home
+        </Link>
         <span className="eyebrow">About Century Blog</span>
         <h1>Stories that feel close to everyday life in Nigeria</h1>
         <p>

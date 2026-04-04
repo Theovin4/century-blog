@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import { formatLongDate, getCategoryMeta, getSiteUrl } from "@/lib/site";
@@ -83,6 +84,9 @@ export default async function PostPage({ params }) {
     <main className="page-shell article-shell">
       <article className="article">
         <div className={`article-hero ${post.coverStyle}`}>
+          <Link href="/" className="back-home-button back-home-button--article">
+            Back to Home
+          </Link>
           <span className="pill">{getCategoryMeta(post.category).label}</span>
           <h1>{post.title}</h1>
           <p className="article-excerpt">{post.excerpt}</p>
