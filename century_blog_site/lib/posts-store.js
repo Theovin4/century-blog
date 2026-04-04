@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { list, put } from "@vercel/blob";
-import { estimateReadTime, getCoverStyle, slugify } from "@/lib/site";
+import { estimateReadTime, getCoverStyle, inferMediaType, slugify } from "@/lib/site";
 
 const localFilePath = path.join(process.cwd(), "data", "posts.json");
 const localUploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -60,6 +60,19 @@ function getFileExtension(file) {
   return "";
 }
 
+function normalizePost(post) {
+  const mediaUrl = post.mediaUrl || "";
+  const mediaName = post.mediaName || "";
+  const mediaType = post.mediaType || inferMediaType(mediaUrl || mediaName);
+
+  return {
+    ...post,
+    mediaUrl,
+    mediaName,
+    mediaType
+  };
+}
+
 async function saveMediaFile(file, slug) {
   if (!file) {
     return {
@@ -71,17 +84,18 @@ async function saveMediaFile(file, slug) {
 
   const extension = getFileExtension(file);
   const safeName = `${slug}-${crypto.randomUUID()}${extension}`;
+  const mediaType = file.type || inferMediaType(file.name || safeName);
 
   if (shouldUseBlob()) {
     const blob = await put(`century-blog/media/${safeName}`, file, {
       access: "public",
       addRandomSuffix: false,
-      contentType: file.type || undefined
+      contentType: mediaType || undefined
     });
 
     return {
       mediaUrl: blob.url,
-      mediaType: file.type || "",
+      mediaType,
       mediaName: file.name || safeName
     };
   }
@@ -94,7 +108,7 @@ async function saveMediaFile(file, slug) {
 
   return {
     mediaUrl: `/uploads/${safeName}`,
-    mediaType: file.type || "",
+    mediaType,
     mediaName: file.name || safeName
   };
 }
@@ -130,7 +144,9 @@ async function writePostsSource(posts) {
 
 export async function getPosts() {
   const posts = await readPostsSource();
-  return posts.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  return posts
+    .map(normalizePost)
+    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 }
 
 export async function getPostBySlug(slug) {
@@ -151,7 +167,7 @@ export async function createPost(input, mediaFile = null) {
   const now = new Date().toISOString();
   const media = await saveMediaFile(mediaFile, slug);
 
-  const post = {
+  const post = normalizePost({
     id: crypto.randomUUID(),
     slug,
     title: input.title.trim(),
@@ -167,7 +183,7 @@ export async function createPost(input, mediaFile = null) {
     readTime: estimateReadTime(input.content),
     coverStyle: getCoverStyle(input.category),
     featured: false
-  };
+  });
 
   const updatedPosts = [post, ...posts];
   await writePostsSource(updatedPosts);
@@ -191,7 +207,7 @@ export async function updatePost(id, input, mediaFile = null) {
   const now = new Date().toISOString();
   const media = mediaFile ? await saveMediaFile(mediaFile, slug) : null;
 
-  const updatedPost = {
+  const updatedPost = normalizePost({
     ...existing,
     slug,
     title: nextTitle,
@@ -205,7 +221,7 @@ export async function updatePost(id, input, mediaFile = null) {
     updatedAt: now,
     readTime: estimateReadTime(input.content?.trim() || existing.content),
     coverStyle: getCoverStyle(input.category || existing.category)
-  };
+  });
 
   const updatedPosts = posts.map((post) =>
     String(post.id) === String(id) ? updatedPost : post

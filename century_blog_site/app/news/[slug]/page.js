@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
-import { formatLongDate, getCategoryMeta, getSiteUrl } from "@/lib/site";
+import {
+  formatLongDate,
+  getCategoryMeta,
+  getSiteUrl,
+  isImageMedia,
+  isVideoMedia,
+  toAbsoluteUrl
+} from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -36,9 +43,10 @@ export async function generateMetadata({ params }) {
     }
   };
 
-  if (post.mediaUrl && post.mediaType?.startsWith("image/")) {
-    metadata.openGraph.images = [{ url: post.mediaUrl, alt: post.title }];
-    metadata.twitter.images = [post.mediaUrl];
+  if (isImageMedia(post.mediaUrl, post.mediaType)) {
+    const imageUrl = toAbsoluteUrl(post.mediaUrl);
+    metadata.openGraph.images = [{ url: imageUrl, alt: post.title }];
+    metadata.twitter.images = [imageUrl];
   }
 
   return metadata;
@@ -76,8 +84,8 @@ export default async function PostPage({ params }) {
     articleSection: getCategoryMeta(post.category).label
   };
 
-  if (post.mediaUrl && post.mediaType?.startsWith("image/")) {
-    jsonLd.image = [post.mediaUrl];
+  if (isImageMedia(post.mediaUrl, post.mediaType)) {
+    jsonLd.image = [toAbsoluteUrl(post.mediaUrl)];
   }
 
   return (
@@ -99,7 +107,7 @@ export default async function PostPage({ params }) {
 
         {post.mediaUrl ? (
           <div className="article-media-wrap">
-            {post.mediaType?.startsWith("video/") ? (
+            {isVideoMedia(post.mediaUrl, post.mediaType) ? (
               <video className="article-media" controls preload="metadata">
                 <source src={post.mediaUrl} type={post.mediaType} />
               </video>

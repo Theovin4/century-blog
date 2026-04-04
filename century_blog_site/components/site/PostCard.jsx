@@ -1,10 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatLongDate, getCategoryMeta } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, isImageMedia } from "@/lib/site";
 
 export function PostCard({ post }) {
   const category = getCategoryMeta(post.category);
-  const hasImage = post.mediaUrl && post.mediaType?.startsWith("image/");
+  const hasImage = isImageMedia(post.mediaUrl, post.mediaType);
 
   return (
     <article className="post-card">

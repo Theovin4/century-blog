@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { createPost, getPosts } from "@/lib/posts-store";
+import { inferMediaType } from "@/lib/site";
 
 export async function GET() {
   const posts = await getPosts();
@@ -32,7 +33,8 @@ export async function POST(request) {
   }
 
   if (media && typeof media !== "string") {
-    const isSupported = media.type.startsWith("image/") || media.type.startsWith("video/");
+    const mediaType = media.type || inferMediaType(media.name);
+    const isSupported = mediaType.startsWith("image/") || mediaType.startsWith("video/");
     if (media.size > 0 && !isSupported) {
       return NextResponse.json(
         { message: "Only image and video uploads are supported." },

@@ -118,7 +118,7 @@ export function DashboardShell({ initialPosts }) {
       </div>
 
       <div className="dashboard-grid">
-        <form className="editor-form" onSubmit={handleSubmit}>
+        <form key={draft.id || "create-post"} className="editor-form" onSubmit={handleSubmit}>
           <div className="editor-form__header">
             <h2>{draft.id ? "Edit post" : "Create a post"}</h2>
             <p>

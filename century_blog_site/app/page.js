@@ -5,7 +5,14 @@ import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { NewsTicker } from "@/components/site/NewsTicker";
 import { getPosts } from "@/lib/posts-store";
-import { filterPosts, formatLongDate, getCategoryMeta, getSiteUrl } from "@/lib/site";
+import {
+  filterPosts,
+  formatLongDate,
+  getCategoryMeta,
+  getSiteUrl,
+  isImageMedia,
+  toAbsoluteUrl
+} from "@/lib/site";
 
 export const revalidate = 300;
 
@@ -50,7 +57,7 @@ export default async function HomePage({ searchParams }) {
         "@type": "BlogPosting",
         headline: post.title,
         datePublished: post.publishedAt,
-        image: post.mediaUrl ? [`${siteUrl}${post.mediaUrl}`] : undefined,
+        image: post.mediaUrl ? [toAbsoluteUrl(post.mediaUrl)] : undefined,
         author: {
           "@type": "Organization",
           name: "Century Blog"
@@ -60,7 +67,7 @@ export default async function HomePage({ searchParams }) {
     }
   ];
 
-  const featuredHasImage = featuredPost?.mediaUrl && featuredPost.mediaType?.startsWith("image/");
+  const featuredHasImage = isImageMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
 
   return (
     <main className="page-shell">
