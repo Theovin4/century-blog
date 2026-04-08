@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { ContactForm } from "@/components/forms/ContactForm";
+import { SiteFooter } from "@/components/site/SiteFooter";
 
 export const metadata = {
   title: "Contact",
-  description: "Contact Century Blog for editorial enquiries, partnerships, and feedback."
+  description: "Contact Century Blog for editorial enquiries, partnerships, and feedback.",
+  alternates: {
+    canonical: "/contact"
+  }
 };
 
 export default function ContactPage() {
@@ -24,6 +28,7 @@ export default function ContactPage() {
         </p>
         <ContactForm />
       </section>
+      <SiteFooter />
     </main>
   );
 }

@@ -1,22 +1,32 @@
-import Image from "next/image";
 import Link from "next/link";
-import { formatLongDate, getCategoryMeta, isImageMedia } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
 
 export function PostCard({ post }) {
   const category = getCategoryMeta(post.category);
   const hasImage = isImageMedia(post.mediaUrl, post.mediaType);
+  const hasVideo = isVideoMedia(post.mediaUrl, post.mediaType);
 
   return (
     <article className="post-card">
       <div className={`post-card__cover ${post.coverStyle}`}>
         {hasImage ? (
-          <Image
+          <img
             src={post.mediaUrl}
             alt={post.title}
-            fill
-            sizes="(max-width: 980px) 100vw, 33vw"
-            className="post-card__image"
+            className="post-card__media post-card__image"
+            loading="lazy"
+            decoding="async"
           />
+        ) : null}
+        {hasVideo ? (
+          <video
+            className="post-card__media post-card__video"
+            muted
+            playsInline
+            preload="metadata"
+          >
+            <source src={post.mediaUrl} type={post.mediaType} />
+          </video>
         ) : null}
         <span className="pill">{category.label}</span>
       </div>

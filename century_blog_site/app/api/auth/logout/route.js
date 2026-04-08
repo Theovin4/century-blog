@@ -7,10 +7,11 @@ export async function POST() {
     name: "century_admin_session",
     value: "",
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 0
+    maxAge: 0,
+    priority: "high"
   });
 
   return response;

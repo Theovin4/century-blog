@@ -1,5 +1,6 @@
 import Script from "next/script";
 import "./globals.css";
+import { socialLinks } from "@/lib/site";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 const gaId = process.env.NEXT_PUBLIC_GA_ID;
@@ -77,6 +78,15 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const organizationLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Century Blog",
+    url: siteUrl,
+    logo: `${siteUrl}/century-blog-logo.png`,
+    sameAs: socialLinks.map((link) => link.href)
+  };
+
   return (
     <html lang="en">
       <body>
@@ -96,10 +106,11 @@ export default function RootLayout({ children }) {
               strategy="afterInteractive"
             />
             <Script id="google-analytics-config" strategy="afterInteractive">
-              {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '${gaId}');`}
+              {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '${gaId}', { anonymize_ip: true });`}
             </Script>
           </>
         ) : null}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
         {children}
       </body>
     </html>

@@ -4,6 +4,7 @@ import { NewsletterForm } from "@/components/forms/NewsletterForm";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { NewsTicker } from "@/components/site/NewsTicker";
+import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
   filterPosts,
@@ -11,6 +12,8 @@ import {
   getCategoryMeta,
   getSiteUrl,
   isImageMedia,
+  isVideoMedia,
+  socialLinks,
   toAbsoluteUrl
 } from "@/lib/site";
 
@@ -31,7 +34,8 @@ export default async function HomePage({ searchParams }) {
       "@type": "Organization",
       name: "Century Blog",
       url: siteUrl,
-      logo: `${siteUrl}/century-blog-logo.png`
+      logo: `${siteUrl}/century-blog-logo.png`,
+      sameAs: socialLinks.map((link) => link.href)
     },
     {
       "@context": "https://schema.org",
@@ -57,7 +61,7 @@ export default async function HomePage({ searchParams }) {
         "@type": "BlogPosting",
         headline: post.title,
         datePublished: post.publishedAt,
-        image: post.mediaUrl ? [toAbsoluteUrl(post.mediaUrl)] : undefined,
+        image: isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined,
         author: {
           "@type": "Organization",
           name: "Century Blog"
@@ -68,6 +72,7 @@ export default async function HomePage({ searchParams }) {
   ];
 
   const featuredHasImage = isImageMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
+  const featuredHasVideo = isVideoMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
 
   return (
     <main className="page-shell">
@@ -89,9 +94,7 @@ export default async function HomePage({ searchParams }) {
               <p className="brand-copy__tag">Lifestyle, health, education and daily gist</p>
             </div>
           </div>
-          <h1>
-            Dark, sharp, and built for the stories Nigerians are actually talking about.
-          </h1>
+          <h1>Dark, sharp, and built for the stories Nigerians are actually talking about.</h1>
           <p className="hero-text">
             A dynamic blog covering lifestyle, health, education, and daily gist with a polished
             reading experience designed for discovery, search, and daily return visits.
@@ -113,7 +116,20 @@ export default async function HomePage({ searchParams }) {
                 src={featuredPost.mediaUrl}
                 alt={featuredPost.title}
                 className="feature-card__image"
+                fetchPriority="high"
               />
+            ) : null}
+            {featuredHasVideo ? (
+              <video
+                className="feature-card__video"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              >
+                <source src={featuredPost.mediaUrl} type={featuredPost.mediaType} />
+              </video>
             ) : null}
             <div className="feature-card__inner">
               <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
@@ -184,11 +200,7 @@ export default async function HomePage({ searchParams }) {
         <NewsletterForm />
       </section>
 
-      <section className="footer-links">
-        <Link href="/about">About</Link>
-        <Link href="/contact">Contact</Link>
-        <Link href="/privacy-policy">Privacy Policy</Link>
-      </section>
+      <SiteFooter />
 
       <script
         type="application/ld+json"

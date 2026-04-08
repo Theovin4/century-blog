@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { SiteFooter } from "@/components/site/SiteFooter";
 
 export const metadata = {
   title: "Privacy Policy",
   description:
-    "Read the Century Blog privacy policy for information about cookies, analytics, ads, and user data."
+    "Read the Century Blog privacy policy for information about cookies, analytics, ads, and user data.",
+  alternates: {
+    canonical: "/privacy-policy"
+  }
 };
 
 export default function PrivacyPolicyPage() {
@@ -16,8 +20,8 @@ export default function PrivacyPolicyPage() {
         <span className="eyebrow">Privacy Policy</span>
         <h1>How Century Blog handles data</h1>
         <p>
-          Century Blog may use cookies, basic analytics, and advertising tools such as Google
-          AdSense to improve site performance and support publishing.
+          Century Blog may use cookies, basic analytics, advertising tools such as Google AdSense,
+          and newsletter integrations to improve site performance and support publishing.
         </p>
         <p>
           We do not ask readers to create public accounts on the site. Limited technical data such
@@ -31,9 +35,10 @@ export default function PrivacyPolicyPage() {
         </p>
         <p>
           This policy should be updated whenever you add new third-party services, mailing lists,
-          contact forms, or analytics providers.
+          contact forms, analytics providers, or external newsletter tools such as Substack.
         </p>
       </section>
+      <SiteFooter />
     </main>
   );
 }

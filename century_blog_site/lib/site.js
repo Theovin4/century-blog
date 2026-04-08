@@ -21,10 +21,56 @@ export const categoryMeta = {
   }
 };
 
+export const socialLinks = [
+  {
+    label: "Facebook",
+    shortLabel: "FB",
+    href: "https://www.facebook.com/share/1HiQttvcY9/"
+  },
+  {
+    label: "Instagram",
+    shortLabel: "IG",
+    href: "https://www.instagram.com/centuryblogg?igsh=MXVod215dXR0emh5Ng=="
+  },
+  {
+    label: "X",
+    shortLabel: "X",
+    href: "https://x.com/Centuryblogg"
+  },
+  {
+    label: "TikTok",
+    shortLabel: "TT",
+    href: "https://www.tiktok.com/@centuryblog?_t=ZS-8zilxELlZwO&_r=1"
+  },
+  {
+    label: "YouTube",
+    shortLabel: "YT",
+    href: "https://www.youtube.com/channel/UC-sjrlVxH4rBp6967rc2QeQ"
+  },
+  {
+    label: "Pinterest",
+    shortLabel: "PT",
+    href: "https://pin.it/VqLX3zjoS"
+  },
+  {
+    label: "Telegram",
+    shortLabel: "TG",
+    href: "https://t.me/centuryblog"
+  }
+];
+
 export const categoryOptions = Object.keys(categoryMeta);
 
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
+}
+
+export function getSubstackUrl() {
+  return process.env.NEXT_PUBLIC_SUBSTACK_URL || "";
+}
+
+export function getSubstackSubscribeUrl() {
+  return process.env.SUBSTACK_SUBSCRIBE_URL || "";
 }
 
 export function isAbsoluteUrl(value) {
@@ -163,4 +209,22 @@ export function filterPosts(posts, filters = {}) {
 
     return matchesCategory && matchesQuery;
   });
+}
+
+export function getPostUrl(post) {
+  return `${getSiteUrl()}/news/${post.slug}`;
+}
+
+export function buildShareLinks(post) {
+  const postUrl = getPostUrl(post);
+  const encodedUrl = encodeURIComponent(postUrl);
+  const encodedTitle = encodeURIComponent(`${post.title} | Century Blog`);
+  const encodedMedia = encodeURIComponent(toAbsoluteUrl(post.mediaUrl || "/century-blog-logo.png"));
+
+  return {
+    facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
+    x: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
+    telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
+    pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
+  };
 }

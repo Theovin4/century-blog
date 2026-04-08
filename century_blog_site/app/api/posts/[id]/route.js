@@ -2,7 +2,30 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { deletePost, getPostById, updatePost } from "@/lib/posts-store";
-import { inferMediaType } from "@/lib/site";
+import { inferMediaType, isValidCategory } from "@/lib/site";
+
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 40 * 1024 * 1024;
+
+function validateMedia(media) {
+  const mediaType = media.type || inferMediaType(media.name);
+  const isImage = mediaType.startsWith("image/");
+  const isVideo = mediaType.startsWith("video/");
+
+  if (!isImage && !isVideo) {
+    return "Only image and video uploads are supported.";
+  }
+
+  if (isImage && media.size > MAX_IMAGE_SIZE) {
+    return "Images must be 8MB or smaller.";
+  }
+
+  if (isVideo && media.size > MAX_VIDEO_SIZE) {
+    return "Videos must be 40MB or smaller.";
+  }
+
+  return "";
+}
 
 async function requireAdmin() {
   const cookieStore = await cookies();
@@ -36,14 +59,18 @@ export async function PATCH(request, { params }) {
     );
   }
 
-  if (media && typeof media !== "string") {
-    const mediaType = media.type || inferMediaType(media.name);
-    const isSupported = mediaType.startsWith("image/") || mediaType.startsWith("video/");
-    if (media.size > 0 && !isSupported) {
-      return NextResponse.json(
-        { message: "Only image and video uploads are supported." },
-        { status: 400 }
-      );
+  if (title.length > 140 || excerpt.length > 280 || content.length > 20000) {
+    return NextResponse.json({ message: "Post content is too long." }, { status: 400 });
+  }
+
+  if (!isValidCategory(category)) {
+    return NextResponse.json({ message: "Choose a valid category." }, { status: 400 });
+  }
+
+  if (media && typeof media !== "string" && media.size > 0) {
+    const mediaError = validateMedia(media);
+    if (mediaError) {
+      return NextResponse.json({ message: mediaError }, { status: 400 });
     }
   }
 

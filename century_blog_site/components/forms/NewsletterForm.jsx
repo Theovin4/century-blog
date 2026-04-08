@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 
+const substackUrl = process.env.NEXT_PUBLIC_SUBSTACK_URL || "";
+
 export function NewsletterForm() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -33,7 +35,11 @@ export function NewsletterForm() {
 
     event.currentTarget.reset();
     startTransition(() => {
-      setMessage("You have been added to the newsletter list.");
+      setMessage(
+        data.destination === "substack"
+          ? "Subscription captured and forwarded to Substack."
+          : "You have been added to the newsletter list."
+      );
     });
   }
 
@@ -45,9 +51,16 @@ export function NewsletterForm() {
       </label>
       {message ? <p className="form-success">{message}</p> : null}
       {error ? <p className="form-error">{error}</p> : null}
-      <button type="submit" className="button button-primary" disabled={isPending}>
-        {isPending ? "Saving..." : "Join newsletter"}
-      </button>
+      <div className="stack-form__actions">
+        <button type="submit" className="button button-primary" disabled={isPending}>
+          {isPending ? "Saving..." : "Join newsletter"}
+        </button>
+        {substackUrl ? (
+          <a href={substackUrl} target="_blank" rel="noreferrer" className="button button-secondary">
+            Subscribe on Substack
+          </a>
+        ) : null}
+      </div>
     </form>
   );
 }

@@ -1,6 +1,19 @@
 import crypto from "node:crypto";
 
-const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || "change-this-secret";
+const DEFAULT_SECRET = "change-this-secret";
+const SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || DEFAULT_SECRET;
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
 
 export function validateAdminCredentials(username, password) {
   const validUsername = process.env.ADMIN_USERNAME;
@@ -10,7 +23,7 @@ export function validateAdminCredentials(username, password) {
     return false;
   }
 
-  return username === validUsername && password === validPassword;
+  return safeEqual(username, validUsername) && safeEqual(password, validPassword);
 }
 
 export function createAdminSessionToken(username) {
@@ -31,9 +44,14 @@ export function isAdminAuthenticated(token) {
     return false;
   }
 
+  if (process.env.NODE_ENV === "production" && SESSION_SECRET === DEFAULT_SECRET) {
+    return false;
+  }
+
   const payload = `${username}:${timestamp}`;
   const expected = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
-  const isFresh = Date.now() - Number(timestamp) < 1000 * 60 * 60 * 24 * 7;
+  const issuedAt = Number(timestamp);
+  const isFresh = Number.isFinite(issuedAt) && Date.now() - issuedAt < SESSION_TTL_MS;
 
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected)) && isFresh;
+  return isFresh && safeEqual(signature, expected);
 }

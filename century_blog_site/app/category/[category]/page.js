@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
+import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import { categoryOptions, filterPosts, getCategoryMeta, getSiteUrl, isValidCategory } from "@/lib/site";
 
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }) {
 export function generateStaticParams() {
   return categoryOptions.map((category) => ({ category }));
 }
+
 export default async function CategoryPage({ params, searchParams }) {
   const { category } = await params;
 
@@ -72,6 +74,8 @@ export default async function CategoryPage({ params, searchParams }) {
           <p className="empty-state">No posts matched this category filter yet.</p>
         ) : null}
       </section>
+
+      <SiteFooter />
 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
     </main>

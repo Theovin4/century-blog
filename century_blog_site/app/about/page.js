@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { SiteFooter } from "@/components/site/SiteFooter";
 
 export const metadata = {
   title: "About",
   description:
-    "Learn about Century Blog, a Nigerian digital publication covering lifestyle, health, education, and daily gist."
+    "Learn about Century Blog, a Nigerian digital publication covering lifestyle, health, education, and daily gist.",
+  alternates: {
+    canonical: "/about"
+  }
 };
 
 export default function AboutPage() {
@@ -28,6 +32,7 @@ export default function AboutPage() {
           more enjoyable to read on mobile and desktop.
         </p>
       </section>
+      <SiteFooter />
     </main>
   );
 }

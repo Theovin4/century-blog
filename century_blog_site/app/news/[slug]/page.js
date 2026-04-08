@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PostShareBar } from "@/components/site/PostShareBar";
+import { SiteFooter } from "@/components/site/SiteFooter";
+import { SocialLinks } from "@/components/site/SocialLinks";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
   formatLongDate,
@@ -34,6 +37,7 @@ export async function generateMetadata({ params }) {
       url: `${getSiteUrl()}/news/${post.slug}`,
       type: "article",
       publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt || post.publishedAt,
       section: getCategoryMeta(post.category).label
     },
     twitter: {
@@ -81,12 +85,9 @@ export default async function PostPage({ params }) {
       name: "Century Blog"
     },
     mainEntityOfPage: `${getSiteUrl()}/news/${post.slug}`,
-    articleSection: getCategoryMeta(post.category).label
+    articleSection: getCategoryMeta(post.category).label,
+    image: isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined
   };
-
-  if (isImageMedia(post.mediaUrl, post.mediaType)) {
-    jsonLd.image = [toAbsoluteUrl(post.mediaUrl)];
-  }
 
   return (
     <main className="page-shell article-shell">
@@ -108,12 +109,23 @@ export default async function PostPage({ params }) {
         {post.mediaUrl ? (
           <div className="article-media-wrap">
             {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-              <video className="article-media" controls preload="metadata">
+              <video className="article-media" controls preload="metadata" playsInline>
                 <source src={post.mediaUrl} type={post.mediaType} />
               </video>
             ) : (
               <img className="article-media" src={post.mediaUrl} alt={post.title} />
             )}
+            {post.imageCreditName || post.imageCreditUrl ? (
+              <p className="article-media__credit">
+                Media credit: {post.imageCreditUrl ? (
+                  <a href={post.imageCreditUrl} target="_blank" rel="noreferrer">
+                    {post.imageCreditName || "Source"}
+                  </a>
+                ) : (
+                  post.imageCreditName
+                )}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -123,6 +135,10 @@ export default async function PostPage({ params }) {
           ))}
         </div>
       </article>
+
+      <PostShareBar post={post} />
+      <SocialLinks title="Follow Century Blog on every platform" />
+      <SiteFooter />
 
       <script
         type="application/ld+json"

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { categoryOptions, getCategoryMeta } from "@/lib/site";
+import { categoryOptions, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
 
 const emptyDraft = {
   id: "",
@@ -19,15 +19,50 @@ export function DashboardShell({ initialPosts }) {
   const [draft, setDraft] = useState(emptyDraft);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
+  const [preview, setPreview] = useState(null);
   const [isPending, startTransition] = useTransition();
 
+  const activeDraftPost = useMemo(
+    () => posts.find((post) => String(post.id) === String(draft.id)) || null,
+    [posts, draft.id]
+  );
+
+  useEffect(() => {
+    if (!toast) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setToast(""), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  useEffect(() => {
+    return () => {
+      if (preview?.objectUrl) {
+        URL.revokeObjectURL(preview.objectUrl);
+      }
+    };
+  }, [preview]);
+
+  function clearPreview() {
+    setPreview((current) => {
+      if (current?.objectUrl) {
+        URL.revokeObjectURL(current.objectUrl);
+      }
+      return null;
+    });
+  }
+
   function startCreateMode() {
+    clearPreview();
     setDraft(emptyDraft);
     setMessage("");
     setError("");
   }
 
   function startEditMode(post) {
+    clearPreview();
     setDraft({
       id: String(post.id),
       title: post.title,
@@ -39,6 +74,23 @@ export function DashboardShell({ initialPosts }) {
     setMessage("");
     setError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleFileChange(event) {
+    const file = event.currentTarget.files?.[0];
+    clearPreview();
+
+    if (!file) {
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreview({
+      url: objectUrl,
+      type: file.type,
+      name: file.name,
+      objectUrl
+    });
   }
 
   async function handleSubmit(event) {
@@ -62,11 +114,14 @@ export function DashboardShell({ initialPosts }) {
     if (isEditing) {
       setPosts((current) => current.map((post) => (String(post.id) === draft.id ? data : post)));
       setMessage("Post updated successfully.");
+      setToast("Post updated successfully.");
     } else {
       setPosts((current) => [data, ...current]);
       setMessage("Post published successfully.");
+      setToast("Post published successfully.");
     }
 
+    clearPreview();
     setDraft(emptyDraft);
     event.currentTarget.reset();
     startTransition(() => {
@@ -88,9 +143,11 @@ export function DashboardShell({ initialPosts }) {
 
     setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
     if (draft.id === String(postId)) {
+      clearPreview();
       setDraft(emptyDraft);
     }
     setMessage("Post deleted successfully.");
+    setToast("Post deleted successfully.");
     startTransition(() => {
       router.refresh();
     });
@@ -103,8 +160,14 @@ export function DashboardShell({ initialPosts }) {
     });
   }
 
+  const previewUrl = preview?.url || activeDraftPost?.mediaUrl || "";
+  const previewType = preview?.type || activeDraftPost?.mediaType || "";
+  const previewName = preview?.name || activeDraftPost?.mediaName || "";
+
   return (
     <div className="dashboard-shell">
+      {toast ? <div className="dashboard-toast">{toast}</div> : null}
+
       <div className="dashboard-toolbar">
         <p>Logged in. New posts will appear on the homepage automatically.</p>
         <div className="dashboard-toolbar__actions">
@@ -178,12 +241,28 @@ export function DashboardShell({ initialPosts }) {
 
           <label>
             <span>{draft.id ? "Replace image or video" : "Upload image or video"}</span>
-            <input name="media" type="file" accept="image/*,video/*" />
+            <input name="media" type="file" accept="image/*,video/*" onChange={handleFileChange} />
           </label>
 
           <p className="editor-form__hint">
             Upload one featured image or video. Supported files will be attached to the post.
           </p>
+
+          {previewUrl ? (
+            <div className="dashboard-preview">
+              <div className="dashboard-preview__header">
+                <strong>Media preview</strong>
+                {previewName ? <span>{previewName}</span> : null}
+              </div>
+              {isVideoMedia(previewUrl, previewType) ? (
+                <video className="dashboard-preview__media" controls preload="metadata">
+                  <source src={previewUrl} type={previewType} />
+                </video>
+              ) : isImageMedia(previewUrl, previewType) ? (
+                <img className="dashboard-preview__media" src={previewUrl} alt="Post preview" />
+              ) : null}
+            </div>
+          ) : null}
 
           {message ? <p className="form-success">{message}</p> : null}
           {error ? <p className="form-error">{error}</p> : null}
@@ -209,12 +288,21 @@ export function DashboardShell({ initialPosts }) {
           <div className="dashboard-post-list">
             {posts.map((post) => (
               <article key={post.slug} className="dashboard-post-card">
+                <div className="dashboard-post-card__media-wrap">
+                  {isVideoMedia(post.mediaUrl, post.mediaType) ? (
+                    <video className="dashboard-post-card__media" muted playsInline preload="metadata">
+                      <source src={post.mediaUrl} type={post.mediaType} />
+                    </video>
+                  ) : isImageMedia(post.mediaUrl, post.mediaType) ? (
+                    <img className="dashboard-post-card__media" src={post.mediaUrl} alt={post.title} />
+                  ) : null}
+                </div>
                 <span className="pill">{getCategoryMeta(post.category).label}</span>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
                 {post.mediaUrl ? (
                   <p className="dashboard-post-card__meta">
-                    {post.mediaType?.startsWith("video/") ? "Video attached" : "Image attached"}
+                    {isVideoMedia(post.mediaUrl, post.mediaType) ? "Video attached" : "Image attached"}
                   </p>
                 ) : null}
                 <div className="dashboard-post-card__actions">
