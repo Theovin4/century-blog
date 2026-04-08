@@ -195,6 +195,30 @@ export function isVideoMedia(mediaUrl, mediaType) {
   return inferMediaType(mediaType || mediaUrl).startsWith("video/");
 }
 
+
+export function pickFeaturedPost(posts) {
+  if (!Array.isArray(posts) || posts.length === 0) {
+    return null;
+  }
+
+  const manuallyFeatured = posts.find((post) => post.featured);
+
+  if (manuallyFeatured) {
+    return manuallyFeatured;
+  }
+
+  const recentPosts = posts.slice(0, 5);
+  const mediaFirstPool = recentPosts.filter((post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType));
+  const candidatePool = mediaFirstPool.length ? mediaFirstPool : recentPosts;
+
+  if (!candidatePool.length) {
+    return posts[0] || null;
+  }
+
+  const rotationWindowHours = 6;
+  const rotationIndex = Math.floor(Date.now() / (1000 * 60 * 60 * rotationWindowHours)) % candidatePool.length;
+  return candidatePool[rotationIndex];
+}
 export function filterPosts(posts, filters = {}) {
   const query = String(filters.query || "").trim().toLowerCase();
   const category = String(filters.category || "").trim();
@@ -228,3 +252,4 @@ export function buildShareLinks(post) {
     pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
   };
 }
+

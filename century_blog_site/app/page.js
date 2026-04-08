@@ -8,6 +8,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
   filterPosts,
+  pickFeaturedPost,
   formatLongDate,
   getCategoryMeta,
   getSiteUrl,
@@ -24,7 +25,7 @@ export default async function HomePage({ searchParams }) {
   const query = String(resolvedSearchParams?.q || "").trim();
   const posts = await getPosts();
   const filteredPosts = filterPosts(posts, { query });
-  const featuredPost = filteredPosts.find((post) => post.featured) || filteredPosts[0] || posts[0];
+  const featuredPost = pickFeaturedPost(filteredPosts) || pickFeaturedPost(posts);
   const secondaryPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
   const siteUrl = getSiteUrl();
 
@@ -209,3 +210,4 @@ export default async function HomePage({ searchParams }) {
     </main>
   );
 }
+
