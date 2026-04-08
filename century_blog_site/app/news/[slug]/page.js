@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { PostShareBar } from "@/components/site/PostShareBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
@@ -128,10 +130,8 @@ export default async function PostPage({ params }) {
           </div>
         ) : null}
 
-        <div className="article-body">
-          {post.content.split("\n\n").map((paragraph) => (
-            <p key={paragraph}>{paragraph}</p>
-          ))}
+        <div className="article-body blog-content">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
         </div>
       </article>
 
@@ -145,3 +145,4 @@ export default async function PostPage({ params }) {
     </main>
   );
 }
+

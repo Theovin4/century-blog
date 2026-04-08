@@ -212,7 +212,7 @@ export function DashboardShell({ initialPosts }) {
             <textarea
               name="content"
               rows="10"
-              placeholder="Write your post. Separate paragraphs with a blank line."
+              placeholder="Write your post in Markdown. Use ## for headings, **bold** text, lists, and links."
               defaultValue={draft.content}
               required
             />
@@ -321,3 +321,4 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
+

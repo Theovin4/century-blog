@@ -985,3 +985,102 @@ button {
     justify-content: flex-start;
   }
 }
+
+
+.blog-content {
+  max-width: 760px;
+}
+
+.blog-content h1 {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-top: 20px;
+  margin-bottom: 14px;
+  color: #f8fafc;
+}
+
+.blog-content h2 {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.28;
+  margin-top: 18px;
+  margin-bottom: 12px;
+  color: #f8fafc;
+}
+
+.blog-content h3 {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 16px;
+  margin-bottom: 10px;
+  color: #f8fafc;
+}
+
+.blog-content p {
+  line-height: 1.7;
+  margin: 10px 0;
+  color: var(--muted);
+}
+
+.blog-content strong {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.blog-content a {
+  color: #47d6ff;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.blog-content ul,
+.blog-content ol {
+  margin: 12px 0;
+  padding-left: 1.4rem;
+  color: var(--muted);
+}
+
+.blog-content li {
+  margin: 0.45rem 0;
+  line-height: 1.7;
+}
+
+.blog-content blockquote {
+  margin: 1.25rem 0;
+  padding: 0.9rem 1rem;
+  border-left: 3px solid rgba(71, 214, 255, 0.6);
+  background: rgba(10, 17, 28, 0.72);
+  border-radius: 0 16px 16px 0;
+  color: #dbeafe;
+}
+
+.blog-content hr {
+  border: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  margin: 1.5rem 0;
+}
+
+.blog-content code {
+  font-family: "Consolas", "SFMono-Regular", monospace;
+  font-size: 0.95em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  color: #f8fafc;
+}
+
+.blog-content pre {
+  overflow-x: auto;
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 18px;
+  background: #0b1120;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.blog-content pre code {
+  padding: 0;
+  background: transparent;
+}
