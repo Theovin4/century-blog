@@ -1070,3 +1070,20 @@ button {
     min-height: 22rem;
   }
 }
+
+.social-link-chip__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: rgba(94, 242, 255, 0.14);
+  color: var(--cyan);
+  flex: 0 0 auto;
+}
+
+.social-link-chip__icon-svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
