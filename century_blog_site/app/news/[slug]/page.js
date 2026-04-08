@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PostEngagement } from "@/components/site/PostEngagement";
 import { PostShareBar } from "@/components/site/PostShareBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { getEngagementBySlug } from "@/lib/engagement-store";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
   formatLongDate,
@@ -70,6 +72,8 @@ export default async function PostPage({ params }) {
     notFound();
   }
 
+  const engagement = await getEngagementBySlug(slug);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
@@ -135,6 +139,7 @@ export default async function PostPage({ params }) {
         </div>
       </article>
 
+      <PostEngagement slug={post.slug} initialEngagement={engagement} />
       <PostShareBar post={post} />
       <SiteFooter showSocial={false} />
 
@@ -145,4 +150,3 @@ export default async function PostPage({ params }) {
     </main>
   );
 }
-
