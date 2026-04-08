@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { categoryOptions, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
 
 const emptyDraft = {
@@ -28,6 +30,12 @@ export function DashboardShell({ initialPosts }) {
     [posts, draft.id]
   );
 
+  const previewContent = useMemo(() => {
+    return draft.content.trim()
+      ? draft.content
+      : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, headings, lists, links, and more.";
+  }, [draft.content]);
+
   useEffect(() => {
     if (!toast) {
       return undefined;
@@ -52,6 +60,10 @@ export function DashboardShell({ initialPosts }) {
       }
       return null;
     });
+  }
+
+  function updateDraftField(field, value) {
+    setDraft((current) => ({ ...current, [field]: value }));
   }
 
   function startCreateMode() {
@@ -193,7 +205,14 @@ export function DashboardShell({ initialPosts }) {
 
           <label>
             <span>Title</span>
-            <input name="title" type="text" placeholder="Headline" defaultValue={draft.title} required />
+            <input
+              name="title"
+              type="text"
+              placeholder="Headline"
+              value={draft.title}
+              onChange={(event) => updateDraftField("title", event.target.value)}
+              required
+            />
           </label>
 
           <label>
@@ -202,25 +221,44 @@ export function DashboardShell({ initialPosts }) {
               name="excerpt"
               rows="3"
               placeholder="Short summary for homepage cards and SEO"
-              defaultValue={draft.excerpt}
+              value={draft.excerpt}
+              onChange={(event) => updateDraftField("excerpt", event.target.value)}
               required
             />
           </label>
 
-          <label>
-            <span>Content</span>
-            <textarea
-              name="content"
-              rows="10"
-              placeholder="Write your post in Markdown. Use ## for headings, **bold** text, lists, and links."
-              defaultValue={draft.content}
-              required
-            />
-          </label>
+          <div className="editor-form__split">
+            <label>
+              <span>Content</span>
+              <textarea
+                name="content"
+                rows="14"
+                placeholder="Write your post in Markdown. Use ## for headings, **bold** text, lists, and links."
+                value={draft.content}
+                onChange={(event) => updateDraftField("content", event.target.value)}
+                required
+              />
+            </label>
+
+            <div className="editor-live-preview">
+              <div className="editor-live-preview__header">
+                <strong>Live preview</strong>
+                <span>Markdown will render exactly like the post page.</span>
+              </div>
+              <div className="editor-live-preview__body blog-content">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent}</ReactMarkdown>
+              </div>
+            </div>
+          </div>
 
           <label>
             <span>Category</span>
-            <select name="category" defaultValue={draft.category} required>
+            <select
+              name="category"
+              value={draft.category}
+              onChange={(event) => updateDraftField("category", event.target.value)}
+              required
+            >
               {categoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {getCategoryMeta(category).label}
@@ -235,7 +273,8 @@ export function DashboardShell({ initialPosts }) {
               name="author"
               type="text"
               placeholder="Century Blog Editorial Team"
-              defaultValue={draft.author}
+              value={draft.author}
+              onChange={(event) => updateDraftField("author", event.target.value)}
             />
           </label>
 
@@ -321,4 +360,3 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
-
