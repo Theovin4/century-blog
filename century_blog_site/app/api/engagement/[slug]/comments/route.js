@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { addCommentToPost } from "@/lib/engagement-store";
 import { getPostBySlug } from "@/lib/posts-store";
+import { applyRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const MAX_NAME_LENGTH = 40;
 const MAX_MESSAGE_LENGTH = 600;
@@ -11,6 +12,26 @@ export async function POST(request, { params }) {
 
   if (!post) {
     return NextResponse.json({ message: "Post not found." }, { status: 404 });
+  }
+
+  const ip = getRequestIp(request);
+  const rateLimit = applyRateLimit({
+    bucket: "post-comment",
+    key: `${ip}:${slug}`,
+    limit: 4,
+    windowMs: 10 * 60 * 1000
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: "Too many comments in a short time. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000))
+        }
+      }
+    );
   }
 
   const body = await request.json().catch(() => ({}));

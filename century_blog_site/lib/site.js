@@ -291,7 +291,7 @@ export function pickFeaturedPost(posts) {
     return posts[0] || null;
   }
 
-  const rotationWindowMs = 5 * 60 * 1000;
+  const rotationWindowMs = 30 * 1000;
   const rotationIndex = Math.floor(Date.now() / rotationWindowMs) % candidatePool.length;
   return candidatePool[rotationIndex];
 }
@@ -329,3 +329,4 @@ export function buildShareLinks(post) {
     pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
   };
 }
+
