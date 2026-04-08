@@ -1290,3 +1290,16 @@ button {
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   }
 }
+
+.dashboard-post-card__labels {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.pill-featured {
+  background: linear-gradient(135deg, #f97316, #facc15);
+  color: #160b02;
+  border: 0;
+}

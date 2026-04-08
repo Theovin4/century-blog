@@ -50,6 +50,8 @@ export async function PATCH(request, { params }) {
   const content = String(formData.get("content") || current.content).trim();
   const category = String(formData.get("category") || current.category).trim();
   const author = String(formData.get("author") || current.author).trim();
+  const featuredValue = formData.get("featured");
+  const featured = featuredValue === null ? undefined : String(featuredValue).trim() === "true";
   const media = formData.get("media");
 
   if (!title || !excerpt || !content || !category) {
@@ -76,7 +78,7 @@ export async function PATCH(request, { params }) {
 
   const post = await updatePost(
     id,
-    { title, excerpt, content, category, author },
+    { title, excerpt, content, category, author, featured },
     media && typeof media !== "string" && media.size > 0 ? media : null
   );
 

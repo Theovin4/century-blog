@@ -141,6 +141,47 @@ export function DashboardShell({ initialPosts }) {
     });
   }
 
+  async function handleSetFeatured(postId) {
+    setMessage("");
+    setError("");
+
+    const targetPost = posts.find((post) => String(post.id) === String(postId));
+
+    if (!targetPost || targetPost.featured) {
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("featured", "true");
+
+    const response = await fetch(`/api/posts/${postId}`, { method: "PATCH", body: formData });
+    const data = await response.json();
+
+    if (!response.ok) {
+      setError(data.message || "Unable to set featured story.");
+      return;
+    }
+
+    setPosts((current) =>
+      current.map((post) => {
+        if (String(post.id) === String(postId)) {
+          return data;
+        }
+
+        if (post.featured) {
+          return { ...post, featured: false };
+        }
+
+        return post;
+      })
+    );
+    setMessage("Featured story updated successfully.");
+    setToast("Featured story updated successfully.");
+    startTransition(() => {
+      router.refresh();
+    });
+  }
+
   async function handleDelete(postId) {
     setMessage("");
     setError("");
@@ -321,7 +362,7 @@ export function DashboardShell({ initialPosts }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>Published posts</h2>
-            <p>Edit or remove your latest content here.</p>
+            <p>Edit, feature, or remove your latest content here.</p>
           </div>
 
           <div className="dashboard-post-list">
@@ -336,7 +377,10 @@ export function DashboardShell({ initialPosts }) {
                     <img className="dashboard-post-card__media" src={post.mediaUrl} alt={post.title} />
                   ) : null}
                 </div>
-                <span className="pill">{getCategoryMeta(post.category).label}</span>
+                <div className="dashboard-post-card__labels">
+                  <span className="pill">{getCategoryMeta(post.category).label}</span>
+                  {post.featured ? <span className="pill pill-featured">Featured story</span> : null}
+                </div>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
                 {post.mediaUrl ? (
@@ -345,6 +389,14 @@ export function DashboardShell({ initialPosts }) {
                   </p>
                 ) : null}
                 <div className="dashboard-post-card__actions">
+                  <button
+                    type="button"
+                    className={`button ${post.featured ? "button-primary" : "button-secondary"}`}
+                    onClick={() => handleSetFeatured(post.id)}
+                    disabled={post.featured}
+                  >
+                    {post.featured ? "Featured story" : "Set as featured"}
+                  </button>
                   <button type="button" className="button button-secondary" onClick={() => startEditMode(post)}>
                     Edit
                   </button>

@@ -271,12 +271,24 @@ export async function updatePost(id, input, mediaFile = null) {
     mediaName: media ? media.mediaName : existing.mediaName,
     updatedAt: now,
     readTime: estimateReadTime(input.content?.trim() || existing.content),
-    coverStyle: getCoverStyle(input.category || existing.category)
+    coverStyle: getCoverStyle(input.category || existing.category),
+    featured: typeof input.featured === "boolean" ? input.featured : existing.featured
   });
 
-  const updatedPosts = posts.map((post) =>
-    String(post.id) === String(id) ? updatedPost : post
-  );
+  const updatedPosts = posts.map((post) => {
+    if (String(post.id) === String(id)) {
+      return updatedPost;
+    }
+
+    if (updatedPost.featured && post.featured) {
+      return {
+        ...post,
+        featured: false
+      };
+    }
+
+    return post;
+  });
   await writePostsSource(updatedPosts);
   return updatedPost;
 }
@@ -293,3 +305,4 @@ export async function deletePost(id) {
   await writePostsSource(updatedPosts);
   return true;
 }
+
