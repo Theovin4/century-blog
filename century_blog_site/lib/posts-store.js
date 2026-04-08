@@ -73,6 +73,57 @@ function normalizePost(post) {
   };
 }
 
+function shouldHydrateSeedMedia(post) {
+  const mediaUrl = String(post?.mediaUrl || "");
+
+  if (!mediaUrl) {
+    return true;
+  }
+
+  return mediaUrl.startsWith("/posts/");
+}
+
+function mergeSeedPost(seedPost, currentPost) {
+  if (!seedPost) {
+    return normalizePost(currentPost);
+  }
+
+  const merged = { ...currentPost };
+
+  if (shouldHydrateSeedMedia(currentPost) && seedPost.mediaUrl) {
+    merged.mediaUrl = seedPost.mediaUrl;
+    merged.mediaType = seedPost.mediaType || inferMediaType(seedPost.mediaUrl);
+    merged.mediaName = seedPost.mediaName || currentPost.mediaName;
+  }
+
+  if (!merged.imageCreditName && seedPost.imageCreditName) {
+    merged.imageCreditName = seedPost.imageCreditName;
+  }
+
+  if (!merged.imageCreditUrl && seedPost.imageCreditUrl) {
+    merged.imageCreditUrl = seedPost.imageCreditUrl;
+  }
+
+  if (!merged.sourceName && seedPost.sourceName) {
+    merged.sourceName = seedPost.sourceName;
+  }
+
+  if (!merged.sourceUrl && seedPost.sourceUrl) {
+    merged.sourceUrl = seedPost.sourceUrl;
+  }
+
+  if (typeof merged.featured !== "boolean" && typeof seedPost.featured === "boolean") {
+    merged.featured = seedPost.featured;
+  }
+
+  return normalizePost(merged);
+}
+
+function hydratePostsWithSeedDefaults(posts, seedPosts) {
+  const seedMap = new Map(seedPosts.map((post) => [post.slug, post]));
+  return posts.map((post) => mergeSeedPost(seedMap.get(post.slug), post));
+}
+
 async function saveMediaFile(file, slug) {
   if (!file) {
     return {
@@ -114,18 +165,20 @@ async function saveMediaFile(file, slug) {
 }
 
 async function readPostsSource() {
+  const seedPosts = await readLocalPosts();
+
   if (shouldUseBlob()) {
     try {
       const blobPosts = await readBlobPosts();
       if (blobPosts) {
-        return blobPosts;
+        return hydratePostsWithSeedDefaults(blobPosts, seedPosts);
       }
     } catch {
-      return readLocalPosts();
+      return seedPosts.map(normalizePost);
     }
   }
 
-  return readLocalPosts();
+  return seedPosts.map(normalizePost);
 }
 
 async function writePostsSource(posts) {
@@ -144,9 +197,7 @@ async function writePostsSource(posts) {
 
 export async function getPosts() {
   const posts = await readPostsSource();
-  return posts
-    .map(normalizePost)
-    .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  return posts.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 }
 
 export async function getPostBySlug(slug) {
