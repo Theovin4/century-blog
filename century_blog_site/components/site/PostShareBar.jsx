@@ -38,32 +38,31 @@ export function PostShareBar({ post }) {
     <section className="post-share-panel section-card">
       <div>
         <span className="eyebrow">Share This Story</span>
-        <h2>Share or follow Century Blog</h2>
       </div>
-      <div className="post-share-grid">
-        <a href={shareLinks.facebook} target="_blank" rel="noreferrer" className="social-link-chip">
+      <div className="post-share-grid post-share-grid--row">
+        <a href={shareLinks.facebook} target="_blank" rel="noreferrer" className="social-link-chip social-link-chip--facebook">
           <span className="social-link-chip__icon">
             <ShareIcon name="facebook" />
           </span>
-          <span>Share on Facebook</span>
+          <span>Facebook</span>
         </a>
-        <a href={shareLinks.x} target="_blank" rel="noreferrer" className="social-link-chip">
+        <a href={shareLinks.x} target="_blank" rel="noreferrer" className="social-link-chip social-link-chip--x">
           <span className="social-link-chip__icon">
             <ShareIcon name="x" />
           </span>
-          <span>Share on X</span>
+          <span>X</span>
         </a>
-        <a href={shareLinks.telegram} target="_blank" rel="noreferrer" className="social-link-chip">
+        <a href={shareLinks.telegram} target="_blank" rel="noreferrer" className="social-link-chip social-link-chip--telegram">
           <span className="social-link-chip__icon">
             <ShareIcon name="telegram" />
           </span>
-          <span>Share on Telegram</span>
+          <span>Telegram</span>
         </a>
-        <a href={shareLinks.pinterest} target="_blank" rel="noreferrer" className="social-link-chip">
+        <a href={shareLinks.pinterest} target="_blank" rel="noreferrer" className="social-link-chip social-link-chip--pinterest">
           <span className="social-link-chip__icon">
             <ShareIcon name="pinterest" />
           </span>
-          <span>Save on Pinterest</span>
+          <span>Pinterest</span>
         </a>
       </div>
     </section>

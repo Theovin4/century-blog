@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PostShareBar } from "@/components/site/PostShareBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { SocialLinks } from "@/components/site/SocialLinks";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
   formatLongDate,
@@ -137,8 +136,7 @@ export default async function PostPage({ params }) {
       </article>
 
       <PostShareBar post={post} />
-      <SocialLinks title="Follow Century Blog on every platform" />
-      <SiteFooter />
+      <SiteFooter showSocial={false} />
 
       <script
         type="application/ld+json"

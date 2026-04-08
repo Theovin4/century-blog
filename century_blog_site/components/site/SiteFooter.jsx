@@ -2,12 +2,12 @@ import Link from "next/link";
 import { getSubstackUrl } from "@/lib/site";
 import { SocialLinks } from "@/components/site/SocialLinks";
 
-export function SiteFooter() {
+export function SiteFooter({ showSocial = true }) {
   const substackUrl = getSubstackUrl();
 
   return (
     <footer className="site-footer">
-      <SocialLinks compact title="Follow Century Blog everywhere" />
+      {showSocial ? <SocialLinks compact /> : null}
       <div className="footer-links">
         <Link href="/">Home</Link>
         <Link href="/about">About</Link>

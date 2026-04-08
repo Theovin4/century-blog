@@ -1,5 +1,9 @@
 import { socialLinks } from "@/lib/site";
 
+function getPlatformClass(label) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
 function Icon({ name }) {
   switch (name) {
     case "Facebook":
@@ -52,25 +56,32 @@ function Icon({ name }) {
 export function SocialLinks({ title = "Follow Century Blog", compact = false }) {
   return (
     <section className={`social-panel ${compact ? "social-panel--compact" : ""}`}>
-      <div>
-        <span className="eyebrow">Stay Connected</span>
-        <h2>{title}</h2>
-      </div>
-      <div className="social-links-grid">
-        {socialLinks.map((link) => (
-          <a
-            key={link.label}
-            href={link.href}
-            className="social-link-chip"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <span className="social-link-chip__icon">
-              <Icon name={link.label} />
-            </span>
-            <span>{link.label}</span>
-          </a>
-        ))}
+      {compact ? null : (
+        <div>
+          <span className="eyebrow">Stay Connected</span>
+          <h2>{title}</h2>
+        </div>
+      )}
+      <div className={`social-links-grid ${compact ? "social-links-grid--row" : ""}`}>
+        {socialLinks.map((link) => {
+          const platformClass = `social-link-chip--${getPlatformClass(link.label)}`;
+          return (
+            <a
+              key={link.label}
+              href={link.href}
+              className={`social-link-chip ${platformClass}`}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={link.label}
+              title={link.label}
+            >
+              <span className="social-link-chip__icon">
+                <Icon name={link.label} />
+              </span>
+              <span>{link.label}</span>
+            </a>
+          );
+        })}
       </div>
     </section>
   );
