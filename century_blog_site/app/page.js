@@ -7,13 +7,14 @@ import { NewsTicker } from "@/components/site/NewsTicker";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
+  buildBreadcrumbJsonLd,
   filterPosts,
-  pickFeaturedPost,
   formatLongDate,
   getCategoryMeta,
   getSiteUrl,
   isImageMedia,
   isVideoMedia,
+  pickFeaturedPost,
   socialLinks,
   toAbsoluteUrl
 } from "@/lib/site";
@@ -28,6 +29,10 @@ export default async function HomePage({ searchParams }) {
   const featuredPost = pickFeaturedPost(filteredPosts) || pickFeaturedPost(posts);
   const secondaryPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
   const siteUrl = getSiteUrl();
+
+  const breadcrumbLd = buildBreadcrumbJsonLd([
+    { name: "Home", url: siteUrl }
+  ]);
 
   const jsonLd = [
     {
@@ -69,7 +74,8 @@ export default async function HomePage({ searchParams }) {
         },
         url: `${siteUrl}/news/${post.slug}`
       }))
-    }
+    },
+    breadcrumbLd
   ];
 
   const featuredHasImage = isImageMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
@@ -210,4 +216,3 @@ export default async function HomePage({ searchParams }) {
     </main>
   );
 }
-

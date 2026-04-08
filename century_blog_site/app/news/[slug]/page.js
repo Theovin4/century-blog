@@ -8,6 +8,9 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getEngagementBySlug } from "@/lib/engagement-store";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
+  buildBreadcrumbJsonLd,
+  buildPostKeywords,
+  extractMentionedCountries,
   formatLongDate,
   getCategoryMeta,
   getSiteUrl,
@@ -28,20 +31,27 @@ export async function generateMetadata({ params }) {
     };
   }
 
+  const siteUrl = getSiteUrl();
+  const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
   const metadata = {
     title: post.title,
     description: post.excerpt,
+    keywords: buildPostKeywords(post),
+    authors: [{ name: post.author || "Century Blog Editorial Team" }],
+    category: getCategoryMeta(post.category).label,
     alternates: {
       canonical: `/news/${post.slug}`
     },
     openGraph: {
       title: post.title,
       description: post.excerpt,
-      url: `${getSiteUrl()}/news/${post.slug}`,
+      url: `${siteUrl}/news/${post.slug}`,
       type: "article",
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt || post.publishedAt,
-      section: getCategoryMeta(post.category).label
+      section: getCategoryMeta(post.category).label,
+      authors: [post.author || "Century Blog Editorial Team"],
+      tags: countries
     },
     twitter: {
       card: "summary_large_image",
@@ -73,26 +83,46 @@ export default async function PostPage({ params }) {
   }
 
   const engagement = await getEngagementBySlug(slug);
+  const allPosts = await getPosts();
+  const relatedPosts = allPosts
+    .filter((candidate) => candidate.slug !== post.slug)
+    .filter((candidate) => candidate.category === post.category || extractMentionedCountries(`${candidate.title} ${candidate.excerpt}`).some((country) => extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`).includes(country)))
+    .slice(0, 3);
+  const siteUrl = getSiteUrl();
+  const categoryMeta = getCategoryMeta(post.category);
+  const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline: post.title,
-    description: post.excerpt,
-    datePublished: post.publishedAt,
-    dateModified: post.updatedAt || post.publishedAt,
-    author: {
-      "@type": "Organization",
-      name: "Century Blog"
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.excerpt,
+      datePublished: post.publishedAt,
+      dateModified: post.updatedAt || post.publishedAt,
+      keywords: buildPostKeywords(post).join(", "),
+      articleSection: categoryMeta.label,
+      about: countries.map((country) => ({
+        "@type": "Place",
+        name: country
+      })),
+      author: {
+        "@type": "Organization",
+        name: post.author || "Century Blog Editorial Team"
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "Century Blog"
+      },
+      mainEntityOfPage: `${siteUrl}/news/${post.slug}`,
+      image: isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined
     },
-    publisher: {
-      "@type": "Organization",
-      name: "Century Blog"
-    },
-    mainEntityOfPage: `${getSiteUrl()}/news/${post.slug}`,
-    articleSection: getCategoryMeta(post.category).label,
-    image: isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined
-  };
+    buildBreadcrumbJsonLd([
+      { name: "Home", url: siteUrl },
+      { name: categoryMeta.label, url: `${siteUrl}/category/${post.category}` },
+      { name: post.title, url: `${siteUrl}/news/${post.slug}` }
+    ])
+  ];
 
   return (
     <main className="page-shell article-shell">
@@ -101,7 +131,7 @@ export default async function PostPage({ params }) {
           <Link href="/" className="back-home-button back-home-button--article">
             Back to Home
           </Link>
-          <span className="pill">{getCategoryMeta(post.category).label}</span>
+          <span className="pill">{categoryMeta.label}</span>
           <h1>{post.title}</h1>
           <p className="article-excerpt">{post.excerpt}</p>
           <div className="article-meta">
@@ -138,6 +168,21 @@ export default async function PostPage({ params }) {
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
         </div>
       </article>
+
+      {relatedPosts.length ? (
+        <section className="section-card article-related">
+          <span className="eyebrow">Keep Reading</span>
+          <h2>Related stories readers may also enjoy</h2>
+          <div className="article-related__links">
+            {relatedPosts.map((relatedPost) => (
+              <Link key={relatedPost.slug} href={`/news/${relatedPost.slug}`} className="article-related__item">
+                <strong>{relatedPost.title}</strong>
+                <span>{relatedPost.excerpt}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <PostEngagement slug={post.slug} initialEngagement={engagement} />
       <PostShareBar post={post} />

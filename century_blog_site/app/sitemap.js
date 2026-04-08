@@ -8,27 +8,39 @@ export default async function sitemap() {
   return [
     {
       url: siteUrl,
-      lastModified: new Date()
+      lastModified: new Date(),
+      changeFrequency: "hourly",
+      priority: 1
     },
     {
       url: `${siteUrl}/about`,
-      lastModified: new Date()
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6
     },
     {
       url: `${siteUrl}/contact`,
-      lastModified: new Date()
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6
     },
     {
       url: `${siteUrl}/privacy-policy`,
-      lastModified: new Date()
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5
     },
     ...categoryOptions.map((category) => ({
       url: `${siteUrl}/category/${category}`,
-      lastModified: new Date()
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8
     })),
     ...posts.map((post) => ({
       url: `${siteUrl}/news/${post.slug}`,
-      lastModified: new Date(post.updatedAt || post.publishedAt)
+      lastModified: new Date(post.updatedAt || post.publishedAt),
+      changeFrequency: "daily",
+      priority: 0.9
     }))
   ];
 }

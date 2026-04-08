@@ -59,6 +59,34 @@ export const socialLinks = [
   }
 ];
 
+const countryNames = [
+  "Nigeria",
+  "Ghana",
+  "Kenya",
+  "South Africa",
+  "Uganda",
+  "Tanzania",
+  "Rwanda",
+  "Cameroon",
+  "Egypt",
+  "Morocco",
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "France",
+  "Germany",
+  "Italy",
+  "Spain",
+  "Netherlands",
+  "Brazil",
+  "India",
+  "China",
+  "Japan",
+  "Australia",
+  "United Arab Emirates",
+  "Saudi Arabia"
+];
+
 export const categoryOptions = Object.keys(categoryMeta);
 
 export function getSiteUrl() {
@@ -195,6 +223,52 @@ export function isVideoMedia(mediaUrl, mediaType) {
   return inferMediaType(mediaType || mediaUrl).startsWith("video/");
 }
 
+export function extractMentionedCountries(input) {
+  const text = String(input || "");
+  return countryNames.filter((country) => new RegExp(`\\b${country.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\b`, "i").test(text));
+}
+
+export function buildPostKeywords(post) {
+  const category = getCategoryMeta(post.category).label;
+  const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
+  return [
+    "Century Blog",
+    post.title,
+    `${category} news`,
+    `${category} blog`,
+    `${category} updates`,
+    ...countries,
+    ...countries.map((country) => `${country} news`),
+    ...countries.map((country) => `${country} lifestyle`),
+    ...countries.map((country) => `${country} education`),
+    ...countries.map((country) => `${country} health`)
+  ].filter(Boolean);
+}
+
+export function buildCategoryKeywords(category) {
+  const meta = getCategoryMeta(category);
+  return [
+    "Century Blog",
+    `${meta.label} blog`,
+    `${meta.label} news`,
+    `${meta.label} updates`,
+    `Nigeria ${meta.label.toLowerCase()}`,
+    `global ${meta.label.toLowerCase()} stories`
+  ];
+}
+
+export function buildBreadcrumbJsonLd(items) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url
+    }))
+  };
+}
 
 export function pickFeaturedPost(posts) {
   if (!Array.isArray(posts) || posts.length === 0) {
@@ -208,17 +282,20 @@ export function pickFeaturedPost(posts) {
   }
 
   const recentPosts = posts.slice(0, 5);
-  const mediaFirstPool = recentPosts.filter((post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType));
+  const mediaFirstPool = recentPosts.filter(
+    (post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType)
+  );
   const candidatePool = mediaFirstPool.length ? mediaFirstPool : recentPosts;
 
   if (!candidatePool.length) {
     return posts[0] || null;
   }
 
-  const rotationWindowHours = 6;
-  const rotationIndex = Math.floor(Date.now() / (1000 * 60 * 60 * rotationWindowHours)) % candidatePool.length;
+  const rotationWindowMs = 5 * 60 * 1000;
+  const rotationIndex = Math.floor(Date.now() / rotationWindowMs) % candidatePool.length;
   return candidatePool[rotationIndex];
 }
+
 export function filterPosts(posts, filters = {}) {
   const query = String(filters.query || "").trim().toLowerCase();
   const category = String(filters.category || "").trim();
@@ -252,5 +329,3 @@ export function buildShareLinks(post) {
     pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
   };
 }
-
-

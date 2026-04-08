@@ -1303,3 +1303,37 @@ button {
   color: #160b02;
   border: 0;
 }
+
+.article-related {
+  margin-top: 1.5rem;
+}
+
+.article-related h2 {
+  margin: 0.35rem 0 1rem;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.article-related__links {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.article-related__item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.article-related__item strong {
+  color: #f8fafc;
+}
+
+.article-related__item span {
+  color: var(--muted);
+  line-height: 1.7;
+}
