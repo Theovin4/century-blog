@@ -1,80 +1,57 @@
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
-import { list, put } from "@vercel/blob";
+import {
+  buildCloudinaryVideoPosterUrl,
+  optimizeCloudinaryMediaUrl,
+  uploadMediaFile
+} from "@/lib/cloudinary";
+import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 import { estimateReadTime, getCoverStyle, inferMediaType, slugify } from "@/lib/site";
 
 const localFilePath = path.join(process.cwd(), "data", "posts.json");
-const localUploadsDir = path.join(process.cwd(), "public", "uploads");
-const blobKey = "century-blog/posts.json";
+const publicId = "century-blog/data/posts";
 
-async function readLocalPosts() {
-  const file = await fs.readFile(localFilePath, "utf8");
-  return JSON.parse(file);
+async function readLocalSeedPosts() {
+  return readJsonStore(localFilePath, null, []);
 }
 
-async function writeLocalPosts(posts) {
-  await fs.writeFile(localFilePath, JSON.stringify(posts, null, 2), "utf8");
-}
-
-async function readBlobPosts() {
-  const { blobs } = await list({ prefix: blobKey, limit: 1 });
-  const target = blobs.find((blob) => blob.pathname === blobKey) || blobs[0];
-
-  if (!target) {
-    return null;
-  }
-
-  const response = await fetch(target.url, { cache: "no-store" });
-  return response.json();
-}
-
-async function writeBlobPosts(posts) {
-  await put(blobKey, JSON.stringify(posts, null, 2), {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: "application/json"
-  });
-}
-
-function shouldUseBlob() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
-function getFileExtension(file) {
-  const filename = file?.name || "";
-  const extension = path.extname(filename);
-
-  if (extension) {
-    return extension.toLowerCase();
-  }
-
-  if (file?.type?.startsWith("image/")) {
-    return ".jpg";
-  }
-
-  if (file?.type?.startsWith("video/")) {
-    return ".mp4";
-  }
-
-  return "";
-}
-
-function normalizePost(post) {
-  const mediaUrl = post.mediaUrl || "";
-  const mediaName = post.mediaName || "";
-  const mediaType = post.mediaType || inferMediaType(mediaUrl || mediaName);
+function sanitizePost(post) {
+  const originalMediaUrl = post.originalMediaUrl || post.mediaUrl || "";
 
   return {
     ...post,
-    mediaUrl,
+    mediaUrl: originalMediaUrl,
+    originalMediaUrl,
+    posterUrl: post.posterUrl || "",
+    legacyMediaUrl: post.legacyMediaUrl || ""
+  };
+}
+
+function normalizePost(post) {
+  const rawMediaUrl =
+    post.originalMediaUrl ||
+    post.mediaUrl ||
+    post.cloudinaryUrl ||
+    post.legacyMediaUrl ||
+    post.blobUrl ||
+    "";
+  const mediaName = post.mediaName || "";
+  const mediaType = post.mediaType || inferMediaType(rawMediaUrl || mediaName);
+  const posterUrl = post.posterUrl || buildCloudinaryVideoPosterUrl(rawMediaUrl);
+
+  return {
+    ...post,
+    mediaUrl: optimizeCloudinaryMediaUrl(rawMediaUrl, mediaType),
+    originalMediaUrl: rawMediaUrl,
+    legacyMediaUrl: post.legacyMediaUrl || post.blobUrl || "",
     mediaName,
-    mediaType
+    mediaType,
+    posterUrl
   };
 }
 
 function shouldHydrateSeedMedia(post) {
-  const mediaUrl = String(post?.mediaUrl || "");
+  const mediaUrl = String(post?.mediaUrl || post?.legacyMediaUrl || "");
 
   if (!mediaUrl) {
     return true;
@@ -92,6 +69,7 @@ function mergeSeedPost(seedPost, currentPost) {
 
   if (shouldHydrateSeedMedia(currentPost) && seedPost.mediaUrl) {
     merged.mediaUrl = seedPost.mediaUrl;
+    merged.originalMediaUrl = seedPost.originalMediaUrl || seedPost.mediaUrl;
     merged.mediaType = seedPost.mediaType || inferMediaType(seedPost.mediaUrl);
     merged.mediaName = seedPost.mediaName || currentPost.mediaName;
   }
@@ -124,75 +102,24 @@ function hydratePostsWithSeedDefaults(posts, seedPosts) {
   return posts.map((post) => mergeSeedPost(seedMap.get(post.slug), post));
 }
 
-async function saveMediaFile(file, slug) {
-  if (!file) {
-    return {
-      mediaUrl: "",
-      mediaType: "",
-      mediaName: ""
-    };
-  }
-
-  const extension = getFileExtension(file);
-  const safeName = `${slug}-${crypto.randomUUID()}${extension}`;
-  const mediaType = file.type || inferMediaType(file.name || safeName);
-
-  if (shouldUseBlob()) {
-    const blob = await put(`century-blog/media/${safeName}`, file, {
-      access: "public",
-      addRandomSuffix: false,
-      contentType: mediaType || undefined
-    });
-
-    return {
-      mediaUrl: blob.url,
-      mediaType,
-      mediaName: file.name || safeName
-    };
-  }
-
-  await fs.mkdir(localUploadsDir, { recursive: true });
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const targetPath = path.join(localUploadsDir, safeName);
-  await fs.writeFile(targetPath, buffer);
-
-  return {
-    mediaUrl: `/uploads/${safeName}`,
-    mediaType,
-    mediaName: file.name || safeName
-  };
-}
-
 async function readPostsSource() {
-  const seedPosts = await readLocalPosts();
+  const seedPosts = (await readLocalSeedPosts()).map(normalizePost);
+  const remotePosts = await readJsonStore(localFilePath, publicId, null);
 
-  if (shouldUseBlob()) {
-    try {
-      const blobPosts = await readBlobPosts();
-      if (blobPosts) {
-        return hydratePostsWithSeedDefaults(blobPosts, seedPosts);
-      }
-    } catch {
-      return seedPosts.map(normalizePost);
-    }
+  if (Array.isArray(remotePosts) && remotePosts.length) {
+    return hydratePostsWithSeedDefaults(remotePosts, seedPosts);
   }
 
-  return seedPosts.map(normalizePost);
+  return seedPosts;
 }
 
 async function writePostsSource(posts) {
-  if (shouldUseBlob()) {
-    try {
-      await writeBlobPosts(posts);
-      return;
-    } catch {
-      await writeLocalPosts(posts);
-      return;
-    }
-  }
+  await writeJsonStore(localFilePath, publicId, posts.map(sanitizePost));
+}
 
-  await writeLocalPosts(posts);
+export async function replaceAllPosts(posts) {
+  await writePostsSource(posts);
+  return getPosts();
 }
 
 export async function getPosts() {
@@ -216,7 +143,7 @@ export async function createPost(input, mediaFile = null) {
   const duplicateCount = posts.filter((post) => post.slug.startsWith(slugBase)).length;
   const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
   const now = new Date().toISOString();
-  const media = await saveMediaFile(mediaFile, slug);
+  const media = await uploadMediaFile(mediaFile, slug);
 
   const post = normalizePost({
     id: crypto.randomUUID(),
@@ -227,8 +154,11 @@ export async function createPost(input, mediaFile = null) {
     category: input.category,
     author: input.author?.trim() || "Century Blog Editorial Team",
     mediaUrl: media.mediaUrl,
+    originalMediaUrl: media.originalMediaUrl,
+    legacyMediaUrl: "",
     mediaType: media.mediaType,
     mediaName: media.mediaName,
+    posterUrl: media.posterUrl,
     publishedAt: now,
     updatedAt: now,
     readTime: estimateReadTime(input.content),
@@ -256,7 +186,7 @@ export async function updatePost(id, input, mediaFile = null) {
   ).length;
   const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
   const now = new Date().toISOString();
-  const media = mediaFile ? await saveMediaFile(mediaFile, slug) : null;
+  const media = mediaFile ? await uploadMediaFile(mediaFile, slug) : null;
 
   const updatedPost = normalizePost({
     ...existing,
@@ -267,8 +197,13 @@ export async function updatePost(id, input, mediaFile = null) {
     category: input.category || existing.category,
     author: input.author?.trim() || existing.author,
     mediaUrl: media ? media.mediaUrl : existing.mediaUrl,
+    originalMediaUrl: media ? media.originalMediaUrl : existing.originalMediaUrl || existing.mediaUrl,
+    legacyMediaUrl: media
+      ? existing.originalMediaUrl || existing.mediaUrl || existing.legacyMediaUrl || ""
+      : existing.legacyMediaUrl || "",
     mediaType: media ? media.mediaType : existing.mediaType,
     mediaName: media ? media.mediaName : existing.mediaName,
+    posterUrl: media ? media.posterUrl : existing.posterUrl,
     updatedAt: now,
     readTime: estimateReadTime(input.content?.trim() || existing.content),
     coverStyle: getCoverStyle(input.category || existing.category),
@@ -289,6 +224,7 @@ export async function updatePost(id, input, mediaFile = null) {
 
     return post;
   });
+
   await writePostsSource(updatedPosts);
   return updatedPost;
 }
@@ -305,4 +241,3 @@ export async function deletePost(id) {
   await writePostsSource(updatedPosts);
   return true;
 }
-

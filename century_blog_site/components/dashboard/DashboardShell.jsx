@@ -335,7 +335,7 @@ export function DashboardShell({ initialPosts }) {
                 {previewName ? <span>{previewName}</span> : null}
               </div>
               {isVideoMedia(previewUrl, previewType) ? (
-                <video className="dashboard-preview__media" controls preload="metadata">
+                <video className="dashboard-preview__media" controls preload="metadata" poster={activeDraftPost?.posterUrl || undefined}>
                   <source src={previewUrl} type={previewType} />
                 </video>
               ) : isImageMedia(previewUrl, previewType) ? (
@@ -370,7 +370,7 @@ export function DashboardShell({ initialPosts }) {
               <article key={post.slug} className="dashboard-post-card">
                 <div className="dashboard-post-card__media-wrap">
                   {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-                    <video className="dashboard-post-card__media" muted playsInline preload="metadata">
+                    <video className="dashboard-post-card__media" muted playsInline preload="metadata" poster={post.posterUrl || undefined}>
                       <source src={post.mediaUrl} type={post.mediaType} />
                     </video>
                   ) : isImageMedia(post.mediaUrl, post.mediaType) ? (
@@ -412,3 +412,5 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
+
+

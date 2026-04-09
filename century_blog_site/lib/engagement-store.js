@@ -1,72 +1,9 @@
 import crypto from "node:crypto";
-import fs from "node:fs/promises";
 import path from "node:path";
-import { list, put } from "@vercel/blob";
+import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 const localFilePath = path.join(process.cwd(), "data", "engagement.json");
-const blobKey = "century-blog/engagement.json";
-
-function shouldUseBlob() {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-}
-
-async function readLocalEngagement() {
-  const file = await fs.readFile(localFilePath, "utf8");
-  return JSON.parse(file);
-}
-
-async function writeLocalEngagement(data) {
-  await fs.writeFile(localFilePath, JSON.stringify(data, null, 2), "utf8");
-}
-
-async function readBlobEngagement() {
-  const { blobs } = await list({ prefix: blobKey, limit: 1 });
-  const target = blobs.find((blob) => blob.pathname === blobKey) || blobs[0];
-
-  if (!target) {
-    return null;
-  }
-
-  const response = await fetch(target.url, { cache: "no-store" });
-  return response.json();
-}
-
-async function writeBlobEngagement(data) {
-  await put(blobKey, JSON.stringify(data, null, 2), {
-    access: "public",
-    addRandomSuffix: false,
-    contentType: "application/json"
-  });
-}
-
-async function readEngagementSource() {
-  if (shouldUseBlob()) {
-    try {
-      const blobData = await readBlobEngagement();
-      if (blobData) {
-        return blobData;
-      }
-    } catch {
-      return readLocalEngagement();
-    }
-  }
-
-  return readLocalEngagement();
-}
-
-async function writeEngagementSource(data) {
-  if (shouldUseBlob()) {
-    try {
-      await writeBlobEngagement(data);
-      return;
-    } catch {
-      await writeLocalEngagement(data);
-      return;
-    }
-  }
-
-  await writeLocalEngagement(data);
-}
+const publicId = "century-blog/data/engagement";
 
 function normalizeComment(comment) {
   return {
@@ -98,6 +35,7 @@ function sanitizeRecord(record) {
   return {
     slug: record.slug,
     likes: record.likes,
+    likedBy: record.likedBy,
     comments: record.comments
   };
 }
@@ -106,9 +44,22 @@ function hashVisitorId(visitorId) {
   return crypto.createHash("sha256").update(String(visitorId)).digest("hex");
 }
 
+async function readEngagementSource() {
+  const payload = await readJsonStore(localFilePath, publicId, {});
+  return payload && typeof payload === "object" ? payload : {};
+}
+
+async function writeEngagementSource(data) {
+  await writeJsonStore(localFilePath, publicId, data);
+}
+
 export async function getEngagementBySlug(slug) {
   const data = await readEngagementSource();
   return sanitizeRecord(normalizeRecord(slug, data?.[slug]));
+}
+
+export async function replaceAllEngagement(data) {
+  await writeEngagementSource(data);
 }
 
 export async function addLikeToPost(slug, visitorId) {
@@ -131,7 +82,7 @@ export async function addLikeToPost(slug, visitorId) {
 
   const nextData = {
     ...data,
-    [slug]: updatedRecord
+    [slug]: sanitizeRecord(updatedRecord)
   };
 
   await writeEngagementSource(nextData);
@@ -159,7 +110,7 @@ export async function addCommentToPost(slug, input) {
 
   const nextData = {
     ...data,
-    [slug]: updatedRecord
+    [slug]: sanitizeRecord(updatedRecord)
   };
 
   await writeEngagementSource(nextData);

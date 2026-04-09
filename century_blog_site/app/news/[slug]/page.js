@@ -144,7 +144,7 @@ export default async function PostPage({ params }) {
         {post.mediaUrl ? (
           <div className="article-media-wrap">
             {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-              <video className="article-media" controls preload="metadata" playsInline>
+              <video className="article-media" controls preload="metadata" playsInline poster={post.posterUrl || undefined}>
                 <source src={post.mediaUrl} type={post.mediaType} />
               </video>
             ) : (
@@ -195,3 +195,4 @@ export default async function PostPage({ params }) {
     </main>
   );
 }
+

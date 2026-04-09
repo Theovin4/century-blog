@@ -3,9 +3,10 @@ import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { deletePost, getPostById, updatePost } from "@/lib/posts-store";
 import { inferMediaType, isValidCategory } from "@/lib/site";
+import { isCloudinaryConfigured } from "@/lib/cloudinary";
 
-const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 40 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 
 function validateMedia(media) {
   const mediaType = media.type || inferMediaType(media.name);
@@ -17,11 +18,11 @@ function validateMedia(media) {
   }
 
   if (isImage && media.size > MAX_IMAGE_SIZE) {
-    return "Images must be 8MB or smaller.";
+    return "Images must be 2MB or smaller.";
   }
 
   if (isVideo && media.size > MAX_VIDEO_SIZE) {
-    return "Videos must be 40MB or smaller.";
+    return "Videos must be 20MB or smaller.";
   }
 
   return "";
@@ -70,19 +71,27 @@ export async function PATCH(request, { params }) {
   }
 
   if (media && typeof media !== "string" && media.size > 0) {
+    if (!isCloudinaryConfigured()) {
+      return NextResponse.json({ message: "Cloudinary is not configured yet." }, { status: 503 });
+    }
+
     const mediaError = validateMedia(media);
     if (mediaError) {
       return NextResponse.json({ message: mediaError }, { status: 400 });
     }
   }
 
-  const post = await updatePost(
-    id,
-    { title, excerpt, content, category, author, featured },
-    media && typeof media !== "string" && media.size > 0 ? media : null
-  );
+  try {
+    const post = await updatePost(
+      id,
+      { title, excerpt, content, category, author, featured },
+      media && typeof media !== "string" && media.size > 0 ? media : null
+    );
 
-  return NextResponse.json(post);
+    return NextResponse.json(post);
+  } catch (error) {
+    return NextResponse.json({ message: error.message || "Unable to update post." }, { status: 500 });
+  }
 }
 
 export async function DELETE(_request, { params }) {

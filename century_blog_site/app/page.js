@@ -30,9 +30,7 @@ export default async function HomePage({ searchParams }) {
   const secondaryPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
   const siteUrl = getSiteUrl();
 
-  const breadcrumbLd = buildBreadcrumbJsonLd([
-    { name: "Home", url: siteUrl }
-  ]);
+  const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
 
   const jsonLd = [
     {
@@ -134,6 +132,7 @@ export default async function HomePage({ searchParams }) {
                 loop
                 playsInline
                 preload="metadata"
+                poster={featuredPost.posterUrl || undefined}
               >
                 <source src={featuredPost.mediaUrl} type={featuredPost.mediaType} />
               </video>
