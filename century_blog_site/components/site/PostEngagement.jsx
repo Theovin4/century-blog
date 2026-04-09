@@ -79,6 +79,43 @@ function saveLikedPost(slug) {
   window.localStorage.setItem(likedPostsKey, JSON.stringify([...likedPosts]));
 }
 
+function dedupeComments(comments) {
+  const seen = new Set();
+
+  return comments.filter((comment) => {
+    const key = `${comment.id || ""}:${comment.createdAt || ""}:${comment.message || ""}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+function mergeEngagementState(previous, incoming, fallbackComment = null) {
+  const next = incoming || {};
+  const previousComments = Array.isArray(previous?.comments) ? previous.comments : [];
+  let incomingComments = Array.isArray(next.comments) ? next.comments : [];
+
+  if (!incomingComments.length && fallbackComment) {
+    incomingComments = [...previousComments, fallbackComment];
+  }
+
+  const comments = dedupeComments(
+    incomingComments.length >= previousComments.length
+      ? incomingComments
+      : previousComments
+  );
+
+  return {
+    slug: next.slug || previous?.slug || "",
+    likes: typeof next.likes === "number" ? next.likes : previous?.likes || 0,
+    comments
+  };
+}
+
 export function PostEngagement({ slug, initialEngagement }) {
   const [engagement, setEngagement] = useState(initialEngagement || { slug, likes: 0, comments: [] });
   const [liked, setLiked] = useState(false);
@@ -120,7 +157,7 @@ export function PostEngagement({ slug, initialEngagement }) {
         throw new Error(data.message || "Unable to like this post right now.");
       }
 
-      setEngagement(data.engagement);
+      setEngagement((current) => mergeEngagementState(current, data.engagement));
       setLiked(true);
       saveLikedPost(slug);
     } catch (error) {
@@ -159,7 +196,7 @@ export function PostEngagement({ slug, initialEngagement }) {
         throw new Error(data.message || "Unable to post comment right now.");
       }
 
-      setEngagement(data.engagement);
+      setEngagement((current) => mergeEngagementState(current, data.engagement, data.comment));
       setName("");
       setMessage("");
       setCommentMessage("Comment posted. Thanks for joining the conversation.");
