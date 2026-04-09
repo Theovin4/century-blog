@@ -141,30 +141,46 @@ export async function uploadRemoteMedia(sourceUrl, slug, mediaType = "") {
   return buildMediaResponse(result);
 }
 
+async function resolveRawResource(publicId) {
+  const candidates = [publicId, `${publicId}.json`];
+
+  for (const candidate of candidates) {
+    try {
+      const resource = await cloudinary.api.resource(candidate, {
+        resource_type: "raw",
+        type: "upload"
+      });
+      return resource;
+    } catch (error) {
+      if (error?.http_code === 404 || /not found/i.test(String(error?.message || ""))) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return null;
+}
+
 export async function readCloudinaryJson(publicId) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
 
-  try {
-    const resource = await cloudinary.api.resource(publicId, {
-      resource_type: "raw",
-      type: "upload"
-    });
-    const response = await fetch(resource.secure_url, { cache: "no-store" });
+  const resource = await resolveRawResource(publicId);
 
-    if (!response.ok) {
-      throw new Error(`Unable to fetch Cloudinary JSON for ${publicId}`);
-    }
-
-    return response.json();
-  } catch (error) {
-    if (error?.http_code === 404 || /not found/i.test(String(error?.message || ""))) {
-      return null;
-    }
-
-    throw error;
+  if (!resource) {
+    return null;
   }
+
+  const response = await fetch(resource.secure_url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Unable to fetch Cloudinary JSON for ${publicId}`);
+  }
+
+  return response.json();
 }
 
 export async function writeCloudinaryJson(publicId, payload) {

@@ -82,15 +82,28 @@ export default async function PostPage({ params }) {
     notFound();
   }
 
-  const engagement = await getEngagementBySlug(slug);
+  let engagement = { slug, likes: 0, comments: [] };
+
+  try {
+    engagement = await getEngagementBySlug(slug);
+  } catch {
+    engagement = { slug, likes: 0, comments: [] };
+  }
+
   const allPosts = await getPosts();
+  const currentCountries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
   const relatedPosts = allPosts
     .filter((candidate) => candidate.slug !== post.slug)
-    .filter((candidate) => candidate.category === post.category || extractMentionedCountries(`${candidate.title} ${candidate.excerpt}`).some((country) => extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`).includes(country)))
+    .filter(
+      (candidate) =>
+        candidate.category === post.category ||
+        extractMentionedCountries(`${candidate.title} ${candidate.excerpt}`).some((country) =>
+          currentCountries.includes(country)
+        )
+    )
     .slice(0, 3);
   const siteUrl = getSiteUrl();
   const categoryMeta = getCategoryMeta(post.category);
-  const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
 
   const jsonLd = [
     {
@@ -102,7 +115,7 @@ export default async function PostPage({ params }) {
       dateModified: post.updatedAt || post.publishedAt,
       keywords: buildPostKeywords(post).join(", "),
       articleSection: categoryMeta.label,
-      about: countries.map((country) => ({
+      about: currentCountries.map((country) => ({
         "@type": "Place",
         name: country
       })),
@@ -144,7 +157,13 @@ export default async function PostPage({ params }) {
         {post.mediaUrl ? (
           <div className="article-media-wrap">
             {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-              <video className="article-media" controls preload="metadata" playsInline poster={post.posterUrl || undefined}>
+              <video
+                className="article-media"
+                controls
+                preload="metadata"
+                playsInline
+                poster={post.posterUrl || undefined}
+              >
                 <source src={post.mediaUrl} type={post.mediaType} />
               </video>
             ) : (
@@ -195,4 +214,3 @@ export default async function PostPage({ params }) {
     </main>
   );
 }
-
