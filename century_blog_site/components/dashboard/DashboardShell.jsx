@@ -43,6 +43,10 @@ const markdownTools = [
   { label: "Link", action: "wrap", insertBefore: "[", insertAfter: "](https://example.com)", placeholder: "link text" }
 ];
 
+function getLivePostPath(post) {
+  return post?.slug ? `/news/${post.slug}` : "/";
+}
+
 export function DashboardShell({ initialPosts }) {
   const router = useRouter();
   const contentRef = useRef(null);
@@ -50,12 +54,15 @@ export function DashboardShell({ initialPosts }) {
   const [draft, setDraft] = useState(emptyDraft);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [toast, setToast] = useState("");
+  const [toast, setToast] = useState(null);
+  const [resultCard, setResultCard] = useState(null);
   const [preview, setPreview] = useState(null);
   const [automationSettings, setAutomationSettings] = useState(emptyAutomation);
   const [providerSummary, setProviderSummary] = useState({});
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
+  const [activeAction, setActiveAction] = useState("");
+  const [activePostId, setActivePostId] = useState("");
 
   const activeDraftPost = useMemo(
     () => posts.find((post) => String(post.id) === String(draft.id)) || null,
@@ -87,7 +94,7 @@ export function DashboardShell({ initialPosts }) {
       return undefined;
     }
 
-    const timeout = window.setTimeout(() => setToast(""), 3200);
+    const timeout = window.setTimeout(() => setToast(null), 4200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
@@ -131,6 +138,18 @@ export function DashboardShell({ initialPosts }) {
     };
   }, []);
 
+  async function refreshPosts() {
+    const response = await fetch("/api/posts", { cache: "no-store" });
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data)) {
+      throw new Error("Unable to refresh published posts.");
+    }
+
+    setPosts(data);
+    return data;
+  }
+
   function clearPreview() {
     setPreview((current) => {
       if (current?.objectUrl) {
@@ -140,6 +159,21 @@ export function DashboardShell({ initialPosts }) {
     });
   }
 
+  function resetMessages() {
+    setMessage("");
+    setError("");
+  }
+
+  function beginAction(action, postId = "") {
+    setActiveAction(action);
+    setActivePostId(String(postId || ""));
+  }
+
+  function endAction() {
+    setActiveAction("");
+    setActivePostId("");
+  }
+
   function updateDraftField(field, value) {
     setDraft((current) => ({ ...current, [field]: value }));
   }
@@ -147,8 +181,7 @@ export function DashboardShell({ initialPosts }) {
   function startCreateMode() {
     clearPreview();
     setDraft(emptyDraft);
-    setMessage("");
-    setError("");
+    resetMessages();
   }
 
   function startEditMode(post) {
@@ -161,8 +194,13 @@ export function DashboardShell({ initialPosts }) {
       category: post.category,
       author: post.author || ""
     });
-    setMessage("");
-    setError("");
+    resetMessages();
+    setResultCard({
+      title: "Editing selected post",
+      text: "You are updating an existing article. Save when you are happy with the changes, or open the live version in a new tab.",
+      href: getLivePostPath(post),
+      actionLabel: "View live post"
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -218,9 +256,9 @@ export function DashboardShell({ initialPosts }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
-    setMessage("");
-    setError("");
+    resetMessages();
     setSubmitBusy(true);
+    beginAction(draft.id ? "save" : "publish", draft.id);
 
     try {
       const formData = new FormData(event.currentTarget);
@@ -235,15 +273,24 @@ export function DashboardShell({ initialPosts }) {
         throw new Error(data.message || "Unable to save post.");
       }
 
-      if (isEditing) {
-        setPosts((current) => current.map((post) => (String(post.id) === draft.id ? data : post)));
-        setMessage("Post updated successfully.");
-        setToast("Post updated successfully.");
-      } else {
-        setPosts((current) => [data, ...current]);
-        setMessage("Post published successfully.");
-        setToast("Post published successfully.");
-      }
+      await refreshPosts();
+      const successText = isEditing ? "Post updated successfully." : "Post published successfully.";
+      const successPost = data;
+
+      setMessage(successText);
+      setToast({
+        text: successText,
+        href: getLivePostPath(successPost),
+        actionLabel: "View live post"
+      });
+      setResultCard({
+        title: isEditing ? "Post updated and live" : "Post published and live",
+        text: isEditing
+          ? "Your update is saved. Open the post to confirm the final public result, or keep writing another piece right away."
+          : "Your new story is live on the website. You can open it now or continue with a fresh draft immediately.",
+        href: getLivePostPath(successPost),
+        actionLabel: "View live post"
+      });
 
       clearPreview();
       setDraft(emptyDraft);
@@ -254,13 +301,14 @@ export function DashboardShell({ initialPosts }) {
       setError(nextError.message || "Unable to save post.");
     } finally {
       setSubmitBusy(false);
+      endAction();
     }
   }
 
   async function handleSetFeatured(postId) {
-    setMessage("");
-    setError("");
+    resetMessages();
     setSettingsBusy(true);
+    beginAction("feature", postId);
 
     try {
       const targetPost = posts.find((post) => String(post.id) === String(postId));
@@ -279,33 +327,32 @@ export function DashboardShell({ initialPosts }) {
         throw new Error(data.message || "Unable to set featured story.");
       }
 
-      setPosts((current) =>
-        current.map((post) => {
-          if (String(post.id) === String(postId)) {
-            return data;
-          }
-
-          if (post.featured) {
-            return { ...post, featured: false };
-          }
-
-          return post;
-        })
-      );
+      await refreshPosts();
       setMessage("Featured story updated successfully.");
-      setToast("Featured story updated successfully.");
+      setToast({
+        text: "Featured story updated successfully.",
+        href: getLivePostPath(data),
+        actionLabel: "Open featured story"
+      });
+      setResultCard({
+        title: "Featured story changed",
+        text: "The homepage spotlight now points to this post. Open it to confirm the public hero section looks exactly right.",
+        href: getLivePostPath(data),
+        actionLabel: "Open featured story"
+      });
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to set featured story.");
     } finally {
       setSettingsBusy(false);
+      endAction();
     }
   }
 
   async function handleDelete(postId) {
-    setMessage("");
-    setError("");
+    resetMessages();
     setSettingsBusy(true);
+    beginAction("delete", postId);
 
     try {
       const response = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
@@ -315,18 +362,25 @@ export function DashboardShell({ initialPosts }) {
         throw new Error(data.message || "Unable to delete post.");
       }
 
-      setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
+      await refreshPosts();
       if (draft.id === String(postId)) {
         clearPreview();
         setDraft(emptyDraft);
       }
+      setResultCard({
+        title: "Post removed",
+        text: "The post was deleted from the site and the dashboard list has been refreshed.",
+        href: "/",
+        actionLabel: "View homepage"
+      });
       setMessage("Post deleted successfully.");
-      setToast("Post deleted successfully.");
+      setToast({ text: "Post deleted successfully.", href: "/", actionLabel: "View homepage" });
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to delete post.");
     } finally {
       setSettingsBusy(false);
+      endAction();
     }
   }
 
@@ -338,6 +392,7 @@ export function DashboardShell({ initialPosts }) {
   async function updateAutomation(patch) {
     setSettingsBusy(true);
     setError("");
+    beginAction(patch.autoPostingEnabled ? "resume" : "pause");
 
     try {
       const response = await fetch("/api/automation/settings", {
@@ -355,18 +410,20 @@ export function DashboardShell({ initialPosts }) {
 
       setAutomationSettings(data.settings || emptyAutomation);
       setProviderSummary(data.providers || {});
-      setToast(data.settings?.autoPostingEnabled ? "Auto posting resumed." : "Auto posting paused.");
+      setToast({ text: data.settings?.autoPostingEnabled ? "Auto posting resumed." : "Auto posting paused." });
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to update automation settings.");
     } finally {
       setSettingsBusy(false);
+      endAction();
     }
   }
 
   async function handleRunAutomation() {
     setSettingsBusy(true);
     setError("");
+    beginAction("run-automation");
 
     try {
       const response = await fetch("/api/automation/run", { method: "POST" });
@@ -376,9 +433,10 @@ export function DashboardShell({ initialPosts }) {
         throw new Error(data.message || "Unable to run automation.");
       }
 
-      if (Array.isArray(data.createdPosts) && data.createdPosts.length) {
-        setPosts((current) => [...data.createdPosts, ...current]);
-      }
+      const refreshedPosts = await refreshPosts();
+      const leadPost = Array.isArray(data.createdPosts) && data.createdPosts.length
+        ? data.createdPosts[0]
+        : refreshedPosts[0];
 
       setAutomationSettings((current) => ({
         ...current,
@@ -387,12 +445,23 @@ export function DashboardShell({ initialPosts }) {
         lastRunMessage: data.message || "",
         lastPublishedCount: Number(data.publishedCount || 0)
       }));
-      setToast(data.message || "Automation run complete.");
+      setToast({
+        text: data.message || "Automation run complete.",
+        href: leadPost ? getLivePostPath(leadPost) : undefined,
+        actionLabel: leadPost ? "View newest post" : undefined
+      });
+      setResultCard({
+        title: Number(data.publishedCount || 0) > 0 ? "Automation posted new stories" : "Automation run completed",
+        text: data.message || "The automation engine finished its latest run.",
+        href: leadPost ? getLivePostPath(leadPost) : "/",
+        actionLabel: leadPost ? "View newest post" : "View homepage"
+      });
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to run automation.");
     } finally {
       setSettingsBusy(false);
+      endAction();
     }
   }
 
@@ -404,7 +473,16 @@ export function DashboardShell({ initialPosts }) {
 
   return (
     <div className="dashboard-shell">
-      {toast ? <div className="dashboard-toast">{toast}</div> : null}
+      {toast ? (
+        <div className="dashboard-toast">
+          <span>{toast.text}</span>
+          {toast.href ? (
+            <a className="dashboard-toast__link" href={toast.href} target="_blank" rel="noreferrer">
+              {toast.actionLabel || "Open"}
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="dashboard-toolbar">
         <p>Logged in. Publish from here, feature stories, and run your news engine without leaving the dashboard.</p>
@@ -472,10 +550,10 @@ export function DashboardShell({ initialPosts }) {
             onClick={() => updateAutomation({ autoPostingEnabled: !automationSettings.autoPostingEnabled })}
             disabled={settingsBusy}
           >
-            {automationSettings.autoPostingEnabled ? "Pause auto posting" : "Resume auto posting"}
+            {activeAction === "pause" ? "Pausing..." : activeAction === "resume" ? "Resuming..." : automationSettings.autoPostingEnabled ? "Pause auto posting" : "Resume auto posting"}
           </button>
           <button type="button" className="button button-secondary" onClick={handleRunAutomation} disabled={settingsBusy}>
-            {settingsBusy ? "Running..." : "Run now"}
+            {activeAction === "run-automation" ? "Running now..." : "Run now"}
           </button>
         </div>
         {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
@@ -491,6 +569,25 @@ export function DashboardShell({ initialPosts }) {
                 : "Write your article here and publish directly to the site with a rich markdown editor and live preview."}
             </p>
           </div>
+
+          {resultCard ? (
+            <div className="editor-status-card">
+              <div>
+                <strong>{resultCard.title}</strong>
+                <p>{resultCard.text}</p>
+              </div>
+              <div className="editor-status-card__actions">
+                {resultCard.href ? (
+                  <a className="button button-secondary" href={resultCard.href} target="_blank" rel="noreferrer">
+                    {resultCard.actionLabel || "Open"}
+                  </a>
+                ) : null}
+                <button type="button" className="button button-secondary" onClick={startCreateMode}>
+                  Start a fresh draft
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           <label>
             <span>Title</span>
@@ -611,7 +708,7 @@ export function DashboardShell({ initialPosts }) {
 
           <div className="editor-form__actions">
             <button type="submit" className="button button-primary" disabled={submitBusy}>
-              {submitBusy ? (draft.id ? "Saving..." : "Publishing...") : draft.id ? "Save changes" : "Publish post"}
+              {submitBusy ? (draft.id ? "Saving changes..." : "Publishing post...") : draft.id ? "Save changes" : "Publish post"}
             </button>
             {draft.id ? (
               <button type="button" className="button button-secondary" onClick={startCreateMode}>
@@ -650,19 +747,26 @@ export function DashboardShell({ initialPosts }) {
                   {post.sourceName ? `Source: ${post.sourceName}` : "Century Blog post"}
                 </p>
                 <div className="dashboard-post-card__actions">
+                  <a className="button button-secondary" href={getLivePostPath(post)} target="_blank" rel="noreferrer">
+                    View live
+                  </a>
                   <button
                     type="button"
                     className={`button ${post.featured ? "button-primary" : "button-secondary"}`}
                     onClick={() => handleSetFeatured(post.id)}
                     disabled={post.featured || settingsBusy}
                   >
-                    {post.featured ? "Featured story" : "Set as featured"}
+                    {activeAction === "feature" && activePostId === String(post.id)
+                      ? "Setting featured..."
+                      : post.featured
+                        ? "Featured story"
+                        : "Set as featured"}
                   </button>
                   <button type="button" className="button button-secondary" onClick={() => startEditMode(post)}>
                     Edit
                   </button>
                   <button type="button" className="button button-secondary" onClick={() => handleDelete(post.id)} disabled={settingsBusy}>
-                    Delete
+                    {activeAction === "delete" && activePostId === String(post.id) ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </article>
@@ -673,5 +777,3 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
-
-
