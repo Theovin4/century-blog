@@ -43,6 +43,43 @@ const markdownTools = [
   { label: "Link", action: "wrap", insertBefore: "[", insertAfter: "](https://example.com)", placeholder: "link text" }
 ];
 
+const REQUEST_TIMEOUT_MS = 25000;
+
+async function readResponsePayload(response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return { message: text || "Unexpected server response." };
+}
+
+async function fetchWithFeedback(input, init = {}, fallbackMessage = "Request failed.") {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    const payload = await readResponsePayload(response);
+
+    if (!response.ok) {
+      throw new Error(payload?.message || fallbackMessage);
+    }
+
+    return payload;
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("The request took too long. Refresh the dashboard and try again.");
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 function getLivePostPath(post) {
   return post?.slug ? `/news/${post.slug}` : "/";
 }
@@ -111,12 +148,7 @@ export function DashboardShell({ initialPosts }) {
 
     async function loadAutomationSettings() {
       try {
-        const response = await fetch("/api/automation/settings", { cache: "no-store" });
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Unable to load dashboard settings.");
-        }
+        const data = await fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings.");
 
         if (!active) {
           return;
@@ -139,10 +171,9 @@ export function DashboardShell({ initialPosts }) {
   }, []);
 
   async function refreshPosts() {
-    const response = await fetch("/api/posts", { cache: "no-store" });
-    const data = await response.json();
+    const data = await fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to refresh published posts.");
 
-    if (!response.ok || !Array.isArray(data)) {
+    if (!Array.isArray(data)) {
       throw new Error("Unable to refresh published posts.");
     }
 
@@ -266,12 +297,7 @@ export function DashboardShell({ initialPosts }) {
       const endpoint = isEditing ? `/api/posts/${draft.id}` : "/api/posts";
       const method = isEditing ? "PATCH" : "POST";
 
-      const response = await fetch(endpoint, { method, body: formData });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to save post.");
-      }
+      const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
 
       await refreshPosts();
       const successText = isEditing ? "Post updated successfully." : "Post published successfully.";
@@ -320,12 +346,7 @@ export function DashboardShell({ initialPosts }) {
       const formData = new FormData();
       formData.append("featured", "true");
 
-      const response = await fetch(`/api/posts/${postId}`, { method: "PATCH", body: formData });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to set featured story.");
-      }
+      const data = await fetchWithFeedback(`/api/posts/${postId}`, { method: "PATCH", body: formData }, "Unable to set featured story.");
 
       await refreshPosts();
       setMessage("Featured story updated successfully.");
@@ -355,12 +376,7 @@ export function DashboardShell({ initialPosts }) {
     beginAction("delete", postId);
 
     try {
-      const response = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to delete post.");
-      }
+      await fetchWithFeedback(`/api/posts/${postId}`, { method: "DELETE" }, "Unable to delete post.");
 
       await refreshPosts();
       if (draft.id === String(postId)) {
@@ -395,18 +411,13 @@ export function DashboardShell({ initialPosts }) {
     beginAction(patch.autoPostingEnabled ? "resume" : "pause");
 
     try {
-      const response = await fetch("/api/automation/settings", {
+      const data = await fetchWithFeedback("/api/automation/settings", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(patch)
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to update automation settings.");
-      }
+      }, "Unable to update automation settings.");
 
       setAutomationSettings(data.settings || emptyAutomation);
       setProviderSummary(data.providers || {});
@@ -426,12 +437,7 @@ export function DashboardShell({ initialPosts }) {
     beginAction("run-automation");
 
     try {
-      const response = await fetch("/api/automation/run", { method: "POST" });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Unable to run automation.");
-      }
+      const data = await fetchWithFeedback("/api/automation/run", { method: "POST" }, "Unable to run automation.");
 
       const refreshedPosts = await refreshPosts();
       const leadPost = Array.isArray(data.createdPosts) && data.createdPosts.length
