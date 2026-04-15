@@ -80,10 +80,6 @@ export function FeaturedStoryCarousel({ posts }) {
       <div className="feature-card__inner">
         <div className="feature-card__tags">
           <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
-          <span className={`pill pill-type pill-type--${featuredPost.type || "manual"}`}>
-            {(featuredPost.type || "manual").toUpperCase()}
-          </span>
-          {rotationPool.length > 1 ? <span className="pill">Rotates every 30s</span> : null}
         </div>
         <p className="muted">
           {formatLongDate(featuredPost.publishedAt)} | {featuredPost.readTime}

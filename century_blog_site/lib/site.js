@@ -294,7 +294,6 @@ export function buildPostKeywords(post) {
     `${category} news`,
     `${category} blog`,
     `${category} updates`,
-    `${getPostTypeMeta(post.type || "manual").label.toLowerCase()} post`,
     ...regionKeywords,
     ...countries,
     ...countries.map((country) => `${country} news`),
@@ -424,3 +423,6 @@ export function buildShareLinks(post) {
     pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
   };
 }
+
+
+

@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { formatLongDate, getCategoryMeta, getPostTypeMeta, isImageMedia, isVideoMedia } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
 
 export function PostCard({ post }) {
   const category = getCategoryMeta(post.category);
-  const postType = getPostTypeMeta(post.type || "manual");
   const hasImage = isImageMedia(post.mediaUrl, post.mediaType);
   const hasVideo = isVideoMedia(post.mediaUrl, post.mediaType);
 
@@ -32,7 +31,6 @@ export function PostCard({ post }) {
         ) : null}
         <div className="post-card__pills">
           <span className="pill">{category.label}</span>
-          <span className={`pill pill-type pill-type--${post.type || "manual"}`}>{postType.label}</span>
         </div>
       </div>
       <div className="post-card__body">

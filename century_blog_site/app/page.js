@@ -10,10 +10,12 @@ import { getPosts } from "@/lib/posts-store";
 import {
   buildBreadcrumbJsonLd,
   filterPosts,
+  getCategoryMeta,
   getMostReadPosts,
   getSiteUrl,
   getTopStories,
   isImageMedia,
+  isVideoMedia,
   prioritizePosts,
   socialLinks,
   toAbsoluteUrl
@@ -21,16 +23,44 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function getStoryCardMedia(post) {
+  if (isImageMedia(post.mediaUrl, post.mediaType)) {
+    return post.mediaUrl;
+  }
+
+  if (isVideoMedia(post.mediaUrl, post.mediaType) && post.posterUrl) {
+    return post.posterUrl;
+  }
+
+  return "";
+}
+
+function StoryHighlightCard({ post, meta }) {
+  const mediaUrl = getStoryCardMedia(post);
+
+  return (
+    <Link
+      href={`/news/${post.slug}`}
+      className={`mini-post-card ${mediaUrl ? "mini-post-card--with-media" : ""}`}
+      style={mediaUrl ? { backgroundImage: `linear-gradient(180deg, rgba(7, 9, 14, 0.14), rgba(7, 9, 14, 0.88)), url(${mediaUrl})` } : undefined}
+    >
+      <span className="mini-post-card__label">{meta}</span>
+      <strong>{post.title}</strong>
+      <span>{post.excerpt}</span>
+    </Link>
+  );
+}
+
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
-  const postType = String(resolvedSearchParams?.type || "").trim();
   const posts = await getPosts();
   const prioritizedPosts = prioritizePosts(posts);
-  const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query, postType }));
-  const topStories = getTopStories(filteredPosts.length ? filteredPosts : prioritizedPosts, 4);
+  const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query }));
+  const visiblePosts = filteredPosts.length ? filteredPosts : prioritizedPosts;
+  const topStories = getTopStories(visiblePosts, 4);
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
-  const secondaryPosts = filteredPosts.slice(0, 18);
+  const secondaryPosts = visiblePosts.slice(0, 18);
   const siteUrl = getSiteUrl();
 
   const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
@@ -84,14 +114,14 @@ export default async function HomePage({ searchParams }) {
       <section className="hero-grid">
         <div className="hero-copy">
           <div className="brand-lockup">
-            <div className="brand-mark">
+            <div className="brand-mark brand-mark--round">
               <Image
                 src="/century-blog-logo.png"
                 alt="Century Blog logo"
-                width={140}
-                height={140}
+                width={160}
+                height={160}
                 priority
-                className="brand-mark__image"
+                className="brand-mark__image brand-mark__image--round"
               />
             </div>
             <div className="brand-copy">
@@ -101,7 +131,7 @@ export default async function HomePage({ searchParams }) {
           </div>
           <h1>Breaking Nigerian News, Global Stories & Real-Time Updates That Matter</h1>
           <p className="hero-text">
-            Stay ahead with trending stories from Nigeria and around the world, from politics and business to tech, health, sports, and entertainment. We deliver fast, reliable, and engaging news designed for readers who want to stay informed, inspired, and ahead of the conversation
+            Stay ahead with trending stories from Nigeria and around the world, from politics and business to tech, health, sports, and entertainment. We deliver fast, reliable, and engaging news designed for readers who want to stay informed, inspired, and ahead of the conversation.
           </p>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
@@ -113,28 +143,34 @@ export default async function HomePage({ searchParams }) {
           </div>
         </div>
 
-        <FeaturedStoryCarousel posts={filteredPosts.length ? filteredPosts : prioritizedPosts} />
+        <FeaturedStoryCarousel posts={visiblePosts} />
       </section>
 
       {prioritizedPosts.length > 1 ? <NewsTicker posts={prioritizedPosts.slice(0, 10)} /> : null}
 
-      <PostFilters query={query} category="" postType={postType} action="/" />
+      <section className="section-block section-card">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Browse Sections</span>
+            <h2>Follow the topics you care about most</h2>
+          </div>
+          <p>Move quickly from Nigeria and world headlines into business, tech, entertainment, and health updates.</p>
+        </div>
+        <PostFilters query={query} category="" action="/" />
+      </section>
 
       {topStories.length ? (
         <section className="section-block section-card top-stories-panel">
           <div className="section-header">
             <div>
               <span className="eyebrow">Top Stories Today</span>
-              <h2>Manual stories first, automated headlines close behind</h2>
+              <h2>Big headlines readers are opening first</h2>
             </div>
-            <p>Century Blog gives editorial stories priority on the homepage, then layers in trusted auto-discovered news for breadth.</p>
+            <p>The strongest stories on Century Blog right now, selected for freshness, relevance, and visual impact.</p>
           </div>
           <div className="mini-post-grid">
             {topStories.map((post) => (
-              <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
-                <strong>{post.title}</strong>
-                <span>{post.category} | {(post.type || "manual").toUpperCase()}</span>
-              </Link>
+              <StoryHighlightCard key={post.slug} post={post} meta={getCategoryMeta(post.category).label} />
             ))}
           </div>
         </section>
@@ -147,14 +183,11 @@ export default async function HomePage({ searchParams }) {
               <span className="eyebrow">Most Read</span>
               <h2>Stories with the strongest momentum on the site</h2>
             </div>
-            <p>These stories combine freshness, prominence, and trend strength so readers can catch up fast.</p>
+            <p>These are the stories drawing the most attention right now across the homepage and article pages.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
-              <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
-                <strong>{post.title}</strong>
-                <span>{post.category} | Score {post.trendingScore || 0}</span>
-              </Link>
+              <StoryHighlightCard key={post.slug} post={post} meta={`${getCategoryMeta(post.category).label} | Popular`} />
             ))}
           </div>
         </section>
@@ -167,7 +200,7 @@ export default async function HomePage({ searchParams }) {
             <h2>Fresh stories for your readers</h2>
           </div>
           <p>
-            Search across the blog, filter by manual or automated posts, and move from Nigeria headlines into world stories without losing context.
+            Search across the blog and move from Nigeria headlines into world stories without losing context.
           </p>
         </div>
 
@@ -177,7 +210,7 @@ export default async function HomePage({ searchParams }) {
           ))}
         </div>
         {secondaryPosts.length === 0 ? (
-          <p className="empty-state">No posts matched your search yet. Try another keyword or switch filters.</p>
+          <p className="empty-state">No posts matched your search yet. Try another keyword.</p>
         ) : null}
       </section>
 

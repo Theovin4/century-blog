@@ -62,9 +62,8 @@ export default async function CategoryPage({ params, searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
-  const postType = String(resolvedSearchParams?.type || "").trim();
   const posts = await getPosts();
-  const filteredPosts = prioritizePosts(filterPosts(posts, { query, category, postType }));
+  const filteredPosts = prioritizePosts(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
 
@@ -93,7 +92,7 @@ export default async function CategoryPage({ params, searchParams }) {
         <p className="hero-text">{meta.description}</p>
       </section>
 
-      <PostFilters query={query} category={category} postType={postType} action={`/category/${category}`} />
+      <PostFilters query={query} category={category} action={`/category/${category}`} />
 
       <section className="section-block">
         <div className="post-grid">

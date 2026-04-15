@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -33,8 +33,18 @@ const emptyAutomation = {
   lastPublishedCount: 0
 };
 
+const markdownTools = [
+  { label: "H2", action: "heading", insertBefore: "## ", insertAfter: "", placeholder: "Subheading" },
+  { label: "Bold", action: "wrap", insertBefore: "**", insertAfter: "**", placeholder: "bold text" },
+  { label: "Italic", action: "wrap", insertBefore: "*", insertAfter: "*", placeholder: "italic text" },
+  { label: "List", action: "block", insertBefore: "- First point\n- Second point", insertAfter: "", placeholder: "" },
+  { label: "Quote", action: "block", insertBefore: "> Quote goes here", insertAfter: "", placeholder: "" },
+  { label: "Link", action: "wrap", insertBefore: "[", insertAfter: "](https://example.com)", placeholder: "link text" }
+];
+
 export function DashboardShell({ initialPosts }) {
   const router = useRouter();
+  const contentRef = useRef(null);
   const [posts, setPosts] = useState(initialPosts);
   const [draft, setDraft] = useState(emptyDraft);
   const [message, setMessage] = useState("");
@@ -54,7 +64,7 @@ export function DashboardShell({ initialPosts }) {
   const previewContent = useMemo(() => {
     return draft.content.trim()
       ? draft.content
-      : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, headings, lists, links, and more.";
+      : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, *italic*, headings, lists, quotes, and links.";
   }, [draft.content]);
 
   const orderedPosts = useMemo(() => {
@@ -96,14 +106,20 @@ export function DashboardShell({ initialPosts }) {
         const response = await fetch("/api/automation/settings", { cache: "no-store" });
         const data = await response.json();
 
-        if (!response.ok || !active) {
+        if (!response.ok) {
+          throw new Error(data.message || "Unable to load dashboard settings.");
+        }
+
+        if (!active) {
           return;
         }
 
         setAutomationSettings(data.settings || emptyAutomation);
         setProviderSummary(data.providers || {});
-      } catch {
-        // Keep defaults silently.
+      } catch (nextError) {
+        if (active) {
+          setError(nextError.message || "Unable to load dashboard settings.");
+        }
       }
     }
 
@@ -166,6 +182,39 @@ export function DashboardShell({ initialPosts }) {
     });
   }
 
+  function insertMarkdown(tool) {
+    const textarea = contentRef.current;
+    const currentValue = draft.content || "";
+
+    if (!textarea) {
+      const fallbackValue = tool.action === "block"
+        ? [currentValue.trim(), tool.insertBefore].filter(Boolean).join("\n\n")
+        : `${currentValue}${currentValue ? "\n\n" : ""}${tool.insertBefore}${tool.placeholder}${tool.insertAfter}`;
+      updateDraftField("content", fallbackValue);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? currentValue.length;
+    const end = textarea.selectionEnd ?? currentValue.length;
+    const selected = currentValue.slice(start, end);
+    const value = selected || tool.placeholder;
+
+    const insertion = tool.action === "block"
+      ? `${selected ? "" : start > 0 ? "\n\n" : ""}${tool.insertBefore}${selected ? "" : ""}`
+      : `${tool.insertBefore}${value}${tool.insertAfter}`;
+
+    const nextValue = `${currentValue.slice(0, start)}${insertion}${currentValue.slice(end)}`;
+    updateDraftField("content", nextValue);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = tool.action === "block"
+        ? start + insertion.length
+        : start + tool.insertBefore.length + value.length;
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
@@ -198,6 +247,7 @@ export function DashboardShell({ initialPosts }) {
       clearPreview();
       setDraft(emptyDraft);
       event.currentTarget.reset();
+      router.refresh();
       router.prefetch?.("/");
     } catch (nextError) {
       setError(nextError.message || "Unable to save post.");
@@ -243,6 +293,7 @@ export function DashboardShell({ initialPosts }) {
       );
       setMessage("Featured story updated successfully.");
       setToast("Featured story updated successfully.");
+      router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to set featured story.");
     } finally {
@@ -270,6 +321,7 @@ export function DashboardShell({ initialPosts }) {
       }
       setMessage("Post deleted successfully.");
       setToast("Post deleted successfully.");
+      router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to delete post.");
     } finally {
@@ -303,6 +355,7 @@ export function DashboardShell({ initialPosts }) {
       setAutomationSettings(data.settings || emptyAutomation);
       setProviderSummary(data.providers || {});
       setToast(data.settings?.autoPostingEnabled ? "Auto posting resumed." : "Auto posting paused.");
+      router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to update automation settings.");
     } finally {
@@ -334,6 +387,7 @@ export function DashboardShell({ initialPosts }) {
         lastPublishedCount: Number(data.publishedCount || 0)
       }));
       setToast(data.message || "Automation run complete.");
+      router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to run automation.");
     } finally {
@@ -344,13 +398,15 @@ export function DashboardShell({ initialPosts }) {
   const previewUrl = preview?.url || activeDraftPost?.mediaUrl || "";
   const previewType = preview?.type || activeDraftPost?.mediaType || "";
   const previewName = preview?.name || activeDraftPost?.mediaName || "";
+  const storageReady = providerSummary.storageReady !== false;
+  const aiEnhanced = Boolean(providerSummary.openAiRewriteEnabled);
 
   return (
     <div className="dashboard-shell">
       {toast ? <div className="dashboard-toast">{toast}</div> : null}
 
       <div className="dashboard-toolbar">
-        <p>Logged in. Manual posts publish instantly, while automated posts can be paused or triggered below.</p>
+        <p>Logged in. Publish from here, feature stories, and run your news engine without leaving the dashboard.</p>
         <div className="dashboard-toolbar__actions">
           <button type="button" className="button button-secondary" onClick={startCreateMode}>
             New post
@@ -368,7 +424,7 @@ export function DashboardShell({ initialPosts }) {
             <h2>Auto news engine</h2>
           </div>
           <p>
-            Nigeria stories are prioritised ahead of world headlines, and manual posts still stay on top of the homepage.
+            Nigeria stories are prioritised ahead of world headlines, and your homepage stays fresh automatically.
           </p>
         </div>
         <div className="automation-panel__grid">
@@ -394,9 +450,20 @@ export function DashboardShell({ initialPosts }) {
           <span className={`pill ${providerSummary.gNewsEnabled ? "pill-status-ok" : "pill-status-off"}`}>GNews {providerSummary.gNewsEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
           <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
-          <span className={`pill ${providerSummary.openAiRewriteEnabled ? "pill-status-ok" : "pill-status-off"}`}>AI Rewrite {providerSummary.openAiRewriteEnabled ? providerSummary.openAiModel || "ready" : "missing"}</span>
-          <span className={`pill ${providerSummary.storageReady ? "pill-status-ok" : "pill-status-off"}`}>Storage {providerSummary.storageReady ? "ready" : "missing"}</span>
+          <span className="pill pill-status-ok">Rewrite engine ready</span>
+          <span className={`pill ${aiEnhanced ? "pill-status-ok" : "pill-status-off"}`}>AI voice {aiEnhanced ? providerSummary.openAiModel || "on" : "optional"}</span>
+          <span className={`pill ${storageReady ? "pill-status-ok" : "pill-status-off"}`}>Storage {storageReady ? "ready" : "missing"}</span>
         </div>
+        {!storageReady ? (
+          <p className="dashboard-warning">
+            Publishing is blocked because production storage is not ready yet. Add your Cloudinary keys in Vercel, then redeploy.
+          </p>
+        ) : null}
+        {!aiEnhanced ? (
+          <p className="dashboard-warning dashboard-warning--soft">
+            The rewrite engine still works, but premium AI rewrite needs an <code>OPENAI_API_KEY</code> in Vercel.
+          </p>
+        ) : null}
         <div className="automation-panel__actions">
           <button
             type="button"
@@ -420,7 +487,7 @@ export function DashboardShell({ initialPosts }) {
             <p>
               {draft.id
                 ? "Update the selected post and optionally replace its featured media."
-                : "Write your article here and publish directly to the site. Manual posts stay ahead of auto posts on the homepage."}
+                : "Write your article here and publish directly to the site with a rich markdown editor and live preview."}
             </p>
           </div>
 
@@ -451,20 +518,34 @@ export function DashboardShell({ initialPosts }) {
           <div className="editor-form__split">
             <label>
               <span>Content</span>
+              <div className="markdown-toolbar">
+                {markdownTools.map((tool) => (
+                  <button
+                    key={tool.label}
+                    type="button"
+                    className="markdown-tool"
+                    onClick={() => insertMarkdown(tool)}
+                  >
+                    {tool.label}
+                  </button>
+                ))}
+              </div>
               <textarea
+                ref={contentRef}
                 name="content"
                 rows="14"
-                placeholder="Write your post in Markdown. Use ## for headings, **bold** text, lists, and links."
+                placeholder="Write your post in Markdown. Use ## headings, **bold**, *italic*, lists, quotes, and links."
                 value={draft.content}
                 onChange={(event) => updateDraftField("content", event.target.value)}
                 required
               />
+              <span className="editor-form__hint">Tip: use the toolbar above to insert headings, bold, italic, lists, quotes, and links instantly.</span>
             </label>
 
             <div className="editor-live-preview">
               <div className="editor-live-preview__header">
                 <strong>Live preview</strong>
-                <span>Markdown will render exactly like the post page.</span>
+                <span>Markdown renders exactly like the public post page.</span>
               </div>
               <div className="editor-live-preview__body blog-content">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent}</ReactMarkdown>
@@ -542,7 +623,7 @@ export function DashboardShell({ initialPosts }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>Published posts</h2>
-            <p>Edit, feature, or remove your latest content here. Auto posts remain fully editable.</p>
+            <p>Edit, feature, or remove your latest content here. Auto-fetched posts stay fully editable.</p>
           </div>
 
           <div className="dashboard-post-list">
@@ -565,8 +646,7 @@ export function DashboardShell({ initialPosts }) {
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
                 <p className="dashboard-post-card__meta">
-                  {(post.type || "manual") === "auto" ? "Automated story" : "Manual story"}
-                  {post.sourceName ? ` | Source: ${post.sourceName}` : ""}
+                  {post.sourceName ? `Source: ${post.sourceName}` : "Century Blog post"}
                 </p>
                 <div className="dashboard-post-card__actions">
                   <button
@@ -592,5 +672,3 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
-
-
