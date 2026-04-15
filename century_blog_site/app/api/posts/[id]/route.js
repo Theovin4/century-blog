@@ -50,6 +50,22 @@ async function requireAdmin() {
   return isAdminAuthenticated(cookieStore.get("century_admin_session")?.value);
 }
 
+async function getPostByIdWithRetry(id, attempts = 4, delayMs = 450) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const post = await getPostById(id);
+
+    if (post) {
+      return post;
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return null;
+}
+
 export async function PATCH(request, { params }) {
   if (!(await requireAdmin())) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
@@ -60,7 +76,7 @@ export async function PATCH(request, { params }) {
   }
 
   const { id } = await params;
-  const current = await getPostById(id);
+  const current = await getPostByIdWithRetry(id);
 
   if (!current) {
     return NextResponse.json({ message: "Post not found." }, { status: 404 });
@@ -126,7 +142,7 @@ export async function DELETE(_request, { params }) {
   }
 
   const { id } = await params;
-  const current = await getPostById(id);
+  const current = await getPostByIdWithRetry(id);
   const deleted = await deletePost(id);
 
   if (!deleted || !current) {

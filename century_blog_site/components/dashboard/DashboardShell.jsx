@@ -299,7 +299,12 @@ export function DashboardShell({ initialPosts }) {
 
       const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
 
-      await refreshPosts();
+      if (isEditing) {
+        setPosts((current) => current.map((post) => (String(post.id) === draft.id ? data : post)));
+      } else {
+        setPosts((current) => [data, ...current]);
+      }
+
       const successText = isEditing ? "Post updated successfully." : "Post published successfully.";
       const successPost = data;
 
@@ -348,7 +353,19 @@ export function DashboardShell({ initialPosts }) {
 
       const data = await fetchWithFeedback(`/api/posts/${postId}`, { method: "PATCH", body: formData }, "Unable to set featured story.");
 
-      await refreshPosts();
+      setPosts((current) =>
+        current.map((post) => {
+          if (String(post.id) === String(postId)) {
+            return data;
+          }
+
+          if (post.featured) {
+            return { ...post, featured: false };
+          }
+
+          return post;
+        })
+      );
       setMessage("Featured story updated successfully.");
       setToast({
         text: "Featured story updated successfully.",
@@ -378,7 +395,7 @@ export function DashboardShell({ initialPosts }) {
     try {
       await fetchWithFeedback(`/api/posts/${postId}`, { method: "DELETE" }, "Unable to delete post.");
 
-      await refreshPosts();
+      setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
       if (draft.id === String(postId)) {
         clearPreview();
         setDraft(emptyDraft);
@@ -439,10 +456,12 @@ export function DashboardShell({ initialPosts }) {
     try {
       const data = await fetchWithFeedback("/api/automation/run", { method: "POST" }, "Unable to run automation.");
 
-      const refreshedPosts = await refreshPosts();
+      if (Array.isArray(data.createdPosts) && data.createdPosts.length) {
+        setPosts((current) => [...data.createdPosts, ...current]);
+      }
       const leadPost = Array.isArray(data.createdPosts) && data.createdPosts.length
         ? data.createdPosts[0]
-        : refreshedPosts[0];
+        : posts[0];
 
       setAutomationSettings((current) => ({
         ...current,
