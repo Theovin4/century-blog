@@ -114,14 +114,14 @@ export default async function HomePage({ searchParams }) {
       <section className="hero-grid">
         <div className="hero-copy">
           <div className="brand-lockup">
-            <div className="brand-mark brand-mark--round">
+            <div className="brand-mark">
               <Image
                 src="/century-blog-logo.png"
                 alt="Century Blog logo"
-                width={160}
-                height={160}
+                width={140}
+                height={140}
                 priority
-                className="brand-mark__image brand-mark__image--round"
+                className="brand-mark__image"
               />
             </div>
             <div className="brand-copy">
@@ -234,3 +234,4 @@ export default async function HomePage({ searchParams }) {
     </main>
   );
 }
+

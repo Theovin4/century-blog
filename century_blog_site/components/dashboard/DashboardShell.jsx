@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   editorCategoryOptions,
@@ -548,7 +549,7 @@ export function DashboardShell({ initialPosts }) {
                 <span>Markdown renders exactly like the public post page.</span>
               </div>
               <div className="editor-live-preview__body blog-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{previewContent}</ReactMarkdown>
               </div>
             </div>
           </div>
@@ -672,3 +673,5 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
+
+
