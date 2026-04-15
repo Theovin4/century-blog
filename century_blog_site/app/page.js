@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { NewsletterForm } from "@/components/forms/NewsletterForm";
+import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { NewsTicker } from "@/components/site/NewsTicker";
@@ -9,20 +10,16 @@ import { getPosts } from "@/lib/posts-store";
 import {
   buildBreadcrumbJsonLd,
   filterPosts,
-  formatLongDate,
-  getCategoryMeta,
   getMostReadPosts,
   getSiteUrl,
   getTopStories,
   isImageMedia,
-  isVideoMedia,
-  pickFeaturedPost,
   prioritizePosts,
   socialLinks,
   toAbsoluteUrl
 } from "@/lib/site";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
@@ -31,10 +28,9 @@ export default async function HomePage({ searchParams }) {
   const posts = await getPosts();
   const prioritizedPosts = prioritizePosts(posts);
   const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query, postType }));
-  const featuredPost = pickFeaturedPost(filteredPosts) || pickFeaturedPost(prioritizedPosts);
   const topStories = getTopStories(filteredPosts.length ? filteredPosts : prioritizedPosts, 4);
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
-  const secondaryPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
+  const secondaryPosts = filteredPosts.slice(0, 18);
   const siteUrl = getSiteUrl();
 
   const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
@@ -65,7 +61,7 @@ export default async function HomePage({ searchParams }) {
       "@type": "Blog",
       name: "Century Blog",
       description:
-        "Century Blog is a Nigeria-first news and culture blog covering trending headlines, business, health, tech, entertainment, and world updates.",
+        "Century Blog is a Nigeria-first news and culture blog covering breaking Nigerian news, world updates, business, tech, health, sports, and entertainment.",
       url: siteUrl,
       inLanguage: "en-NG",
       blogPost: prioritizedPosts.slice(0, 8).map((post) => ({
@@ -82,9 +78,6 @@ export default async function HomePage({ searchParams }) {
     },
     breadcrumbLd
   ];
-
-  const featuredHasImage = isImageMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
-  const featuredHasVideo = isVideoMedia(featuredPost?.mediaUrl, featuredPost?.mediaType);
 
   return (
     <main className="page-shell">
@@ -103,16 +96,16 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Nigeria-first news, culture, health, business, and global trends</p>
+              <p className="brand-copy__tag">Lifestyle, Education, Daily gist, Nigeria, World, Sports & Entertainment, Tech, Health And Business</p>
             </div>
           </div>
-          <h1>Automated where it helps, curated where it matters, always built for real readers.</h1>
+          <h1>Breaking Nigerian News, Global Stories & Real-Time Updates That Matter</h1>
           <p className="hero-text">
-            Century Blog blends manual editorial posts with a Nigeria-priority news engine so readers can discover smart explainers, breaking updates, and global stories without losing the local angle.
+            Stay ahead with trending stories from Nigeria and around the world, from politics and business to tech, health, sports, and entertainment. We deliver fast, reliable, and engaging news designed for readers who want to stay informed, inspired, and ahead of the conversation
           </p>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
-              Explore latest posts
+              Read Latest News Now
             </a>
             <Link href="/about" className="button button-secondary">
               Learn about us
@@ -120,109 +113,57 @@ export default async function HomePage({ searchParams }) {
           </div>
         </div>
 
-        {featuredPost ? (
-          <article className={`feature-card ${featuredPost.coverStyle}`}>
-            {featuredHasImage ? (
-              <img
-                src={featuredPost.mediaUrl}
-                alt={featuredPost.title}
-                className="feature-card__image"
-                fetchPriority="high"
-              />
-            ) : null}
-            {featuredHasVideo ? (
-              <video
-                className="feature-card__video"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster={featuredPost.posterUrl || undefined}
-              >
-                <source src={featuredPost.mediaUrl} type={featuredPost.mediaType} />
-              </video>
-            ) : null}
-            <div className="feature-card__inner">
-              <div className="feature-card__tags">
-                <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
-                <span className={`pill pill-type pill-type--${featuredPost.type || "manual"}`}>
-                  {(featuredPost.type || "manual").toUpperCase()}
-                </span>
-              </div>
-              <p className="muted">
-                {formatLongDate(featuredPost.publishedAt)} | {featuredPost.readTime}
-              </p>
-              <h2>{featuredPost.title}</h2>
-              <p>{featuredPost.excerpt}</p>
-              <Link href={`/news/${featuredPost.slug}`} className="text-link">
-                Read full story
-              </Link>
-            </div>
-          </article>
-        ) : null}
+        <FeaturedStoryCarousel posts={filteredPosts.length ? filteredPosts : prioritizedPosts} />
       </section>
 
-      <NewsTicker posts={prioritizedPosts.slice(0, 10)} />
-
-      <section className="category-strip">
-        {["nigeria", "world", "business", "tech", "entertainment", "health"].map((category) => {
-          const meta = getCategoryMeta(category);
-          return (
-            <article key={category} className="category-card">
-              <span className="category-card__accent" style={{ background: meta.accent }} />
-              <h3>{meta.label}</h3>
-              <p>{meta.description}</p>
-              <Link href={`/category/${category}`} className="text-link">
-                Browse {meta.label}
-              </Link>
-            </article>
-          );
-        })}
-      </section>
+      {prioritizedPosts.length > 1 ? <NewsTicker posts={prioritizedPosts.slice(0, 10)} /> : null}
 
       <PostFilters query={query} category="" postType={postType} action="/" />
 
-      <section className="section-block section-card top-stories-panel">
-        <div className="section-header">
-          <div>
-            <span className="eyebrow">Top Stories Today</span>
-            <h2>Manual stories first, automated headlines close behind</h2>
+      {topStories.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Top Stories Today</span>
+              <h2>Manual stories first, automated headlines close behind</h2>
+            </div>
+            <p>Century Blog gives editorial stories priority on the homepage, then layers in trusted auto-discovered news for breadth.</p>
           </div>
-          <p>Century Blog gives editorial stories priority on the homepage, then layers in trusted auto-discovered news for breadth.</p>
-        </div>
-        <div className="mini-post-grid">
-          {topStories.map((post) => (
-            <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
-              <strong>{post.title}</strong>
-              <span>{getCategoryMeta(post.category).label} | {(post.type || "manual").toUpperCase()}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+          <div className="mini-post-grid">
+            {topStories.map((post) => (
+              <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
+                <strong>{post.title}</strong>
+                <span>{post.category} | {(post.type || "manual").toUpperCase()}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-      <section className="section-block section-card top-stories-panel">
-        <div className="section-header">
-          <div>
-            <span className="eyebrow">Most Read</span>
-            <h2>Stories with the strongest momentum on the site</h2>
+      {mostReadPosts.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Most Read</span>
+              <h2>Stories with the strongest momentum on the site</h2>
+            </div>
+            <p>These stories combine freshness, prominence, and trend strength so readers can catch up fast.</p>
           </div>
-          <p>These stories combine freshness, prominence, and trend strength so readers can catch up fast.</p>
-        </div>
-        <div className="mini-post-grid">
-          {mostReadPosts.map((post) => (
-            <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
-              <strong>{post.title}</strong>
-              <span>{getCategoryMeta(post.category).label} | Score {post.trendingScore || 0}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
+          <div className="mini-post-grid">
+            {mostReadPosts.map((post) => (
+              <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
+                <strong>{post.title}</strong>
+                <span>{post.category} | Score {post.trendingScore || 0}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section id="latest" className="section-block">
         <div className="section-header">
           <div>
-            <span className="eyebrow">Nigeria First, World Aware</span>
+            <span className="eyebrow">Latest Headlines</span>
             <h2>Fresh stories for your readers</h2>
           </div>
           <p>
@@ -245,7 +186,7 @@ export default async function HomePage({ searchParams }) {
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, tech, health, and entertainment.
+            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, tech, health, sports, and entertainment.
           </p>
         </div>
         <NewsletterForm />

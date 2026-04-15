@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
@@ -26,6 +27,14 @@ function validateMedia(media) {
   }
 
   return "";
+}
+
+function revalidatePostSurfaces(post) {
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  revalidatePath("/sitemap.xml");
+  revalidatePath(`/category/${post.category}`);
+  revalidatePath(`/news/${post.slug}`);
 }
 
 export async function GET() {
@@ -87,6 +96,7 @@ export async function POST(request) {
       media && typeof media !== "string" && media.size > 0 ? media : null
     );
 
+    revalidatePostSurfaces(post);
     return NextResponse.json(post, { status: 201 });
   } catch (error) {
     return NextResponse.json({ message: error.message || "Unable to create post." }, { status: 500 });

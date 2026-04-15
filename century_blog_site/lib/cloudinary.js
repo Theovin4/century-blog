@@ -174,7 +174,10 @@ export async function readCloudinaryJson(publicId) {
     return null;
   }
 
-  const response = await fetch(resource.secure_url, { cache: "no-store" });
+  const versionedUrl = resource.version
+    ? `${resource.secure_url}${resource.secure_url.includes("?") ? "&" : "?"}v=${resource.version}`
+    : resource.secure_url;
+  const response = await fetch(versionedUrl, { cache: "no-store" });
 
   if (!response.ok) {
     throw new Error(`Unable to fetch Cloudinary JSON for ${publicId}`);

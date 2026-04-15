@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
@@ -26,6 +27,18 @@ function validateMedia(media) {
   }
 
   return "";
+}
+
+function revalidatePostSurfaces(post, previousCategory = "") {
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  revalidatePath("/sitemap.xml");
+  revalidatePath(`/news/${post.slug}`);
+  revalidatePath(`/category/${post.category}`);
+
+  if (previousCategory && previousCategory !== post.category) {
+    revalidatePath(`/category/${previousCategory}`);
+  }
 }
 
 async function requireAdmin() {
@@ -88,6 +101,7 @@ export async function PATCH(request, { params }) {
       media && typeof media !== "string" && media.size > 0 ? media : null
     );
 
+    revalidatePostSurfaces(post, current.category);
     return NextResponse.json(post);
   } catch (error) {
     return NextResponse.json({ message: error.message || "Unable to update post." }, { status: 500 });
@@ -100,11 +114,18 @@ export async function DELETE(_request, { params }) {
   }
 
   const { id } = await params;
+  const current = await getPostById(id);
   const deleted = await deletePost(id);
 
-  if (!deleted) {
+  if (!deleted || !current) {
     return NextResponse.json({ message: "Post not found." }, { status: 404 });
   }
+
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  revalidatePath("/sitemap.xml");
+  revalidatePath(`/news/${current.slug}`);
+  revalidatePath(`/category/${current.category}`);
 
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -44,7 +44,7 @@ export function DashboardShell({ initialPosts }) {
   const [automationSettings, setAutomationSettings] = useState(emptyAutomation);
   const [providerSummary, setProviderSummary] = useState({});
   const [settingsBusy, setSettingsBusy] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [submitBusy, setSubmitBusy] = useState(false);
 
   const activeDraftPost = useMemo(
     () => posts.find((post) => String(post.id) === String(draft.id)) || null,
@@ -63,6 +63,10 @@ export function DashboardShell({ initialPosts }) {
         return (left.type || "manual") === "manual" ? -1 : 1;
       }
 
+      if (left.featured !== right.featured) {
+        return left.featured ? -1 : 1;
+      }
+
       return new Date(right.publishedAt) - new Date(left.publishedAt);
     });
   }, [posts]);
@@ -72,7 +76,7 @@ export function DashboardShell({ initialPosts }) {
       return undefined;
     }
 
-    const timeout = window.setTimeout(() => setToast(""), 2800);
+    const timeout = window.setTimeout(() => setToast(""), 3200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
@@ -166,108 +170,116 @@ export function DashboardShell({ initialPosts }) {
     event.preventDefault();
     setMessage("");
     setError("");
+    setSubmitBusy(true);
 
-    const formData = new FormData(event.currentTarget);
-    const isEditing = Boolean(draft.id);
-    const endpoint = isEditing ? `/api/posts/${draft.id}` : "/api/posts";
-    const method = isEditing ? "PATCH" : "POST";
+    try {
+      const formData = new FormData(event.currentTarget);
+      const isEditing = Boolean(draft.id);
+      const endpoint = isEditing ? `/api/posts/${draft.id}` : "/api/posts";
+      const method = isEditing ? "PATCH" : "POST";
 
-    const response = await fetch(endpoint, { method, body: formData });
-    const data = await response.json();
+      const response = await fetch(endpoint, { method, body: formData });
+      const data = await response.json();
 
-    if (!response.ok) {
-      setError(data.message || "Unable to save post.");
-      return;
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to save post.");
+      }
+
+      if (isEditing) {
+        setPosts((current) => current.map((post) => (String(post.id) === draft.id ? data : post)));
+        setMessage("Post updated successfully.");
+        setToast("Post updated successfully.");
+      } else {
+        setPosts((current) => [data, ...current]);
+        setMessage("Post published successfully.");
+        setToast("Post published successfully.");
+      }
+
+      clearPreview();
+      setDraft(emptyDraft);
+      event.currentTarget.reset();
+      router.prefetch?.("/");
+    } catch (nextError) {
+      setError(nextError.message || "Unable to save post.");
+    } finally {
+      setSubmitBusy(false);
     }
-
-    if (isEditing) {
-      setPosts((current) => current.map((post) => (String(post.id) === draft.id ? data : post)));
-      setMessage("Post updated successfully.");
-      setToast("Post updated successfully.");
-    } else {
-      setPosts((current) => [data, ...current]);
-      setMessage("Post published successfully.");
-      setToast("Post published successfully.");
-    }
-
-    clearPreview();
-    setDraft(emptyDraft);
-    event.currentTarget.reset();
-    startTransition(() => {
-      router.refresh();
-    });
   }
 
   async function handleSetFeatured(postId) {
     setMessage("");
     setError("");
+    setSettingsBusy(true);
 
-    const targetPost = posts.find((post) => String(post.id) === String(postId));
+    try {
+      const targetPost = posts.find((post) => String(post.id) === String(postId));
 
-    if (!targetPost || targetPost.featured) {
-      return;
+      if (!targetPost || targetPost.featured) {
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("featured", "true");
+
+      const response = await fetch(`/api/posts/${postId}`, { method: "PATCH", body: formData });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to set featured story.");
+      }
+
+      setPosts((current) =>
+        current.map((post) => {
+          if (String(post.id) === String(postId)) {
+            return data;
+          }
+
+          if (post.featured) {
+            return { ...post, featured: false };
+          }
+
+          return post;
+        })
+      );
+      setMessage("Featured story updated successfully.");
+      setToast("Featured story updated successfully.");
+    } catch (nextError) {
+      setError(nextError.message || "Unable to set featured story.");
+    } finally {
+      setSettingsBusy(false);
     }
-
-    const formData = new FormData();
-    formData.append("featured", "true");
-
-    const response = await fetch(`/api/posts/${postId}`, { method: "PATCH", body: formData });
-    const data = await response.json();
-
-    if (!response.ok) {
-      setError(data.message || "Unable to set featured story.");
-      return;
-    }
-
-    setPosts((current) =>
-      current.map((post) => {
-        if (String(post.id) === String(postId)) {
-          return data;
-        }
-
-        if (post.featured) {
-          return { ...post, featured: false };
-        }
-
-        return post;
-      })
-    );
-    setMessage("Featured story updated successfully.");
-    setToast("Featured story updated successfully.");
-    startTransition(() => {
-      router.refresh();
-    });
   }
 
   async function handleDelete(postId) {
     setMessage("");
     setError("");
+    setSettingsBusy(true);
 
-    const response = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
-    const data = await response.json();
+    try {
+      const response = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
+      const data = await response.json();
 
-    if (!response.ok) {
-      setError(data.message || "Unable to delete post.");
-      return;
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to delete post.");
+      }
+
+      setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
+      if (draft.id === String(postId)) {
+        clearPreview();
+        setDraft(emptyDraft);
+      }
+      setMessage("Post deleted successfully.");
+      setToast("Post deleted successfully.");
+    } catch (nextError) {
+      setError(nextError.message || "Unable to delete post.");
+    } finally {
+      setSettingsBusy(false);
     }
-
-    setPosts((current) => current.filter((post) => String(post.id) !== String(postId)));
-    if (draft.id === String(postId)) {
-      clearPreview();
-      setDraft(emptyDraft);
-    }
-    setMessage("Post deleted successfully.");
-    setToast("Post deleted successfully.");
-    startTransition(() => {
-      router.refresh();
-    });
   }
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    startTransition(() => {
-      router.refresh();
-    });
+    router.refresh();
   }
 
   async function updateAutomation(patch) {
@@ -322,9 +334,6 @@ export function DashboardShell({ initialPosts }) {
         lastPublishedCount: Number(data.publishedCount || 0)
       }));
       setToast(data.message || "Automation run complete.");
-      startTransition(() => {
-        router.refresh();
-      });
     } catch (nextError) {
       setError(nextError.message || "Unable to run automation.");
     } finally {
@@ -384,7 +393,8 @@ export function DashboardShell({ initialPosts }) {
           <span className={`pill ${providerSummary.newsApiEnabled ? "pill-status-ok" : "pill-status-off"}`}>NewsAPI {providerSummary.newsApiEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${providerSummary.gNewsEnabled ? "pill-status-ok" : "pill-status-off"}`}>GNews {providerSummary.gNewsEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
-          <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>\n          <span className={`pill ${providerSummary.openAiRewriteEnabled ? "pill-status-ok" : "pill-status-off"}`}>AI Rewrite {providerSummary.openAiRewriteEnabled ? providerSummary.openAiModel || "ready" : "missing"}</span>
+          <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
+          <span className={`pill ${providerSummary.openAiRewriteEnabled ? "pill-status-ok" : "pill-status-off"}`}>AI Rewrite {providerSummary.openAiRewriteEnabled ? providerSummary.openAiModel || "ready" : "missing"}</span>
         </div>
         <div className="automation-panel__actions">
           <button
@@ -517,8 +527,8 @@ export function DashboardShell({ initialPosts }) {
           {error ? <p className="form-error">{error}</p> : null}
 
           <div className="editor-form__actions">
-            <button type="submit" className="button button-primary" disabled={isPending}>
-              {isPending ? (draft.id ? "Saving..." : "Publishing...") : draft.id ? "Save changes" : "Publish post"}
+            <button type="submit" className="button button-primary" disabled={submitBusy}>
+              {submitBusy ? (draft.id ? "Saving..." : "Publishing...") : draft.id ? "Save changes" : "Publish post"}
             </button>
             {draft.id ? (
               <button type="button" className="button button-secondary" onClick={startCreateMode}>
@@ -562,14 +572,14 @@ export function DashboardShell({ initialPosts }) {
                     type="button"
                     className={`button ${post.featured ? "button-primary" : "button-secondary"}`}
                     onClick={() => handleSetFeatured(post.id)}
-                    disabled={post.featured}
+                    disabled={post.featured || settingsBusy}
                   >
                     {post.featured ? "Featured story" : "Set as featured"}
                   </button>
                   <button type="button" className="button button-secondary" onClick={() => startEditMode(post)}>
                     Edit
                   </button>
-                  <button type="button" className="button button-secondary" onClick={() => handleDelete(post.id)}>
+                  <button type="button" className="button button-secondary" onClick={() => handleDelete(post.id)} disabled={settingsBusy}>
                     Delete
                   </button>
                 </div>

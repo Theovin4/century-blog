@@ -22,10 +22,13 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
 }
 
 export async function writeJsonStore(localFilePath, publicId, payload) {
-  if (publicId && isCloudinaryConfigured()) {
-    await writeCloudinaryJson(publicId, payload);
-    return;
+  try {
+    await fs.writeFile(localFilePath, JSON.stringify(payload, null, 2), "utf8");
+  } catch {
+    // Ignore local write errors in read-only environments.
   }
 
-  await fs.writeFile(localFilePath, JSON.stringify(payload, null, 2), "utf8");
+  if (publicId && isCloudinaryConfigured()) {
+    await writeCloudinaryJson(publicId, payload);
+  }
 }

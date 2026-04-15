@@ -8,20 +8,22 @@ const gaId = process.env.NEXT_PUBLIC_GA_ID;
 export const metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Century Blog | Lifestyle, Health, Education & Daily Gist",
+    default: "Century Blog | Breaking Nigerian News, Global Stories & Real-Time Updates",
     template: "%s | Century Blog"
   },
   description:
-    "Century Blog is a modern Nigerian blog covering lifestyle, health, education, and daily gist with fast pages, rich stories, and strong SEO.",
+    "Century Blog delivers breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, entertainment, lifestyle, education, and daily gist.",
   applicationName: "Century Blog",
   keywords: [
     "Century Blog",
-    "Nigeria blog",
-    "lifestyle blog",
+    "Nigeria news",
+    "breaking Nigerian news",
+    "global stories",
+    "business news Nigeria",
+    "tech news Nigeria",
     "health news Nigeria",
-    "education news Nigeria",
-    "daily gist Nigeria",
-    "trending news Nigeria"
+    "sports news Nigeria",
+    "entertainment news Nigeria"
   ],
   authors: [{ name: "Century Blog" }],
   creator: "Century Blog",
@@ -34,7 +36,7 @@ export const metadata = {
   openGraph: {
     title: "Century Blog",
     description:
-      "A beautiful dark themed Nigerian blog for lifestyle, health, education, and daily gist.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, and entertainment.",
     url: siteUrl,
     siteName: "Century Blog",
     locale: "en_NG",
@@ -52,7 +54,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Century Blog",
     description:
-      "A beautiful dark themed Nigerian blog for lifestyle, health, education, and daily gist.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, and entertainment.",
     images: [`${siteUrl}/century-blog-logo.png`]
   },
   icons: {
