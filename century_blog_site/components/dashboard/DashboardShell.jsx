@@ -4,15 +4,33 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { categoryOptions, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
+import {
+  editorCategoryOptions,
+  getCategoryMeta,
+  getPostTypeMeta,
+  isImageMedia,
+  isVideoMedia
+} from "@/lib/site";
 
 const emptyDraft = {
   id: "",
   title: "",
   excerpt: "",
   content: "",
-  category: "daily-gist",
+  category: "nigeria",
   author: ""
+};
+
+const emptyAutomation = {
+  autoPostingEnabled: true,
+  fetchIntervalHours: 2,
+  nigeriaShareTarget: 0.7,
+  globalShareTarget: 0.3,
+  maxPostsPerRun: 2,
+  lastRunAt: "",
+  lastRunStatus: "idle",
+  lastRunMessage: "",
+  lastPublishedCount: 0
 };
 
 export function DashboardShell({ initialPosts }) {
@@ -23,6 +41,9 @@ export function DashboardShell({ initialPosts }) {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [preview, setPreview] = useState(null);
+  const [automationSettings, setAutomationSettings] = useState(emptyAutomation);
+  const [providerSummary, setProviderSummary] = useState({});
+  const [settingsBusy, setSettingsBusy] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const activeDraftPost = useMemo(
@@ -35,6 +56,16 @@ export function DashboardShell({ initialPosts }) {
       ? draft.content
       : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, headings, lists, links, and more.";
   }, [draft.content]);
+
+  const orderedPosts = useMemo(() => {
+    return [...posts].sort((left, right) => {
+      if ((left.type || "manual") !== (right.type || "manual")) {
+        return (left.type || "manual") === "manual" ? -1 : 1;
+      }
+
+      return new Date(right.publishedAt) - new Date(left.publishedAt);
+    });
+  }, [posts]);
 
   useEffect(() => {
     if (!toast) {
@@ -52,6 +83,32 @@ export function DashboardShell({ initialPosts }) {
       }
     };
   }, [preview]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadAutomationSettings() {
+      try {
+        const response = await fetch("/api/automation/settings", { cache: "no-store" });
+        const data = await response.json();
+
+        if (!response.ok || !active) {
+          return;
+        }
+
+        setAutomationSettings(data.settings || emptyAutomation);
+        setProviderSummary(data.providers || {});
+      } catch {
+        // Keep defaults silently.
+      }
+    }
+
+    loadAutomationSettings();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function clearPreview() {
     setPreview((current) => {
@@ -213,6 +270,68 @@ export function DashboardShell({ initialPosts }) {
     });
   }
 
+  async function updateAutomation(patch) {
+    setSettingsBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/automation/settings", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(patch)
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to update automation settings.");
+      }
+
+      setAutomationSettings(data.settings || emptyAutomation);
+      setProviderSummary(data.providers || {});
+      setToast(data.settings?.autoPostingEnabled ? "Auto posting resumed." : "Auto posting paused.");
+    } catch (nextError) {
+      setError(nextError.message || "Unable to update automation settings.");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
+  async function handleRunAutomation() {
+    setSettingsBusy(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/automation/run", { method: "POST" });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Unable to run automation.");
+      }
+
+      if (Array.isArray(data.createdPosts) && data.createdPosts.length) {
+        setPosts((current) => [...data.createdPosts, ...current]);
+      }
+
+      setAutomationSettings((current) => ({
+        ...current,
+        lastRunAt: new Date().toISOString(),
+        lastRunStatus: data.status || "success",
+        lastRunMessage: data.message || "",
+        lastPublishedCount: Number(data.publishedCount || 0)
+      }));
+      setToast(data.message || "Automation run complete.");
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (nextError) {
+      setError(nextError.message || "Unable to run automation.");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
   const previewUrl = preview?.url || activeDraftPost?.mediaUrl || "";
   const previewType = preview?.type || activeDraftPost?.mediaType || "";
   const previewName = preview?.name || activeDraftPost?.mediaName || "";
@@ -222,7 +341,7 @@ export function DashboardShell({ initialPosts }) {
       {toast ? <div className="dashboard-toast">{toast}</div> : null}
 
       <div className="dashboard-toolbar">
-        <p>Logged in. New posts will appear on the homepage automatically.</p>
+        <p>Logged in. Manual posts publish instantly, while automated posts can be paused or triggered below.</p>
         <div className="dashboard-toolbar__actions">
           <button type="button" className="button button-secondary" onClick={startCreateMode}>
             New post
@@ -233,6 +352,56 @@ export function DashboardShell({ initialPosts }) {
         </div>
       </div>
 
+      <section className="section-card automation-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Automation Control</span>
+            <h2>Auto news engine</h2>
+          </div>
+          <p>
+            Nigeria stories are prioritised ahead of world headlines, and manual posts still stay on top of the homepage.
+          </p>
+        </div>
+        <div className="automation-panel__grid">
+          <div className="automation-panel__card">
+            <strong>Status</strong>
+            <span>{automationSettings.autoPostingEnabled ? "Running" : "Paused"}</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Mix</strong>
+            <span>{Math.round((automationSettings.nigeriaShareTarget || 0.7) * 100)}% Nigeria / {Math.round((automationSettings.globalShareTarget || 0.3) * 100)}% Global</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Posts per run</strong>
+            <span>{automationSettings.maxPostsPerRun}</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Last run</strong>
+            <span>{automationSettings.lastRunAt ? new Date(automationSettings.lastRunAt).toLocaleString("en-NG") : "Not run yet"}</span>
+          </div>
+        </div>
+        <div className="automation-panel__providers">
+          <span className={`pill ${providerSummary.newsApiEnabled ? "pill-status-ok" : "pill-status-off"}`}>NewsAPI {providerSummary.newsApiEnabled ? "ready" : "missing"}</span>
+          <span className={`pill ${providerSummary.gNewsEnabled ? "pill-status-ok" : "pill-status-off"}`}>GNews {providerSummary.gNewsEnabled ? "ready" : "missing"}</span>
+          <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
+          <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
+        </div>
+        <div className="automation-panel__actions">
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => updateAutomation({ autoPostingEnabled: !automationSettings.autoPostingEnabled })}
+            disabled={settingsBusy}
+          >
+            {automationSettings.autoPostingEnabled ? "Pause auto posting" : "Resume auto posting"}
+          </button>
+          <button type="button" className="button button-secondary" onClick={handleRunAutomation} disabled={settingsBusy}>
+            {settingsBusy ? "Running..." : "Run now"}
+          </button>
+        </div>
+        {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
+      </section>
+
       <div className="dashboard-grid">
         <form key={draft.id || "create-post"} className="editor-form" onSubmit={handleSubmit}>
           <div className="editor-form__header">
@@ -240,7 +409,7 @@ export function DashboardShell({ initialPosts }) {
             <p>
               {draft.id
                 ? "Update the selected post and optionally replace its featured media."
-                : "Write your article here and publish directly to the site."}
+                : "Write your article here and publish directly to the site. Manual posts stay ahead of auto posts on the homepage."}
             </p>
           </div>
 
@@ -300,7 +469,7 @@ export function DashboardShell({ initialPosts }) {
               onChange={(event) => updateDraftField("category", event.target.value)}
               required
             >
-              {categoryOptions.map((category) => (
+              {editorCategoryOptions.map((category) => (
                 <option key={category} value={category}>
                   {getCategoryMeta(category).label}
                 </option>
@@ -362,11 +531,11 @@ export function DashboardShell({ initialPosts }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>Published posts</h2>
-            <p>Edit, feature, or remove your latest content here.</p>
+            <p>Edit, feature, or remove your latest content here. Auto posts remain fully editable.</p>
           </div>
 
           <div className="dashboard-post-list">
-            {posts.map((post) => (
+            {orderedPosts.map((post) => (
               <article key={post.slug} className="dashboard-post-card">
                 <div className="dashboard-post-card__media-wrap">
                   {isVideoMedia(post.mediaUrl, post.mediaType) ? (
@@ -379,15 +548,15 @@ export function DashboardShell({ initialPosts }) {
                 </div>
                 <div className="dashboard-post-card__labels">
                   <span className="pill">{getCategoryMeta(post.category).label}</span>
+                  <span className={`pill pill-type pill-type--${post.type || "manual"}`}>{getPostTypeMeta(post.type || "manual").label}</span>
                   {post.featured ? <span className="pill pill-featured">Featured story</span> : null}
                 </div>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
-                {post.mediaUrl ? (
-                  <p className="dashboard-post-card__meta">
-                    {isVideoMedia(post.mediaUrl, post.mediaType) ? "Video attached" : "Image attached"}
-                  </p>
-                ) : null}
+                <p className="dashboard-post-card__meta">
+                  {(post.type || "manual") === "auto" ? "Automated story" : "Manual story"}
+                  {post.sourceName ? ` | Source: ${post.sourceName}` : ""}
+                </p>
                 <div className="dashboard-post-card__actions">
                   <button
                     type="button"
@@ -412,5 +581,3 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
-
-

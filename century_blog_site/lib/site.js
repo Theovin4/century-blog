@@ -1,13 +1,38 @@
 export const categoryMeta = {
-  lifestyle: {
-    label: "Lifestyle",
-    accent: "linear-gradient(135deg, #ff9966, #ff5e62)",
-    description: "Culture, wellness, style, and everyday living stories."
+  nigeria: {
+    label: "Nigeria",
+    accent: "linear-gradient(135deg, #12c2e9, #0f8bff)",
+    description: "Nigeria-first headlines, politics, economy, and stories driving daily conversation."
+  },
+  world: {
+    label: "World",
+    accent: "linear-gradient(135deg, #8e2de2, #4a00e0)",
+    description: "Global trending stories, geopolitics, and major headlines beyond Nigeria."
+  },
+  business: {
+    label: "Business",
+    accent: "linear-gradient(135deg, #f7971e, #ffd200)",
+    description: "Markets, money, jobs, entrepreneurship, and business developments that matter."
+  },
+  tech: {
+    label: "Tech",
+    accent: "linear-gradient(135deg, #00c6ff, #0072ff)",
+    description: "Technology trends, digital products, startups, AI, and innovation updates."
+  },
+  entertainment: {
+    label: "Entertainment",
+    accent: "linear-gradient(135deg, #ff6a88, #ff99ac)",
+    description: "Celebrities, music, film, creators, and internet culture worth watching."
   },
   health: {
     label: "Health",
     accent: "linear-gradient(135deg, #2af598, #009efd)",
     description: "Public health updates, wellness advice, and medical developments."
+  },
+  lifestyle: {
+    label: "Lifestyle",
+    accent: "linear-gradient(135deg, #ff9966, #ff5e62)",
+    description: "Culture, wellness, style, and everyday living stories."
   },
   education: {
     label: "Education",
@@ -20,6 +45,23 @@ export const categoryMeta = {
     description: "Trending headlines, buzz, and current conversations in Nigeria."
   }
 };
+
+export const featuredCategoryOptions = ["nigeria", "world", "business", "tech", "entertainment", "health"];
+export const categoryOptions = Object.keys(categoryMeta);
+export const editorCategoryOptions = categoryOptions;
+
+export const postTypeMeta = {
+  manual: {
+    label: "Manual",
+    description: "Published from the dashboard by the Century Blog team."
+  },
+  auto: {
+    label: "Auto",
+    description: "Fetched, rewritten, and published by the automation pipeline."
+  }
+};
+
+export const postTypeOptions = Object.keys(postTypeMeta);
 
 export const socialLinks = [
   {
@@ -87,8 +129,6 @@ const countryNames = [
   "Saudi Arabia"
 ];
 
-export const categoryOptions = Object.keys(categoryMeta);
-
 export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 }
@@ -129,8 +169,16 @@ export function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta["daily-gist"];
 }
 
+export function getPostTypeMeta(type) {
+  return postTypeMeta[type] || postTypeMeta.manual;
+}
+
 export function isValidCategory(category) {
   return categoryOptions.includes(category);
+}
+
+export function isValidPostType(type) {
+  return postTypeOptions.includes(type);
 }
 
 export function slugify(input) {
@@ -148,8 +196,13 @@ export function estimateReadTime(content) {
 
 export function getCoverStyle(category) {
   const styles = {
-    lifestyle: "cover-warm",
+    nigeria: "cover-violet",
+    world: "cover-cyan",
+    business: "cover-gold",
+    tech: "cover-cyan",
+    entertainment: "cover-warm",
     health: "cover-cyan",
+    lifestyle: "cover-warm",
     education: "cover-gold",
     "daily-gist": "cover-violet"
   };
@@ -231,12 +284,18 @@ export function extractMentionedCountries(input) {
 export function buildPostKeywords(post) {
   const category = getCategoryMeta(post.category).label;
   const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
+  const regionKeywords = post.regionFocus === "nigeria"
+    ? ["Nigeria news", "Nigerian blog", "Africa headlines"]
+    : ["world news", "global headlines", "international news blog"];
+
   return [
     "Century Blog",
     post.title,
     `${category} news`,
     `${category} blog`,
     `${category} updates`,
+    `${getPostTypeMeta(post.type || "manual").label.toLowerCase()} post`,
+    ...regionKeywords,
     ...countries,
     ...countries.map((country) => `${country} news`),
     ...countries.map((country) => `${country} lifestyle`),
@@ -270,25 +329,40 @@ export function buildBreadcrumbJsonLd(items) {
   };
 }
 
+export function prioritizePosts(posts, { preferManual = true } = {}) {
+  return [...(posts || [])].sort((left, right) => {
+    if (left.featured !== right.featured) {
+      return left.featured ? -1 : 1;
+    }
+
+    if (preferManual && (left.type || "manual") !== (right.type || "manual")) {
+      return (left.type || "manual") === "manual" ? -1 : 1;
+    }
+
+    return new Date(right.publishedAt) - new Date(left.publishedAt);
+  });
+}
+
 export function pickFeaturedPost(posts) {
   if (!Array.isArray(posts) || posts.length === 0) {
     return null;
   }
 
-  const manuallyFeatured = posts.find((post) => post.featured);
+  const prioritizedPosts = prioritizePosts(posts);
+  const manuallyFeatured = prioritizedPosts.find((post) => post.featured);
 
   if (manuallyFeatured) {
     return manuallyFeatured;
   }
 
-  const recentPosts = posts.slice(0, 5);
+  const recentPosts = prioritizedPosts.slice(0, 5);
   const mediaFirstPool = recentPosts.filter(
     (post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType)
   );
   const candidatePool = mediaFirstPool.length ? mediaFirstPool : recentPosts;
 
   if (!candidatePool.length) {
-    return posts[0] || null;
+    return prioritizedPosts[0] || null;
   }
 
   const rotationWindowMs = 30 * 1000;
@@ -299,17 +373,38 @@ export function pickFeaturedPost(posts) {
 export function filterPosts(posts, filters = {}) {
   const query = String(filters.query || "").trim().toLowerCase();
   const category = String(filters.category || "").trim();
+  const postType = String(filters.postType || "").trim();
 
   return posts.filter((post) => {
     const matchesCategory = category ? post.category === category : true;
+    const matchesType = postType ? (post.type || "manual") === postType : true;
     const matchesQuery = query
-      ? [post.title, post.excerpt, post.content, post.author]
+      ? [post.title, post.excerpt, post.content, post.author, post.sourceName]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(query))
       : true;
 
-    return matchesCategory && matchesQuery;
+    return matchesCategory && matchesType && matchesQuery;
   });
+}
+
+export function getTopStories(posts, limit = 4) {
+  return prioritizePosts(posts).slice(0, limit);
+}
+
+export function getMostReadPosts(posts, limit = 4) {
+  return [...(posts || [])]
+    .sort((left, right) => {
+      const leftScore = Number(left.trendingScore || 0) + (left.featured ? 10 : 0);
+      const rightScore = Number(right.trendingScore || 0) + (right.featured ? 10 : 0);
+
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore;
+      }
+
+      return new Date(right.publishedAt) - new Date(left.publishedAt);
+    })
+    .slice(0, limit);
 }
 
 export function getPostUrl(post) {
@@ -329,4 +424,3 @@ export function buildShareLinks(post) {
     pinterest: `https://pinterest.com/pin/create/button/?url=${encodedUrl}&media=${encodedMedia}&description=${encodedTitle}`
   };
 }
-

@@ -11,7 +11,8 @@ import {
   filterPosts,
   getCategoryMeta,
   getSiteUrl,
-  isValidCategory
+  isValidCategory,
+  prioritizePosts
 } from "@/lib/site";
 
 export const revalidate = 300;
@@ -61,8 +62,9 @@ export default async function CategoryPage({ params, searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
+  const postType = String(resolvedSearchParams?.type || "").trim();
   const posts = await getPosts();
-  const filteredPosts = filterPosts(posts, { query, category });
+  const filteredPosts = prioritizePosts(filterPosts(posts, { query, category, postType }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
 
@@ -91,7 +93,7 @@ export default async function CategoryPage({ params, searchParams }) {
         <p className="hero-text">{meta.description}</p>
       </section>
 
-      <PostFilters query={query} category={category} />
+      <PostFilters query={query} category={category} postType={postType} action={`/category/${category}`} />
 
       <section className="section-block">
         <div className="post-grid">
@@ -110,4 +112,3 @@ export default async function CategoryPage({ params, searchParams }) {
     </main>
   );
 }
-

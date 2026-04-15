@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { formatLongDate, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, getPostTypeMeta, isImageMedia, isVideoMedia } from "@/lib/site";
 
 export function PostCard({ post }) {
   const category = getCategoryMeta(post.category);
+  const postType = getPostTypeMeta(post.type || "manual");
   const hasImage = isImageMedia(post.mediaUrl, post.mediaType);
   const hasVideo = isVideoMedia(post.mediaUrl, post.mediaType);
 
@@ -29,7 +30,10 @@ export function PostCard({ post }) {
             <source src={post.mediaUrl} type={post.mediaType} />
           </video>
         ) : null}
-        <span className="pill">{category.label}</span>
+        <div className="post-card__pills">
+          <span className="pill">{category.label}</span>
+          <span className={`pill pill-type pill-type--${post.type || "manual"}`}>{postType.label}</span>
+        </div>
       </div>
       <div className="post-card__body">
         <p className="muted">
@@ -37,6 +41,7 @@ export function PostCard({ post }) {
         </p>
         <h3>{post.title}</h3>
         <p>{post.excerpt}</p>
+        {post.sourceName ? <p className="post-card__source">Source: {post.sourceName}</p> : null}
         <Link href={`/news/${post.slug}`} className="text-link">
           Continue reading
         </Link>

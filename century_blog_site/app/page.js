@@ -11,10 +11,13 @@ import {
   filterPosts,
   formatLongDate,
   getCategoryMeta,
+  getMostReadPosts,
   getSiteUrl,
+  getTopStories,
   isImageMedia,
   isVideoMedia,
   pickFeaturedPost,
+  prioritizePosts,
   socialLinks,
   toAbsoluteUrl
 } from "@/lib/site";
@@ -24,9 +27,13 @@ export const revalidate = 300;
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
+  const postType = String(resolvedSearchParams?.type || "").trim();
   const posts = await getPosts();
-  const filteredPosts = filterPosts(posts, { query });
-  const featuredPost = pickFeaturedPost(filteredPosts) || pickFeaturedPost(posts);
+  const prioritizedPosts = prioritizePosts(posts);
+  const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query, postType }));
+  const featuredPost = pickFeaturedPost(filteredPosts) || pickFeaturedPost(prioritizedPosts);
+  const topStories = getTopStories(filteredPosts.length ? filteredPosts : prioritizedPosts, 4);
+  const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
   const secondaryPosts = filteredPosts.filter((post) => post.slug !== featuredPost?.slug);
   const siteUrl = getSiteUrl();
 
@@ -58,10 +65,10 @@ export default async function HomePage({ searchParams }) {
       "@type": "Blog",
       name: "Century Blog",
       description:
-        "Century Blog is a Nigerian blog focused on lifestyle, health, education, and daily gist.",
+        "Century Blog is a Nigeria-first news and culture blog covering trending headlines, business, health, tech, entertainment, and world updates.",
       url: siteUrl,
       inLanguage: "en-NG",
-      blogPost: posts.slice(0, 8).map((post) => ({
+      blogPost: prioritizedPosts.slice(0, 8).map((post) => ({
         "@type": "BlogPosting",
         headline: post.title,
         datePublished: post.publishedAt,
@@ -96,13 +103,12 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Lifestyle, health, education and daily gist</p>
+              <p className="brand-copy__tag">Nigeria-first news, culture, health, business, and global trends</p>
             </div>
           </div>
-          <h1>Dark, sharp, and built for the stories Nigerians are actually talking about.</h1>
+          <h1>Automated where it helps, curated where it matters, always built for real readers.</h1>
           <p className="hero-text">
-            A dynamic blog covering lifestyle, health, education, and daily gist with a polished
-            reading experience designed for discovery, search, and daily return visits.
+            Century Blog blends manual editorial posts with a Nigeria-priority news engine so readers can discover smart explainers, breaking updates, and global stories without losing the local angle.
           </p>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
@@ -138,7 +144,12 @@ export default async function HomePage({ searchParams }) {
               </video>
             ) : null}
             <div className="feature-card__inner">
-              <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
+              <div className="feature-card__tags">
+                <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
+                <span className={`pill pill-type pill-type--${featuredPost.type || "manual"}`}>
+                  {(featuredPost.type || "manual").toUpperCase()}
+                </span>
+              </div>
               <p className="muted">
                 {formatLongDate(featuredPost.publishedAt)} | {featuredPost.readTime}
               </p>
@@ -152,10 +163,10 @@ export default async function HomePage({ searchParams }) {
         ) : null}
       </section>
 
-      <NewsTicker posts={posts} />
+      <NewsTicker posts={prioritizedPosts.slice(0, 10)} />
 
       <section className="category-strip">
-        {["lifestyle", "health", "education", "daily-gist"].map((category) => {
+        {["nigeria", "world", "business", "tech", "entertainment", "health"].map((category) => {
           const meta = getCategoryMeta(category);
           return (
             <article key={category} className="category-card">
@@ -170,17 +181,52 @@ export default async function HomePage({ searchParams }) {
         })}
       </section>
 
-      <PostFilters query={query} category="" />
+      <PostFilters query={query} category="" postType={postType} action="/" />
+
+      <section className="section-block section-card top-stories-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Top Stories Today</span>
+            <h2>Manual stories first, automated headlines close behind</h2>
+          </div>
+          <p>Century Blog gives editorial stories priority on the homepage, then layers in trusted auto-discovered news for breadth.</p>
+        </div>
+        <div className="mini-post-grid">
+          {topStories.map((post) => (
+            <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
+              <strong>{post.title}</strong>
+              <span>{getCategoryMeta(post.category).label} | {(post.type || "manual").toUpperCase()}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="section-block section-card top-stories-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Most Read</span>
+            <h2>Stories with the strongest momentum on the site</h2>
+          </div>
+          <p>These stories combine freshness, prominence, and trend strength so readers can catch up fast.</p>
+        </div>
+        <div className="mini-post-grid">
+          {mostReadPosts.map((post) => (
+            <Link key={post.slug} href={`/news/${post.slug}`} className="mini-post-card">
+              <strong>{post.title}</strong>
+              <span>{getCategoryMeta(post.category).label} | Score {post.trendingScore || 0}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section id="latest" className="section-block">
         <div className="section-header">
           <div>
-            <span className="eyebrow">Trending in Nigeria</span>
+            <span className="eyebrow">Nigeria First, World Aware</span>
             <h2>Fresh stories for your readers</h2>
           </div>
           <p>
-            Search across the blog or jump into category pages to find the stories readers care
-            about most.
+            Search across the blog, filter by manual or automated posts, and move from Nigeria headlines into world stories without losing context.
           </p>
         </div>
 
@@ -190,7 +236,7 @@ export default async function HomePage({ searchParams }) {
           ))}
         </div>
         {secondaryPosts.length === 0 ? (
-          <p className="empty-state">No posts matched your search yet. Try another keyword.</p>
+          <p className="empty-state">No posts matched your search yet. Try another keyword or switch filters.</p>
         ) : null}
       </section>
 
@@ -199,8 +245,7 @@ export default async function HomePage({ searchParams }) {
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Join the Century Blog newsletter list for new stories on lifestyle, health, education,
-            and daily gist.
+            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, tech, health, and entertainment.
           </p>
         </div>
         <NewsletterForm />

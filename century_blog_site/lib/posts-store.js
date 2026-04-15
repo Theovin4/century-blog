@@ -3,10 +3,17 @@ import path from "node:path";
 import {
   buildCloudinaryVideoPosterUrl,
   optimizeCloudinaryMediaUrl,
-  uploadMediaFile
+  uploadMediaFile,
+  uploadRemoteMedia
 } from "@/lib/cloudinary";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
-import { estimateReadTime, getCoverStyle, inferMediaType, slugify } from "@/lib/site";
+import {
+  estimateReadTime,
+  getCoverStyle,
+  inferMediaType,
+  isValidCategory,
+  slugify
+} from "@/lib/site";
 
 const localFilePath = path.join(process.cwd(), "data", "posts.json");
 const publicId = "century-blog/data/posts";
@@ -15,11 +22,27 @@ async function readLocalSeedPosts() {
   return readJsonStore(localFilePath, null, []);
 }
 
+function defaultRegionFocus(category, explicitRegionFocus = "") {
+  if (explicitRegionFocus) {
+    return explicitRegionFocus;
+  }
+
+  return category === "world" ? "global" : "nigeria";
+}
+
 function sanitizePost(post) {
   const originalMediaUrl = post.originalMediaUrl || post.mediaUrl || "";
 
   return {
     ...post,
+    type: post.type || "manual",
+    sourceName: post.sourceName || "",
+    sourceUrl: post.sourceUrl || "",
+    sourceCountry: post.sourceCountry || "",
+    regionFocus: defaultRegionFocus(post.category, post.regionFocus),
+    autoProvider: post.autoProvider || "",
+    autoSourceId: post.autoSourceId || "",
+    trendingScore: Number(post.trendingScore || 0),
     mediaUrl: originalMediaUrl,
     originalMediaUrl,
     posterUrl: post.posterUrl || "",
@@ -41,6 +64,14 @@ function normalizePost(post) {
 
   return {
     ...post,
+    type: post.type || "manual",
+    sourceName: post.sourceName || "",
+    sourceUrl: post.sourceUrl || "",
+    sourceCountry: post.sourceCountry || "",
+    regionFocus: defaultRegionFocus(post.category, post.regionFocus),
+    autoProvider: post.autoProvider || "",
+    autoSourceId: post.autoSourceId || "",
+    trendingScore: Number(post.trendingScore || 0),
     mediaUrl: optimizeCloudinaryMediaUrl(rawMediaUrl, mediaType),
     originalMediaUrl: rawMediaUrl,
     legacyMediaUrl: post.legacyMediaUrl || post.blobUrl || "",
@@ -117,6 +148,41 @@ async function writePostsSource(posts) {
   await writeJsonStore(localFilePath, publicId, posts.map(sanitizePost));
 }
 
+function tokenizeTitle(value) {
+  return slugify(value)
+    .split("-")
+    .filter(Boolean);
+}
+
+function titleSimilarity(leftTitle, rightTitle) {
+  const leftTokens = tokenizeTitle(leftTitle);
+  const rightTokens = tokenizeTitle(rightTitle);
+
+  if (!leftTokens.length || !rightTokens.length) {
+    return 0;
+  }
+
+  const leftSet = new Set(leftTokens);
+  const rightSet = new Set(rightTokens);
+  let overlap = 0;
+
+  for (const token of leftSet) {
+    if (rightSet.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap / Math.max(leftSet.size, rightSet.size);
+}
+
+function buildUniqueSlug(posts, title, id = "") {
+  const slugBase = slugify(title);
+  const duplicateCount = posts.filter(
+    (post) => String(post.id) !== String(id) && post.slug.startsWith(slugBase)
+  ).length;
+  return duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
+}
+
 export async function replaceAllPosts(posts) {
   await writePostsSource(posts);
   return getPosts();
@@ -137,38 +203,121 @@ export async function getPostById(id) {
   return posts.find((post) => String(post.id) === String(id)) || null;
 }
 
-export async function createPost(input, mediaFile = null) {
+export async function getPostsByType(type) {
   const posts = await getPosts();
-  const slugBase = slugify(input.title);
-  const duplicateCount = posts.filter((post) => post.slug.startsWith(slugBase)).length;
-  const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
-  const now = new Date().toISOString();
-  const media = await uploadMediaFile(mediaFile, slug);
+  return posts.filter((post) => (post.type || "manual") === type);
+}
 
-  const post = normalizePost({
+export function findSimilarPost(candidate, posts) {
+  const candidateTitle = String(candidate?.title || "").trim();
+  const candidateSourceUrl = String(candidate?.sourceUrl || "").trim();
+  const candidateSourceId = String(candidate?.autoSourceId || "").trim();
+
+  return posts.find((post) => {
+    if (candidateSourceUrl && post.sourceUrl && post.sourceUrl === candidateSourceUrl) {
+      return true;
+    }
+
+    if (candidateSourceId && post.autoSourceId && post.autoSourceId === candidateSourceId) {
+      return true;
+    }
+
+    return titleSimilarity(post.title, candidateTitle) >= 0.72;
+  }) || null;
+}
+
+async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl = "", existing = null } = {}) {
+  const title = input.title.trim();
+  const slug = buildUniqueSlug(posts, title, existing?.id || "");
+  const publishedAt = input.publishedAt || existing?.publishedAt || new Date().toISOString();
+  const updatedAt = new Date().toISOString();
+
+  let media = null;
+
+  if (mediaFile) {
+    media = await uploadMediaFile(mediaFile, slug);
+  } else if (remoteMediaUrl) {
+    media = await uploadRemoteMedia(remoteMediaUrl, slug, input.mediaType || existing?.mediaType || "");
+  }
+
+  const base = existing || {
     id: crypto.randomUUID(),
+    featured: false
+  };
+
+  return normalizePost({
+    ...base,
     slug,
-    title: input.title.trim(),
+    title,
     excerpt: input.excerpt.trim(),
     content: input.content.trim(),
-    category: input.category,
-    author: input.author?.trim() || "Century Blog Editorial Team",
-    mediaUrl: media.mediaUrl,
-    originalMediaUrl: media.originalMediaUrl,
-    legacyMediaUrl: "",
-    mediaType: media.mediaType,
-    mediaName: media.mediaName,
-    posterUrl: media.posterUrl,
-    publishedAt: now,
-    updatedAt: now,
+    category: isValidCategory(input.category) ? input.category : existing?.category || "daily-gist",
+    author: input.author?.trim() || existing?.author || "Century Blog Editorial Team",
+    type: input.type || existing?.type || "manual",
+    sourceName: input.sourceName || existing?.sourceName || "",
+    sourceUrl: input.sourceUrl || existing?.sourceUrl || "",
+    sourceCountry: input.sourceCountry || existing?.sourceCountry || "",
+    regionFocus: defaultRegionFocus(input.category || existing?.category, input.regionFocus || existing?.regionFocus),
+    autoProvider: input.autoProvider || existing?.autoProvider || "",
+    autoSourceId: input.autoSourceId || existing?.autoSourceId || "",
+    trendingScore: Number(input.trendingScore ?? existing?.trendingScore ?? 0),
+    mediaUrl: media ? media.mediaUrl : existing?.mediaUrl || "",
+    originalMediaUrl: media ? media.originalMediaUrl : existing?.originalMediaUrl || existing?.mediaUrl || "",
+    legacyMediaUrl: media
+      ? existing?.originalMediaUrl || existing?.mediaUrl || existing?.legacyMediaUrl || ""
+      : existing?.legacyMediaUrl || "",
+    mediaType: media ? media.mediaType : input.mediaType || existing?.mediaType || "",
+    mediaName: media ? media.mediaName : existing?.mediaName || "",
+    posterUrl: media ? media.posterUrl : existing?.posterUrl || "",
+    imageCreditName: input.imageCreditName || existing?.imageCreditName || "",
+    imageCreditUrl: input.imageCreditUrl || existing?.imageCreditUrl || "",
+    publishedAt,
+    updatedAt,
     readTime: estimateReadTime(input.content),
-    coverStyle: getCoverStyle(input.category),
-    featured: false
+    coverStyle: getCoverStyle(input.category || existing?.category),
+    featured: typeof input.featured === "boolean" ? input.featured : base.featured
   });
+}
 
+export async function createPost(input, mediaFile = null) {
+  const posts = await getPosts();
+  const post = await buildPostRecord(posts, { ...input, type: "manual" }, { mediaFile });
   const updatedPosts = [post, ...posts];
   await writePostsSource(updatedPosts);
   return post;
+}
+
+export async function createAutoPost(input) {
+  const posts = await getPosts();
+  const duplicate = findSimilarPost(input, posts);
+
+  if (duplicate) {
+    return {
+      created: false,
+      duplicate,
+      post: duplicate
+    };
+  }
+
+  const post = await buildPostRecord(
+    posts,
+    {
+      ...input,
+      type: "auto"
+    },
+    {
+      remoteMediaUrl: input.mediaUrl || ""
+    }
+  );
+
+  const updatedPosts = [post, ...posts];
+  await writePostsSource(updatedPosts);
+
+  return {
+    created: true,
+    duplicate: null,
+    post
+  };
 }
 
 export async function updatePost(id, input, mediaFile = null) {
@@ -179,35 +328,30 @@ export async function updatePost(id, input, mediaFile = null) {
     return null;
   }
 
-  const nextTitle = input.title?.trim() || existing.title;
-  const slugBase = slugify(nextTitle);
-  const duplicateCount = posts.filter(
-    (post) => String(post.id) !== String(id) && post.slug.startsWith(slugBase)
-  ).length;
-  const slug = duplicateCount ? `${slugBase}-${duplicateCount + 1}` : slugBase;
-  const now = new Date().toISOString();
-  const media = mediaFile ? await uploadMediaFile(mediaFile, slug) : null;
-
-  const updatedPost = normalizePost({
-    ...existing,
-    slug,
-    title: nextTitle,
+  const nextInput = {
+    title: input.title?.trim() || existing.title,
     excerpt: input.excerpt?.trim() || existing.excerpt,
     content: input.content?.trim() || existing.content,
     category: input.category || existing.category,
     author: input.author?.trim() || existing.author,
-    mediaUrl: media ? media.mediaUrl : existing.mediaUrl,
-    originalMediaUrl: media ? media.originalMediaUrl : existing.originalMediaUrl || existing.mediaUrl,
-    legacyMediaUrl: media
-      ? existing.originalMediaUrl || existing.mediaUrl || existing.legacyMediaUrl || ""
-      : existing.legacyMediaUrl || "",
-    mediaType: media ? media.mediaType : existing.mediaType,
-    mediaName: media ? media.mediaName : existing.mediaName,
-    posterUrl: media ? media.posterUrl : existing.posterUrl,
-    updatedAt: now,
-    readTime: estimateReadTime(input.content?.trim() || existing.content),
-    coverStyle: getCoverStyle(input.category || existing.category),
-    featured: typeof input.featured === "boolean" ? input.featured : existing.featured
+    type: input.type || existing.type,
+    sourceName: input.sourceName || existing.sourceName,
+    sourceUrl: input.sourceUrl || existing.sourceUrl,
+    sourceCountry: input.sourceCountry || existing.sourceCountry,
+    regionFocus: input.regionFocus || existing.regionFocus,
+    autoProvider: input.autoProvider || existing.autoProvider,
+    autoSourceId: input.autoSourceId || existing.autoSourceId,
+    trendingScore: input.trendingScore ?? existing.trendingScore,
+    mediaType: existing.mediaType,
+    imageCreditName: input.imageCreditName || existing.imageCreditName,
+    imageCreditUrl: input.imageCreditUrl || existing.imageCreditUrl,
+    featured: typeof input.featured === "boolean" ? input.featured : existing.featured,
+    publishedAt: existing.publishedAt
+  };
+
+  const updatedPost = await buildPostRecord(posts, nextInput, {
+    mediaFile,
+    existing
   });
 
   const updatedPosts = posts.map((post) => {
