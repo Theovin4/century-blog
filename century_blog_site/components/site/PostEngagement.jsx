@@ -111,7 +111,10 @@ function mergeEngagementState(previous, incoming, fallbackComment = null) {
 
   return {
     slug: next.slug || previous?.slug || "",
-    likes: typeof next.likes === "number" ? next.likes : previous?.likes || 0,
+    likes: Math.max(
+      typeof next.likes === "number" ? next.likes : 0,
+      typeof previous?.likes === "number" ? previous.likes : 0
+    ),
     comments
   };
 }
@@ -127,8 +130,40 @@ export function PostEngagement({ slug, initialEngagement }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    let active = true;
+
+    setEngagement(initialEngagement || { slug, likes: 0, comments: [] });
     setLiked(getLikedPosts().includes(slug));
-  }, [slug]);
+
+    async function syncEngagement() {
+      try {
+        const response = await fetch(`/api/engagement/${slug}`, {
+          method: "GET",
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const latest = await response.json();
+
+        if (!active) {
+          return;
+        }
+
+        setEngagement((current) => mergeEngagementState(current, latest));
+      } catch {
+        // Keep current UI state if the refresh fails.
+      }
+    }
+
+    syncEngagement();
+
+    return () => {
+      active = false;
+    };
+  }, [slug, initialEngagement]);
 
   const commentCountLabel = useMemo(() => {
     const count = engagement.comments.length;
