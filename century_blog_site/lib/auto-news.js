@@ -1,11 +1,13 @@
 import { createAutoPost } from "@/lib/posts-store";
 import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
-import { categoryMeta, slugify } from "@/lib/site";
+import { categoryMeta, isValidCategory, slugify } from "@/lib/site";
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY || "";
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY || "";
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY || "";
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || "gpt-5-mini";
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 36;
 
@@ -45,6 +47,14 @@ function mapTopicToCategory(article) {
     return "health";
   }
 
+  if (/education|school|student|university|admission|exam|jamb|scholarship/.test(haystack)) {
+    return "education";
+  }
+
+  if (/lifestyle|fashion|wellness|relationship|travel|culture/.test(haystack)) {
+    return "lifestyle";
+  }
+
   if (/nigeria|abuja|lagos|port harcourt|kano|ibadan/.test(haystack) || article.regionFocus === "nigeria") {
     return "nigeria";
   }
@@ -63,6 +73,11 @@ function computeTrendingScore(article) {
 function createExcerpt(article) {
   const hook = sentenceCase(article.description || article.title);
   return hook.length > 220 ? `${hook.slice(0, 217).trim()}...` : hook;
+}
+
+function trimToLength(value, maxLength) {
+  const text = String(value || "").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3).trim()}...` : text;
 }
 
 function buildArticleContent(article) {
@@ -273,11 +288,120 @@ function chooseArticles(nigeriaArticles, globalArticles, settings) {
   return combined;
 }
 
+function getResponseText(payload) {
+  if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
+    return payload.output_text.trim();
+  }
+
+  if (Array.isArray(payload?.output)) {
+    const texts = payload.output
+      .flatMap((item) => item?.content || [])
+      .map((item) => item?.text || item?.value || "")
+      .filter(Boolean);
+
+    if (texts.length) {
+      return texts.join("\n").trim();
+    }
+  }
+
+  return "";
+}
+
+function extractJsonPayload(text) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error("AI rewrite did not return JSON.");
+  }
+
+  return JSON.parse(text.slice(start, end + 1));
+}
+
+function isOpenAiRewriteEnabled() {
+  return Boolean(OPENAI_API_KEY);
+}
+
+async function rewriteCandidateWithAi(article, baseCandidate) {
+  if (!isOpenAiRewriteEnabled()) {
+    return baseCandidate;
+  }
+
+  const systemPrompt = [
+    "You are rewriting a trending news item into an original Century Blog article.",
+    "Return only valid JSON with these keys: title, excerpt, content, category, author.",
+    "The article must be original, human-first, SEO-friendly, and not copy source phrasing.",
+    "Write in polished newsroom English with a modern blog voice.",
+    "Keep excerpt under 240 characters.",
+    "Write article content in Markdown with 3 subheadings using ##.",
+    "Keep the body around 500 to 650 words.",
+    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist.",
+    "Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
+    "Do not mention that an AI wrote the article."
+  ].join(" ");
+
+  const userPrompt = JSON.stringify({
+    publication: "Century Blog",
+    regionPriority: article.regionFocus,
+    suggestedCategory: baseCandidate.category,
+    sourceName: article.sourceName,
+    sourceUrl: article.sourceUrl,
+    sourceCountry: article.sourceCountry,
+    title: article.title,
+    description: article.description,
+    content: article.content,
+    publishedAt: article.publishedAt
+  });
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: OPENAI_REWRITE_MODEL,
+        store: false,
+        input: [
+          {
+            role: "system",
+            content: [{ type: "input_text", text: systemPrompt }]
+          },
+          {
+            role: "user",
+            content: [{ type: "input_text", text: userPrompt }]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI rewrite failed with status ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const parsed = extractJsonPayload(getResponseText(payload));
+    const category = isValidCategory(parsed.category) ? parsed.category : baseCandidate.category;
+
+    return {
+      ...baseCandidate,
+      title: trimToLength(parsed.title || baseCandidate.title, 140),
+      excerpt: trimToLength(parsed.excerpt || baseCandidate.excerpt, 280),
+      content: String(parsed.content || baseCandidate.content).trim(),
+      category,
+      author: trimToLength(parsed.author || baseCandidate.author, 80)
+    };
+  } catch {
+    return baseCandidate;
+  }
+}
+
 async function buildCandidate(article) {
   const image = await resolveImage(article);
   const category = mapTopicToCategory(article);
 
-  return {
+  const baseCandidate = {
     title: article.title,
     excerpt: createExcerpt(article),
     content: buildArticleContent(article),
@@ -297,6 +421,8 @@ async function buildCandidate(article) {
     mediaType: article.mediaType || "image/jpeg",
     publishedAt: article.publishedAt
   };
+
+  return rewriteCandidateWithAi(article, baseCandidate);
 }
 
 export async function fetchAutomatedNewsCandidates(settings = null) {
@@ -383,7 +509,9 @@ export function getAutomationProviderSummary() {
     newsApiEnabled: Boolean(NEWS_API_KEY),
     gNewsEnabled: Boolean(GNEWS_API_KEY),
     pexelsEnabled: Boolean(PEXELS_API_KEY),
-    unsplashEnabled: Boolean(UNSPLASH_ACCESS_KEY)
+    unsplashEnabled: Boolean(UNSPLASH_ACCESS_KEY),
+    openAiRewriteEnabled: isOpenAiRewriteEnabled(),
+    openAiModel: OPENAI_REWRITE_MODEL
   };
 }
 
