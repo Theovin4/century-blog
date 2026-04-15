@@ -25,28 +25,47 @@ export const dynamic = "force-dynamic";
 
 function getStoryCardMedia(post) {
   if (isImageMedia(post.mediaUrl, post.mediaType)) {
-    return post.mediaUrl;
+    return { kind: "image", url: post.mediaUrl };
   }
 
-  if (isVideoMedia(post.mediaUrl, post.mediaType) && post.posterUrl) {
-    return post.posterUrl;
+  if (isVideoMedia(post.mediaUrl, post.mediaType)) {
+    if (post.posterUrl) {
+      return { kind: "image", url: post.posterUrl };
+    }
+
+    return { kind: "video", url: post.mediaUrl, type: post.mediaType || "video/mp4" };
   }
 
-  return "";
+  return null;
 }
 
 function StoryHighlightCard({ post, meta }) {
-  const mediaUrl = getStoryCardMedia(post);
+  const media = getStoryCardMedia(post);
 
   return (
     <Link
       href={`/news/${post.slug}`}
-      className={`mini-post-card ${mediaUrl ? "mini-post-card--with-media" : ""}`}
-      style={mediaUrl ? { backgroundImage: `linear-gradient(180deg, rgba(7, 9, 14, 0.14), rgba(7, 9, 14, 0.88)), url(${mediaUrl})` } : undefined}
+      className={`mini-post-card ${media ? "mini-post-card--with-media" : ""}`}
     >
-      <span className="mini-post-card__label">{meta}</span>
-      <strong>{post.title}</strong>
-      <span>{post.excerpt}</span>
+      {media?.kind === "image" ? (
+        <img
+          src={media.url}
+          alt={post.title}
+          className="mini-post-card__media"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : null}
+      {media?.kind === "video" ? (
+        <video className="mini-post-card__media" muted playsInline preload="metadata">
+          <source src={media.url} type={media.type} />
+        </video>
+      ) : null}
+      <div className="mini-post-card__content">
+        <span className="mini-post-card__label">{meta}</span>
+        <strong>{post.title}</strong>
+        <span>{post.excerpt}</span>
+      </div>
     </Link>
   );
 }
