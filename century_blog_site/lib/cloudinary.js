@@ -27,6 +27,18 @@ export function isCloudinaryConfigured() {
   return Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
 }
 
+export function requiresPersistentRemoteStorage() {
+  return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
+}
+
+export function isPersistentStorageReady() {
+  return isCloudinaryConfigured() || !requiresPersistentRemoteStorage();
+}
+
+export function getPersistentStorageErrorMessage() {
+  return "Persistent storage is not configured in production yet. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in Vercel.";
+}
+
 export function isCloudinaryUrl(value) {
   return /res\.cloudinary\.com/i.test(String(value || ""));
 }
@@ -103,7 +115,7 @@ export async function uploadMediaFile(file, slug) {
   }
 
   if (!isCloudinaryConfigured()) {
-    throw new Error("Cloudinary is not configured.");
+    throw new Error(getPersistentStorageErrorMessage());
   }
 
   const extension = path.extname(file?.name || "") || (String(file?.type || "").startsWith("video/") ? ".mp4" : ".jpg");
@@ -188,7 +200,7 @@ export async function readCloudinaryJson(publicId) {
 
 export async function writeCloudinaryJson(publicId, payload) {
   if (!isCloudinaryConfigured()) {
-    throw new Error("Cloudinary is not configured.");
+    throw new Error(getPersistentStorageErrorMessage());
   }
 
   const tempPath = getTempFilePath(`${path.basename(publicId)}.json`);

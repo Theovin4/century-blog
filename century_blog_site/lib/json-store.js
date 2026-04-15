@@ -1,5 +1,11 @@
 import fs from "node:fs/promises";
-import { readCloudinaryJson, writeCloudinaryJson, isCloudinaryConfigured } from "@/lib/cloudinary";
+import {
+  getPersistentStorageErrorMessage,
+  isCloudinaryConfigured,
+  isPersistentStorageReady,
+  readCloudinaryJson,
+  writeCloudinaryJson
+} from "@/lib/cloudinary";
 
 export async function readJsonStore(localFilePath, publicId, fallbackValue) {
   if (publicId && isCloudinaryConfigured()) {
@@ -28,7 +34,13 @@ export async function writeJsonStore(localFilePath, publicId, payload) {
     // Ignore local write errors in read-only environments.
   }
 
-  if (publicId && isCloudinaryConfigured()) {
-    await writeCloudinaryJson(publicId, payload);
+  if (publicId) {
+    if (!isPersistentStorageReady()) {
+      throw new Error(getPersistentStorageErrorMessage());
+    }
+
+    if (isCloudinaryConfigured()) {
+      await writeCloudinaryJson(publicId, payload);
+    }
   }
 }

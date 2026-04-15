@@ -1,3 +1,4 @@
+import { isPersistentStorageReady } from "@/lib/cloudinary";
 import { createAutoPost } from "@/lib/posts-store";
 import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
 import { categoryMeta, isValidCategory, slugify } from "@/lib/site";
@@ -511,6 +512,7 @@ export function getAutomationProviderSummary() {
     pexelsEnabled: Boolean(PEXELS_API_KEY),
     unsplashEnabled: Boolean(UNSPLASH_ACCESS_KEY),
     openAiRewriteEnabled: isOpenAiRewriteEnabled(),
+    storageReady: isPersistentStorageReady(),
     openAiModel: OPENAI_REWRITE_MODEL
   };
 }
@@ -521,3 +523,5 @@ export function getAutomationCategoryOptions() {
     label: meta.label
   }));
 }
+
+

@@ -3,8 +3,12 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { deletePost, getPostById, updatePost } from "@/lib/posts-store";
+import {
+  getPersistentStorageErrorMessage,
+  isCloudinaryConfigured,
+  isPersistentStorageReady
+} from "@/lib/cloudinary";
 import { inferMediaType, isValidCategory } from "@/lib/site";
-import { isCloudinaryConfigured } from "@/lib/cloudinary";
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
@@ -51,6 +55,10 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  if (!isPersistentStorageReady()) {
+    return NextResponse.json({ message: getPersistentStorageErrorMessage() }, { status: 503 });
+  }
+
   const { id } = await params;
   const current = await getPostById(id);
 
@@ -85,7 +93,7 @@ export async function PATCH(request, { params }) {
 
   if (media && typeof media !== "string" && media.size > 0) {
     if (!isCloudinaryConfigured()) {
-      return NextResponse.json({ message: "Cloudinary is not configured yet." }, { status: 503 });
+      return NextResponse.json({ message: getPersistentStorageErrorMessage() }, { status: 503 });
     }
 
     const mediaError = validateMedia(media);
@@ -113,6 +121,10 @@ export async function DELETE(_request, { params }) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
+  if (!isPersistentStorageReady()) {
+    return NextResponse.json({ message: getPersistentStorageErrorMessage() }, { status: 503 });
+  }
+
   const { id } = await params;
   const current = await getPostById(id);
   const deleted = await deletePost(id);
@@ -129,3 +141,7 @@ export async function DELETE(_request, { params }) {
 
   return NextResponse.json({ ok: true });
 }
+
+
+
+

@@ -395,6 +395,7 @@ export function DashboardShell({ initialPosts }) {
           <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
           <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
           <span className={`pill ${providerSummary.openAiRewriteEnabled ? "pill-status-ok" : "pill-status-off"}`}>AI Rewrite {providerSummary.openAiRewriteEnabled ? providerSummary.openAiModel || "ready" : "missing"}</span>
+          <span className={`pill ${providerSummary.storageReady ? "pill-status-ok" : "pill-status-off"}`}>Storage {providerSummary.storageReady ? "ready" : "missing"}</span>
         </div>
         <div className="automation-panel__actions">
           <button
@@ -591,3 +592,5 @@ export function DashboardShell({ initialPosts }) {
     </div>
   );
 }
+
+

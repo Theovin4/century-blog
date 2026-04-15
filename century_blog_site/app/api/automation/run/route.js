@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { runAutomatedNewsIngestion } from "@/lib/auto-news";
+import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
 
 async function isAllowedByAdmin() {
   const cookieStore = await cookies();
@@ -24,6 +25,10 @@ async function handleRun(request, force = false) {
 
   if (!isAdmin && !isSecretAllowed) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isPersistentStorageReady()) {
+    return NextResponse.json({ message: getPersistentStorageErrorMessage() }, { status: 503 });
   }
 
   try {
