@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-label="Lifestyle habits illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#083344"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#bg)"/>
+  <rect x="110" y="110" width="1380" height="780" rx="40" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)"/>
+  <g fill="none" stroke="#ecfeff" stroke-width="16" stroke-linecap="round">
+    <path d="M260 300h430"/>
+    <path d="M260 430h430"/>
+    <path d="M260 560h430"/>
+    <path d="M260 690h430"/>
+  </g>
+  <g fill="#ecfeff">
+    <circle cx="790" cy="300" r="34"/>
+    <circle cx="790" cy="430" r="34"/>
+    <circle cx="790" cy="560" r="34"/>
+    <circle cx="790" cy="690" r="34"/>
+    <path d="M1040 280h270v52h-270z" opacity="0.18"/>
+    <path d="M1040 410h220v52h-220z" opacity="0.18"/>
+    <path d="M1040 540h300v52h-300z" opacity="0.18"/>
+    <path d="M1040 670h250v52h-250z" opacity="0.18"/>
+  </g>
+  <g fill="#fff" font-family="'Segoe UI', Arial, sans-serif">
+    <text x="180" y="214" font-size="28" font-weight="700" opacity="0.84">CENTURY BLOG | LIFESTYLE</text>
+    <text x="180" y="790" font-size="80" font-weight="800">HEALTHIER HABITS</text>
+    <text x="180" y="860" font-size="42" font-weight="600" opacity="0.92">Simple routines that feel realistic in 2026</text>
+  </g>
+</svg>
