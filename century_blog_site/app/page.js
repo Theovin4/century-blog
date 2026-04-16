@@ -10,6 +10,8 @@ import { getPosts } from "@/lib/posts-store";
 import {
   buildBreadcrumbJsonLd,
   filterPosts,
+  getCategoryMeta,
+  getDisplayMedia,
   getMostReadPosts,
   getSiteUrl,
   isImageMedia,
@@ -19,6 +21,37 @@ import {
 } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
+
+function StoryHighlightCard({ post, meta }) {
+  const media = getDisplayMedia(post, "story");
+
+  return (
+    <Link
+      href={`/news/${post.slug}`}
+      className={`mini-post-card ${media.kind !== "none" ? "mini-post-card--with-media" : ""}`}
+    >
+      {media.kind === "image" ? (
+        <img
+          src={media.url}
+          alt={post.title}
+          className="mini-post-card__media"
+          loading="lazy"
+          decoding="async"
+        />
+      ) : null}
+      {media.kind === "video" ? (
+        <video className="mini-post-card__media" muted playsInline preload="metadata" poster={media.posterUrl || undefined}>
+          <source src={media.url} type={media.type} />
+        </video>
+      ) : null}
+      <div className="mini-post-card__content">
+        <span className="mini-post-card__label">{meta}</span>
+        <strong>{post.title}</strong>
+        <span>{post.excerpt}</span>
+      </div>
+    </Link>
+  );
+}
 
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
