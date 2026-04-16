@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { formatLongDate, getCategoryMeta, isImageMedia, isVideoMedia, pickFeaturedPost, prioritizePosts } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, getDisplayMedia, isImageMedia, isVideoMedia, pickFeaturedPost, prioritizePosts } from "@/lib/site";
 
 function buildRotationPool(posts) {
   const prioritized = prioritizePosts(posts || []);
@@ -51,14 +51,15 @@ export function FeaturedStoryCarousel({ posts }) {
     return null;
   }
 
-  const featuredHasImage = isImageMedia(featuredPost.mediaUrl, featuredPost.mediaType);
-  const featuredHasVideo = isVideoMedia(featuredPost.mediaUrl, featuredPost.mediaType);
+  const featuredMedia = getDisplayMedia(featuredPost, "feature");
+  const featuredHasImage = featuredMedia.kind === "image";
+  const featuredHasVideo = featuredMedia.kind === "video";
 
   return (
     <article className={`feature-card ${featuredPost.coverStyle}`}>
       {featuredHasImage ? (
         <img
-          src={featuredPost.mediaUrl}
+          src={featuredMedia.url}
           alt={featuredPost.title}
           className="feature-card__image"
           fetchPriority="high"
@@ -72,9 +73,9 @@ export function FeaturedStoryCarousel({ posts }) {
           loop
           playsInline
           preload="metadata"
-          poster={featuredPost.posterUrl || undefined}
+          poster={featuredMedia.posterUrl || undefined}
         >
-          <source src={featuredPost.mediaUrl} type={featuredPost.mediaType} />
+          <source src={featuredMedia.url} type={featuredMedia.type} />
         </video>
       ) : null}
       <div className="feature-card__inner">

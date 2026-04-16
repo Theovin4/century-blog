@@ -7,7 +7,9 @@ import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   editorCategoryOptions,
+  formatArticleContent,
   getCategoryMeta,
+  getDisplayMedia,
   getPostTypeMeta,
   isImageMedia,
   isVideoMedia
@@ -108,7 +110,7 @@ export function DashboardShell({ initialPosts }) {
 
   const previewContent = useMemo(() => {
     return draft.content.trim()
-      ? draft.content
+      ? formatArticleContent(draft.content)
       : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, *italic*, headings, lists, quotes, and links.";
   }, [draft.content]);
 
@@ -490,8 +492,10 @@ export function DashboardShell({ initialPosts }) {
     }
   }
 
-  const previewUrl = preview?.url || activeDraftPost?.mediaUrl || "";
-  const previewType = preview?.type || activeDraftPost?.mediaType || "";
+  const activeDraftMedia = activeDraftPost ? getDisplayMedia(activeDraftPost, "card") : null;
+  const previewUrl = preview?.url || activeDraftMedia?.url || "";
+  const previewType = preview?.type || activeDraftMedia?.type || activeDraftPost?.mediaType || "";
+  const previewPosterUrl = activeDraftMedia?.posterUrl || activeDraftPost?.posterUrl || "";
   const previewName = preview?.name || activeDraftPost?.mediaName || "";
   const storageReady = providerSummary.storageReady !== false;
   const aiEnhanced = Boolean(providerSummary.openAiRewriteEnabled);
@@ -719,7 +723,7 @@ export function DashboardShell({ initialPosts }) {
                 {previewName ? <span>{previewName}</span> : null}
               </div>
               {isVideoMedia(previewUrl, previewType) ? (
-                <video className="dashboard-preview__media" controls preload="metadata" poster={activeDraftPost?.posterUrl || undefined}>
+                <video className="dashboard-preview__media" controls preload="metadata" poster={previewPosterUrl || undefined}>
                   <source src={previewUrl} type={previewType} />
                 </video>
               ) : isImageMedia(previewUrl, previewType) ? (
@@ -754,11 +758,11 @@ export function DashboardShell({ initialPosts }) {
               <article key={post.slug} className="dashboard-post-card">
                 <div className="dashboard-post-card__media-wrap">
                   {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-                    <video className="dashboard-post-card__media" muted playsInline preload="metadata" poster={post.posterUrl || undefined}>
-                      <source src={post.mediaUrl} type={post.mediaType} />
+                    <video className="dashboard-post-card__media" muted playsInline preload="metadata" poster={getDisplayMedia(post, "card").posterUrl || undefined}>
+                      <source src={getDisplayMedia(post, "card").url} type={getDisplayMedia(post, "card").type} />
                     </video>
                   ) : isImageMedia(post.mediaUrl, post.mediaType) ? (
-                    <img className="dashboard-post-card__media" src={post.mediaUrl} alt={post.title} />
+                    <img className="dashboard-post-card__media" src={getDisplayMedia(post, "card").url} alt={post.title} />
                   ) : null}
                 </div>
                 <div className="dashboard-post-card__labels">

@@ -12,11 +12,12 @@ import {
   buildBreadcrumbJsonLd,
   buildPostKeywords,
   extractMentionedCountries,
+  formatArticleContent,
   formatLongDate,
   getCategoryMeta,
+  getDisplayMedia,
   getSiteUrl,
   isImageMedia,
-  isVideoMedia,
   toAbsoluteUrl
 } from "@/lib/site";
 
@@ -105,6 +106,8 @@ export default async function PostPage({ params }) {
     .slice(0, 3);
   const siteUrl = getSiteUrl();
   const categoryMeta = getCategoryMeta(post.category);
+  const articleMedia = getDisplayMedia(post, "article");
+  const renderedContent = formatArticleContent(post.content);
 
   const jsonLd = [
     {
@@ -155,20 +158,20 @@ export default async function PostPage({ params }) {
           </div>
         </div>
 
-        {post.mediaUrl ? (
+        {articleMedia.kind !== "none" ? (
           <div className="article-media-wrap">
-            {isVideoMedia(post.mediaUrl, post.mediaType) ? (
+            {articleMedia.kind === "video" ? (
               <video
                 className="article-media"
                 controls
                 preload="metadata"
                 playsInline
-                poster={post.posterUrl || undefined}
+                poster={articleMedia.posterUrl || undefined}
               >
-                <source src={post.mediaUrl} type={post.mediaType} />
+                <source src={articleMedia.url} type={articleMedia.type} />
               </video>
             ) : (
-              <img className="article-media" src={post.mediaUrl} alt={post.title} />
+              <img className="article-media" src={articleMedia.url} alt={post.title} />
             )}
             {post.imageCreditName || post.imageCreditUrl ? (
               <p className="article-media__credit">
@@ -185,7 +188,7 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{post.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{renderedContent}</ReactMarkdown>
         </div>
       </article>
 

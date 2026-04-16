@@ -586,23 +586,25 @@ button {
 .feature-card__video {
   position: absolute;
   inset: 0;
-  opacity: 0.96;
-  transform: scale(1.015);
-  filter: saturate(1.08) contrast(1.08) brightness(0.98);
+  opacity: 0.98;
+  transform: scale(1.02);
+  filter: saturate(1.12) contrast(1.08) brightness(1.04);
 }
 
 .post-card__image,
 .post-card__video {
   position: absolute;
   inset: 0;
-  opacity: 0.82;
+  opacity: 0.94;
+  transform: scale(1.02);
+  filter: saturate(1.08) contrast(1.08) brightness(1.02);
 }
 
 .post-card__cover::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(7, 8, 12, 0.04) 0%, rgba(7, 8, 12, 0.56) 100%);
+  background: linear-gradient(180deg, rgba(7, 8, 12, 0.02) 0%, rgba(7, 8, 12, 0.42) 100%);
 }
 
 .post-card__cover .pill,
@@ -623,6 +625,7 @@ button {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
   box-shadow: var(--shadow);
+  filter: saturate(1.04) contrast(1.04) brightness(1.02);
 }
 
 .article-media__credit {
@@ -1073,9 +1076,10 @@ button {
   font-size: 22px;
   font-weight: 800;
   line-height: 1.28;
-  margin-top: 18px;
+  margin-top: 22px;
   margin-bottom: 12px;
   color: #f8fafc;
+  padding-top: 0.35rem;
 }
 
 .blog-content h3 {
@@ -1088,15 +1092,16 @@ button {
 }
 
 .blog-content p {
-  line-height: 1.7;
-  margin: 10px 0;
-  color: var(--muted);
+  line-height: 1.85;
+  margin: 12px 0;
+  color: #d3dae9;
   white-space: pre-wrap;
+  font-size: 1.02rem;
 }
 
 .blog-content strong {
-  font-weight: 700;
-  color: #f8fafc;
+  font-weight: 800;
+  color: #ffffff;
 }
 
 .blog-content a {
@@ -1636,6 +1641,8 @@ button {
   object-fit: cover;
   object-position: center;
   display: block;
+  transform: scale(1.03);
+  filter: saturate(1.08) contrast(1.06) brightness(1.03);
 }
 
 .mini-post-card--with-media::before {
@@ -1698,3 +1705,18 @@ button {
 
 
 
+
+.blog-content p:first-of-type {
+  font-size: 1.08rem;
+  color: #e9eefb;
+}
+
+.blog-content h2 + p,
+.blog-content h3 + p {
+  color: #e2e8f8;
+}
+
+.post-card__body h3,
+.mini-post-card strong {
+  text-wrap: balance;
+}

@@ -141,6 +141,21 @@ export function getSubstackSubscribeUrl() {
   return process.env.SUBSTACK_SUBSCRIBE_URL || "";
 }
 
+export function isCloudinaryUrl(value) {
+  return /res\.cloudinary\.com/i.test(String(value || ""));
+}
+
+export function buildCloudinaryVideoPosterUrl(url) {
+  const target = String(url || "");
+
+  if (!isCloudinaryUrl(target) || !target.includes("/video/upload/")) {
+    return "";
+  }
+
+  const poster = target.replace("/video/upload/", "/video/upload/so_0,f_jpg,q_auto/");
+  return poster.replace(/\.[a-z0-9]+(\?|$)/i, ".jpg$1");
+}
+
 export function isAbsoluteUrl(value) {
   return /^https?:\/\//i.test(String(value || ""));
 }
@@ -208,6 +223,124 @@ export function getCoverStyle(category) {
   };
 
   return styles[category] || styles["daily-gist"];
+}
+
+function replaceCloudinaryUploadTransform(target, resourceType, transform) {
+  const pattern = new RegExp(`/${resourceType}/upload/(?:[^/]+/)?`);
+  return target.replace(pattern, `/${resourceType}/upload/${transform}/`);
+}
+
+export function getOptimizedImageUrl(
+  url,
+  { width = 1200, height = 900, fit = "fill", quality = "auto:good" } = {}
+) {
+  const target = String(url || "");
+
+  if (!isCloudinaryUrl(target)) {
+    return target;
+  }
+
+  const crop = fit === "fit" ? "c_fit" : "c_fill,g_auto";
+  const transform = `f_auto,q_${quality},dpr_auto,${crop},w_${width},h_${height},e_sharpen`;
+  return replaceCloudinaryUploadTransform(target, "image", transform);
+}
+
+export function getOptimizedVideoUrl(
+  url,
+  { width = 1200, height = 900, quality = "auto:good" } = {}
+) {
+  const target = String(url || "");
+
+  if (!isCloudinaryUrl(target)) {
+    return target;
+  }
+
+  const transform = `f_auto,q_${quality},vc_auto,c_fill,g_auto,w_${width},h_${height}`;
+  return replaceCloudinaryUploadTransform(target, "video", transform);
+}
+
+export function getDisplayMedia(post, variant = "card") {
+  const mediaUrl = post?.originalMediaUrl || post?.mediaUrl || "";
+  const mediaType = post?.mediaType || inferMediaType(mediaUrl);
+
+  const sizes = {
+    feature: { width: 1440, height: 1040 },
+    story: { width: 960, height: 720 },
+    card: { width: 760, height: 540 },
+    article: { width: 1600, height: 1100 }
+  };
+
+  const selected = sizes[variant] || sizes.card;
+
+  if (isImageMedia(mediaUrl, mediaType)) {
+    return {
+      kind: "image",
+      url: getOptimizedImageUrl(mediaUrl, selected),
+      originalUrl: mediaUrl,
+      type: mediaType
+    };
+  }
+
+  if (isVideoMedia(mediaUrl, mediaType)) {
+    const posterBase = post?.posterUrl || buildCloudinaryVideoPosterUrl(mediaUrl);
+    return {
+      kind: "video",
+      url: getOptimizedVideoUrl(mediaUrl, selected),
+      posterUrl: posterBase ? getOptimizedImageUrl(posterBase, selected) : "",
+      originalUrl: mediaUrl,
+      type: mediaType || "video/mp4"
+    };
+  }
+
+  return { kind: "none", url: "", originalUrl: "", type: "" };
+}
+
+function blockLooksLikeHeading(block) {
+  const line = String(block || "").trim();
+
+  if (!line) {
+    return false;
+  }
+
+  if (/^(#{1,6}|>|[-*]\s|\d+\.\s|```)/.test(line)) {
+    return false;
+  }
+
+  const wordCount = line.split(/\s+/).filter(Boolean).length;
+  const shortEnough = wordCount > 0 && wordCount <= 10;
+  const noSentencePunctuation = !/[.!?]$/.test(line);
+  const titleLike = /^[A-Z0-9]/.test(line) || /^[A-Z][a-z]/.test(line);
+
+  return shortEnough && noSentencePunctuation && titleLike;
+}
+
+function addInlineEmphasis(block) {
+  return String(block || "")
+    .replace(/^(?![#>*-]|\d+\.\s)([A-Z][A-Za-z0-9'&/()\-\s]{2,40}:)\s+/gm, "**$1** ")
+    .replace(/^"([^"\n]{3,140})"$/gm, "*$1*");
+}
+
+export function formatArticleContent(content) {
+  const normalized = String(content || "").replace(/\r\n/g, "\n").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  const blocks = normalized
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks
+    .map((block) => {
+      if (blockLooksLikeHeading(block)) {
+        return `## ${block}`;
+      }
+
+      return addInlineEmphasis(block);
+    })
+    .join("\n\n");
 }
 
 export function inferMediaType(value) {

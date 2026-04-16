@@ -19,12 +19,19 @@ NEXT_PUBLIC_SITE_URL=https://centuryblogg.vercel.app
 ADMIN_USERNAME=theovin4
 ADMIN_PASSWORD=madrid433.
 ADMIN_SESSION_SECRET=change-this-secret
+NEXT_PUBLIC_SUBSTACK_URL=https://centuryblog.substack.com
 ```
 
 Optional for Vercel persistence:
 
 ```env
 BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
+```
+
+Optional for direct Substack forwarding from the newsletter form:
+
+```env
+SUBSTACK_SUBSCRIBE_URL=your_exact_substack_form_action
 ```
 
 ## Run

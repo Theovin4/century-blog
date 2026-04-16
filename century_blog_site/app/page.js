@@ -11,11 +11,11 @@ import {
   buildBreadcrumbJsonLd,
   filterPosts,
   getCategoryMeta,
+  getDisplayMedia,
   getMostReadPosts,
   getSiteUrl,
   getTopStories,
   isImageMedia,
-  isVideoMedia,
   prioritizePosts,
   socialLinks,
   toAbsoluteUrl
@@ -23,31 +23,15 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function getStoryCardMedia(post) {
-  if (isImageMedia(post.mediaUrl, post.mediaType)) {
-    return { kind: "image", url: post.mediaUrl };
-  }
-
-  if (isVideoMedia(post.mediaUrl, post.mediaType)) {
-    if (post.posterUrl) {
-      return { kind: "image", url: post.posterUrl };
-    }
-
-    return { kind: "video", url: post.mediaUrl, type: post.mediaType || "video/mp4" };
-  }
-
-  return null;
-}
-
 function StoryHighlightCard({ post, meta }) {
-  const media = getStoryCardMedia(post);
+  const media = getDisplayMedia(post, "story");
 
   return (
     <Link
       href={`/news/${post.slug}`}
-      className={`mini-post-card ${media ? "mini-post-card--with-media" : ""}`}
+      className={`mini-post-card ${media.kind !== "none" ? "mini-post-card--with-media" : ""}`}
     >
-      {media?.kind === "image" ? (
+      {media.kind === "image" ? (
         <img
           src={media.url}
           alt={post.title}
@@ -56,8 +40,8 @@ function StoryHighlightCard({ post, meta }) {
           decoding="async"
         />
       ) : null}
-      {media?.kind === "video" ? (
-        <video className="mini-post-card__media" muted playsInline preload="metadata">
+      {media.kind === "video" ? (
+        <video className="mini-post-card__media" muted playsInline preload="metadata" poster={media.posterUrl || undefined}>
           <source src={media.url} type={media.type} />
         </video>
       ) : null}

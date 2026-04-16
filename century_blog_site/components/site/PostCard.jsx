@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { formatLongDate, getCategoryMeta, isImageMedia, isVideoMedia } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, getDisplayMedia } from "@/lib/site";
 
 export function PostCard({ post }) {
   const category = getCategoryMeta(post.category);
-  const hasImage = isImageMedia(post.mediaUrl, post.mediaType);
-  const hasVideo = isVideoMedia(post.mediaUrl, post.mediaType);
+  const media = getDisplayMedia(post, "card");
+  const hasImage = media.kind === "image";
+  const hasVideo = media.kind === "video";
 
   return (
     <article className="post-card">
       <div className={`post-card__cover ${post.coverStyle}`}>
         {hasImage ? (
           <img
-            src={post.mediaUrl}
+            src={media.url}
             alt={post.title}
             className="post-card__media post-card__image"
             loading="lazy"
@@ -24,9 +25,9 @@ export function PostCard({ post }) {
             muted
             playsInline
             preload="metadata"
-            poster={post.posterUrl || undefined}
+            poster={media.posterUrl || undefined}
           >
-            <source src={post.mediaUrl} type={post.mediaType} />
+            <source src={media.url} type={media.type} />
           </video>
         ) : null}
         <div className="post-card__pills">
