@@ -7,10 +7,10 @@ import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   editorCategoryOptions,
-  formatArticleContent,
   getCategoryMeta,
   getDisplayMedia,
   getPostTypeMeta,
+  getRenderableContent,
   isImageMedia,
   isVideoMedia
 } from "@/lib/site";
@@ -102,6 +102,7 @@ export function DashboardShell({ initialPosts }) {
   const [submitBusy, setSubmitBusy] = useState(false);
   const [activeAction, setActiveAction] = useState("");
   const [activePostId, setActivePostId] = useState("");
+  const [postListFilter, setPostListFilter] = useState("all");
 
   const activeDraftPost = useMemo(
     () => posts.find((post) => String(post.id) === String(draft.id)) || null,
@@ -110,7 +111,7 @@ export function DashboardShell({ initialPosts }) {
 
   const previewContent = useMemo(() => {
     return draft.content.trim()
-      ? formatArticleContent(draft.content)
+      ? getRenderableContent(draft.content)
       : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, *italic*, headings, lists, quotes, and links.";
   }, [draft.content]);
 
@@ -127,6 +128,26 @@ export function DashboardShell({ initialPosts }) {
       return new Date(right.publishedAt) - new Date(left.publishedAt);
     });
   }, [posts]);
+
+  const postTypeCounts = useMemo(() => {
+    return posts.reduce(
+      (totals, post) => {
+        const type = (post.type || "manual") === "auto" ? "auto" : "manual";
+        totals[type] += 1;
+        totals.all += 1;
+        return totals;
+      },
+      { all: 0, manual: 0, auto: 0 }
+    );
+  }, [posts]);
+
+  const visiblePosts = useMemo(() => {
+    if (postListFilter === "all") {
+      return orderedPosts;
+    }
+
+    return orderedPosts.filter((post) => (post.type || "manual") === postListFilter);
+  }, [orderedPosts, postListFilter]);
 
   useEffect(() => {
     if (!toast) {
@@ -713,7 +734,7 @@ export function DashboardShell({ initialPosts }) {
           </label>
 
           <p className="editor-form__hint">
-            Upload one featured image or video. Supported files will be attached to the post.
+            Upload one featured image or video. If you skip media, Century Blog will generate a branded cover so the post still looks complete across the homepage and article page.
           </p>
 
           {previewUrl ? (
@@ -750,30 +771,62 @@ export function DashboardShell({ initialPosts }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>Published posts</h2>
-            <p>Edit, feature, or remove your latest content here. Auto-fetched posts stay fully editable.</p>
+            <p>Edit, feature, or remove your latest content here. Auto-fetched posts stay fully editable and are clearly marked below.</p>
+          </div>
+
+          <div className="filter-bar__chips filter-bar__chips--secondary">
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "all" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("all")}
+            >
+              All posts ({postTypeCounts.all})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "manual" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("manual")}
+            >
+              Manual ({postTypeCounts.manual})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "auto" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("auto")}
+            >
+              Auto ({postTypeCounts.auto})
+            </button>
           </div>
 
           <div className="dashboard-post-list">
-            {orderedPosts.map((post) => (
+            {visiblePosts.map((post) => {
+              const cardMedia = getDisplayMedia(post, "card");
+
+              return (
               <article key={post.slug} className="dashboard-post-card">
                 <div className="dashboard-post-card__media-wrap">
-                  {isVideoMedia(post.mediaUrl, post.mediaType) ? (
-                    <video className="dashboard-post-card__media" muted playsInline preload="metadata" poster={getDisplayMedia(post, "card").posterUrl || undefined}>
-                      <source src={getDisplayMedia(post, "card").url} type={getDisplayMedia(post, "card").type} />
+                  {isVideoMedia(cardMedia.url, cardMedia.type) ? (
+                    <video className="dashboard-post-card__media" muted playsInline preload="metadata" poster={cardMedia.posterUrl || undefined}>
+                      <source src={cardMedia.url} type={cardMedia.type} />
                     </video>
-                  ) : isImageMedia(post.mediaUrl, post.mediaType) ? (
-                    <img className="dashboard-post-card__media" src={getDisplayMedia(post, "card").url} alt={post.title} />
+                  ) : isImageMedia(cardMedia.url, cardMedia.type) ? (
+                    <img className="dashboard-post-card__media" src={cardMedia.url} alt={post.title} />
                   ) : null}
                 </div>
                 <div className="dashboard-post-card__labels">
                   <span className="pill">{getCategoryMeta(post.category).label}</span>
                   <span className={`pill pill-type pill-type--${post.type || "manual"}`}>{getPostTypeMeta(post.type || "manual").label}</span>
+                  {!post.originalMediaUrl && !post.mediaUrl ? <span className="pill">Generated cover</span> : null}
                   {post.featured ? <span className="pill pill-featured">Featured story</span> : null}
                 </div>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>
                 <p className="dashboard-post-card__meta">
-                  {post.sourceName ? `Source: ${post.sourceName}` : "Century Blog post"}
+                  {(post.type || "manual") === "auto"
+                    ? `Auto post${post.autoProvider ? ` via ${String(post.autoProvider).toUpperCase()}` : ""}${post.sourceName ? ` | Source: ${post.sourceName}` : ""}`
+                    : post.sourceName
+                      ? `Source: ${post.sourceName}`
+                      : "Century Blog post"}
                 </p>
                 <div className="dashboard-post-card__actions">
                   <a className="button button-secondary" href={getLivePostPath(post)} target="_blank" rel="noreferrer">
@@ -799,7 +852,9 @@ export function DashboardShell({ initialPosts }) {
                   </button>
                 </div>
               </article>
-            ))}
+              );
+            })}
+            {!visiblePosts.length ? <p className="empty-state">No posts matched this dashboard filter.</p> : null}
           </div>
         </aside>
       </div>

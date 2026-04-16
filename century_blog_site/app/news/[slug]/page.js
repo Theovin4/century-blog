@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
@@ -12,20 +14,55 @@ import {
   buildBreadcrumbJsonLd,
   buildPostKeywords,
   extractMentionedCountries,
-  formatArticleContent,
   formatLongDate,
   getCategoryMeta,
   getDisplayMedia,
+  getRenderableContent,
   getSiteUrl,
   isImageMedia,
+  normalizeStoredText,
   toAbsoluteUrl
 } from "@/lib/site";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+
+async function getLocalPostFallback(slug) {
+  try {
+    const filePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts.json");
+    const payload = JSON.parse(await fs.readFile(filePath, "utf8"));
+
+    if (!Array.isArray(payload)) {
+      return null;
+    }
+
+    const post = payload.find((entry) => entry?.slug === slug);
+
+    if (!post) {
+      return null;
+    }
+
+    return {
+      ...post,
+      title: normalizeStoredText(post.title),
+      excerpt: normalizeStoredText(post.excerpt),
+      content: normalizeStoredText(post.content),
+      author: normalizeStoredText(post.author) || "Century Blog Editorial Team",
+      type: post.type || "manual",
+      readTime: post.readTime || "1 min read",
+      coverStyle: post.coverStyle || "cover-violet"
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function getPostForSlug(slug) {
+  return (await getPostBySlug(slug)) || getLocalPostFallback(slug);
+}
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post = await getPostForSlug(slug);
 
   if (!post) {
     return {
@@ -71,14 +108,9 @@ export async function generateMetadata({ params }) {
   return metadata;
 }
 
-export async function generateStaticParams() {
-  const posts = await getPosts();
-  return posts.map((post) => ({ slug: post.slug }));
-}
-
 export default async function PostPage({ params }) {
   const { slug } = await params;
-  const post = await getPostBySlug(slug);
+  const post = await getPostForSlug(slug);
 
   if (!post) {
     notFound();
@@ -107,7 +139,7 @@ export default async function PostPage({ params }) {
   const siteUrl = getSiteUrl();
   const categoryMeta = getCategoryMeta(post.category);
   const articleMedia = getDisplayMedia(post, "article");
-  const renderedContent = formatArticleContent(post.content);
+  const renderedContent = getRenderableContent(post);
 
   const jsonLd = [
     {

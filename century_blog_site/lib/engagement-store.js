@@ -2,13 +2,13 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
-const legacyFilePath = path.join(process.cwd(), "data", "engagement.json");
+const legacyFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "engagement.json");
 const legacyPublicId = "century-blog/data/engagement";
 
-const likesFilePath = path.join(process.cwd(), "data", "engagement-likes.json");
+const likesFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "engagement-likes.json");
 const likesPublicId = "century-blog/data/engagement-likes";
 
-const commentsFilePath = path.join(process.cwd(), "data", "engagement-comments.json");
+const commentsFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "engagement-comments.json");
 const commentsPublicId = "century-blog/data/engagement-comments";
 
 function normalizeComment(comment) {

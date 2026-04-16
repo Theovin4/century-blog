@@ -739,11 +739,16 @@ button {
 }
 
 .filter-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.7rem 1rem;
   border-radius: 999px;
   border: 1px solid var(--line);
+  background: transparent;
   font-family: "Segoe UI", sans-serif;
   color: var(--muted);
+  cursor: pointer;
 }
 
 .filter-chip.is-active {

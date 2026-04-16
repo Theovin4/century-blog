@@ -12,10 +12,11 @@ import {
   getCoverStyle,
   inferMediaType,
   isValidCategory,
+  normalizeStoredText,
   slugify
 } from "@/lib/site";
 
-const localFilePath = path.join(process.cwd(), "data", "posts.json");
+const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts.json");
 const publicId = "century-blog/data/posts";
 
 async function readLocalSeedPosts() {
@@ -35,6 +36,10 @@ function sanitizePost(post) {
 
   return {
     ...post,
+    title: normalizeStoredText(post.title),
+    excerpt: normalizeStoredText(post.excerpt),
+    content: normalizeStoredText(post.content),
+    author: normalizeStoredText(post.author),
     type: post.type || "manual",
     sourceName: post.sourceName || "",
     sourceUrl: post.sourceUrl || "",
@@ -64,6 +69,10 @@ function normalizePost(post) {
 
   return {
     ...post,
+    title: normalizeStoredText(post.title),
+    excerpt: normalizeStoredText(post.excerpt),
+    content: normalizeStoredText(post.content),
+    author: normalizeStoredText(post.author),
     type: post.type || "manual",
     sourceName: post.sourceName || "",
     sourceUrl: post.sourceUrl || "",
@@ -227,7 +236,7 @@ export function findSimilarPost(candidate, posts) {
 }
 
 async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl = "", existing = null } = {}) {
-  const title = input.title.trim();
+  const title = normalizeStoredText(input.title).trim();
   const slug = buildUniqueSlug(posts, title, existing?.id || "");
   const publishedAt = input.publishedAt || existing?.publishedAt || new Date().toISOString();
   const updatedAt = new Date().toISOString();
@@ -249,10 +258,10 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
     ...base,
     slug,
     title,
-    excerpt: input.excerpt.trim(),
-    content: input.content.trim(),
+    excerpt: normalizeStoredText(input.excerpt).trim(),
+    content: normalizeStoredText(input.content).trim(),
     category: isValidCategory(input.category) ? input.category : existing?.category || "daily-gist",
-    author: input.author?.trim() || existing?.author || "Century Blog Editorial Team",
+    author: normalizeStoredText(input.author).trim() || existing?.author || "Century Blog Editorial Team",
     type: input.type || existing?.type || "manual",
     sourceName: input.sourceName || existing?.sourceName || "",
     sourceUrl: input.sourceUrl || existing?.sourceUrl || "",

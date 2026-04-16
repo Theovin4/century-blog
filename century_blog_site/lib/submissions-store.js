@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
-const localFilePath = path.join(process.cwd(), "data", "submissions.json");
+const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "submissions.json");
 const publicId = "century-blog/data/submissions";
 
 async function readSubmissionsSource() {

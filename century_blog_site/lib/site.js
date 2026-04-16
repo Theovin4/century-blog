@@ -204,7 +204,7 @@ export function slugify(input) {
 }
 
 export function estimateReadTime(content) {
-  const words = content.trim().split(/\s+/).filter(Boolean).length;
+  const words = normalizeStoredText(content).trim().split(/\s+/).filter(Boolean).length;
   const minutes = Math.max(1, Math.round(words / 220));
   return `${minutes} min read`;
 }
@@ -259,6 +259,103 @@ export function getOptimizedVideoUrl(
   return replaceCloudinaryUploadTransform(target, "video", transform);
 }
 
+function splitTitleLines(title, maxLineLength = 26) {
+  const words = String(title || "Century Blog").trim().split(/\s+/).filter(Boolean);
+
+  if (!words.length) {
+    return ["Century Blog"];
+  }
+
+  const lines = [];
+  let current = "";
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+
+    if (next.length <= maxLineLength || !current) {
+      current = next;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+
+    if (lines.length === 2) {
+      break;
+    }
+  }
+
+  if (current && lines.length < 3) {
+    lines.push(current);
+  }
+
+  if (lines.length > 3) {
+    return lines.slice(0, 3);
+  }
+
+  if (lines.length === 3 && words.join(" ").length > lines.join(" ").length) {
+    lines[2] = `${lines[2].slice(0, Math.max(0, maxLineLength - 1)).trimEnd()}…`;
+  }
+
+  return lines;
+}
+
+function getFallbackCoverPalette(category) {
+  const palettes = {
+    nigeria: { start: "#0b1020", end: "#155eef", glow: "#12c2e9" },
+    world: { start: "#12071f", end: "#4a00e0", glow: "#8e2de2" },
+    business: { start: "#2b1901", end: "#f59e0b", glow: "#ffd200" },
+    tech: { start: "#062033", end: "#0072ff", glow: "#00c6ff" },
+    entertainment: { start: "#3b0f1a", end: "#ff6a88", glow: "#ff99ac" },
+    health: { start: "#06292d", end: "#009efd", glow: "#2af598" },
+    lifestyle: { start: "#361410", end: "#ff5e62", glow: "#ff9966" },
+    education: { start: "#2f1d02", end: "#f59e0b", glow: "#ffd200" },
+    "daily-gist": { start: "#170d2b", end: "#7f7fd5", glow: "#91eae4" }
+  };
+
+  return palettes[category] || palettes["daily-gist"];
+}
+
+function buildFallbackCoverDataUri(post, { width = 1200, height = 900 } = {}) {
+  const palette = getFallbackCoverPalette(post?.category);
+  const titleLines = splitTitleLines(post?.title || "Century Blog");
+  const categoryLabel = getCategoryMeta(post?.category).label.toUpperCase();
+  const publishedLabel = post?.publishedAt ? formatLongDate(post.publishedAt).toUpperCase() : "CENTURY BLOG";
+  const lineY = [height * 0.56, height * 0.66, height * 0.76];
+
+  const titleMarkup = titleLines
+    .map(
+      (line, index) =>
+        `<text x="72" y="${lineY[index]}" fill="#f8fafc" font-size="${Math.round(height * 0.078)}" font-weight="800" font-family="Georgia, 'Times New Roman', serif">${escapeHtml(line)}</text>`
+    )
+    .join("");
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(post?.title || "Century Blog")}">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${palette.start}" />
+          <stop offset="100%" stop-color="${palette.end}" />
+        </linearGradient>
+        <radialGradient id="glow" cx="0.82" cy="0.12" r="0.7">
+          <stop offset="0%" stop-color="${palette.glow}" stop-opacity="0.55" />
+          <stop offset="100%" stop-color="${palette.glow}" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="${width}" height="${height}" fill="url(#bg)" rx="36" />
+      <rect width="${width}" height="${height}" fill="url(#glow)" rx="36" />
+      <circle cx="${Math.round(width * 0.84)}" cy="${Math.round(height * 0.18)}" r="${Math.round(height * 0.16)}" fill="rgba(255,255,255,0.12)" />
+      <rect x="56" y="56" width="${Math.round(width * 0.34)}" height="46" rx="23" fill="rgba(6,10,18,0.38)" stroke="rgba(255,255,255,0.18)" />
+      <text x="80" y="86" fill="#dff7ff" font-size="20" font-weight="700" font-family="'Segoe UI', sans-serif" letter-spacing="1.6">${escapeHtml(categoryLabel)}</text>
+      <text x="72" y="${Math.round(height * 0.18)}" fill="rgba(255,255,255,0.72)" font-size="24" font-weight="600" font-family="'Segoe UI', sans-serif">CENTURY BLOG</text>
+      ${titleMarkup}
+      <text x="72" y="${height - 74}" fill="rgba(255,255,255,0.76)" font-size="22" font-weight="600" font-family="'Segoe UI', sans-serif">${escapeHtml(publishedLabel)}</text>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
 export function getDisplayMedia(post, variant = "card") {
   const mediaUrl = post?.originalMediaUrl || post?.mediaUrl || "";
   const mediaType = post?.mediaType || inferMediaType(mediaUrl);
@@ -292,55 +389,53 @@ export function getDisplayMedia(post, variant = "card") {
     };
   }
 
-  return { kind: "none", url: "", originalUrl: "", type: "" };
+  return {
+    kind: "image",
+    url: buildFallbackCoverDataUri(post, selected),
+    originalUrl: "",
+    type: "image/svg+xml",
+    generated: true
+  };
 }
 
-function blockLooksLikeHeading(block) {
-  const line = String(block || "").trim();
-
-  if (!line) {
-    return false;
-  }
-
-  if (/^(#{1,6}|>|[-*]\s|\d+\.\s|```)/.test(line)) {
-    return false;
-  }
-
-  const wordCount = line.split(/\s+/).filter(Boolean).length;
-  const shortEnough = wordCount > 0 && wordCount <= 10;
-  const noSentencePunctuation = !/[.!?]$/.test(line);
-  const titleLike = /^[A-Z0-9]/.test(line) || /^[A-Z][a-z]/.test(line);
-
-  return shortEnough && noSentencePunctuation && titleLike;
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function addInlineEmphasis(block) {
-  return String(block || "")
-    .replace(/^(?![#>*-]|\d+\.\s)([A-Z][A-Za-z0-9'&/()\-\s]{2,40}:)\s+/gm, "**$1** ")
-    .replace(/^"([^"\n]{3,140})"$/gm, "*$1*");
+export function normalizeStoredText(value) {
+  return String(value || "")
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/â€™/g, "’")
+    .replace(/â€œ/g, "“")
+    .replace(/â€/g, "”")
+    .replace(/â€“/g, "–")
+    .replace(/â€”/g, "—")
+    .replace(/â€¦/g, "…")
+    .replace(/â€˜/g, "‘")
+    .replace(/â€¢/g, "•")
+    .replace(/(\d)�\?\?(\d)/g, "$1-$2")
+    .replace(/(\w)�\?\?(\w)/g, "$1'$2")
+    .replace(/�\?\?/g, "'")
+    .replace(/�\?�/g, "–")
+    .replace(/�/g, "'");
+}
+
+export function getRenderableContent(postOrContent) {
+  if (postOrContent && typeof postOrContent === "object") {
+    return normalizeStoredText(postOrContent.content);
+  }
+
+  return normalizeStoredText(postOrContent);
 }
 
 export function formatArticleContent(content) {
-  const normalized = String(content || "").replace(/\r\n/g, "\n").trim();
-
-  if (!normalized) {
-    return "";
-  }
-
-  const blocks = normalized
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-  return blocks
-    .map((block) => {
-      if (blockLooksLikeHeading(block)) {
-        return `## ${block}`;
-      }
-
-      return addInlineEmphasis(block);
-    })
-    .join("\n\n");
+  return getRenderableContent(content);
 }
 
 export function inferMediaType(value) {

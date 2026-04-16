@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
-const localFilePath = path.join(process.cwd(), "data", "automation-settings.json");
+const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "automation-settings.json");
 const publicId = "century-blog/data/automation-settings";
 
 const defaultSettings = {
