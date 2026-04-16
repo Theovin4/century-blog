@@ -165,7 +165,7 @@ export default async function HomePage({ searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Most Read</span>
-              <h2>Stories with the strongest momentum on the site</h2>
+              <h2>Most read news and trending stories right now</h2>
             </div>
             <p>Catch the biggest stories readers are opening most across Nigeria news, world updates, business, sports, entertainment, and culture.</p>
           </div>
@@ -181,7 +181,7 @@ export default async function HomePage({ searchParams }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Latest Headlines</span>
-            <h2>Fresh stories for your readers</h2>
+            <h2>Latest breaking news and new stories</h2>
           </div>
           <p>Follow the newest breaking news, trending Nigeria headlines, global updates, and timely explainers as soon as they go live.</p>
         </div>
