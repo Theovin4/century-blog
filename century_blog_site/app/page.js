@@ -167,7 +167,7 @@ export default async function HomePage({ searchParams }) {
               <span className="eyebrow">Most Read</span>
               <h2>Stories with the strongest momentum on the site</h2>
             </div>
-            <p>These are the stories drawing the most attention right now across the homepage and article pages.</p>
+            <p>Catch the biggest stories readers are opening most across Nigeria news, world updates, business, sports, entertainment, and culture.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
@@ -183,9 +183,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Latest Headlines</span>
             <h2>Fresh stories for your readers</h2>
           </div>
-          <p>
-            Search across the blog and move from Nigeria headlines into world stories without losing context.
-          </p>
+          <p>Follow the newest breaking news, trending Nigeria headlines, global updates, and timely explainers as soon as they go live.</p>
         </div>
 
         <div className="post-grid">

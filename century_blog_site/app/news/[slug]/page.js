@@ -3,7 +3,6 @@ import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { PostEngagement } from "@/components/site/PostEngagement";
 import { PostShareBar } from "@/components/site/PostShareBar";
@@ -220,7 +219,7 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{renderedContent}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent}</ReactMarkdown>
         </div>
       </article>
 

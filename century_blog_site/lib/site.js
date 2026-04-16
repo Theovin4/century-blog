@@ -204,7 +204,7 @@ export function slugify(input) {
 }
 
 export function estimateReadTime(content) {
-  const words = normalizeStoredText(content).trim().split(/\s+/).filter(Boolean).length;
+  const words = normalizeMarkdownContent(content).trim().split(/\s+/).filter(Boolean).length;
   const minutes = Math.max(1, Math.round(words / 220));
   return `${minutes} min read`;
 }
@@ -426,12 +426,31 @@ export function normalizeStoredText(value) {
     .replace(/�/g, "'");
 }
 
+export function normalizeMarkdownContent(value) {
+  return normalizeStoredText(value)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<p[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/â€™/g, "'")
+    .replace(/â€œ/g, "\"")
+    .replace(/â€/g, "\"")
+    .replace(/â€“/g, "-")
+    .replace(/â€”/g, "--")
+    .replace(/â€¦/g, "...")
+    .replace(/â€˜/g, "'")
+    .replace(/â€¢/g, "-")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function getRenderableContent(postOrContent) {
   if (postOrContent && typeof postOrContent === "object") {
-    return normalizeStoredText(postOrContent.content);
+    return normalizeMarkdownContent(postOrContent.content);
   }
 
-  return normalizeStoredText(postOrContent);
+  return normalizeMarkdownContent(postOrContent);
 }
 
 export function formatArticleContent(content) {

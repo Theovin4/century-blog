@@ -10,7 +10,7 @@ import {
 } from "@/lib/cloudinary";
 import { inferMediaType, isValidCategory } from "@/lib/site";
 
-const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 
 function validateMedia(media) {
@@ -23,7 +23,7 @@ function validateMedia(media) {
   }
 
   if (isImage && media.size > MAX_IMAGE_SIZE) {
-    return "Images must be 2MB or smaller.";
+    return "Images must be 8MB or smaller.";
   }
 
   if (isVideo && media.size > MAX_VIDEO_SIZE) {

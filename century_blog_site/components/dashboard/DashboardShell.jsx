@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import {
   editorCategoryOptions,
@@ -38,6 +37,7 @@ const emptyAutomation = {
 
 const markdownTools = [
   { label: "H2", action: "heading", insertBefore: "## ", insertAfter: "", placeholder: "Subheading" },
+  { label: "H3", action: "heading", insertBefore: "### ", insertAfter: "", placeholder: "Detail point" },
   { label: "Bold", action: "wrap", insertBefore: "**", insertAfter: "**", placeholder: "bold text" },
   { label: "Italic", action: "wrap", insertBefore: "*", insertAfter: "*", placeholder: "italic text" },
   { label: "List", action: "block", insertBefore: "- First point\n- Second point", insertAfter: "", placeholder: "" },
@@ -46,6 +46,8 @@ const markdownTools = [
 ];
 
 const REQUEST_TIMEOUT_MS = 25000;
+const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 
 async function readResponsePayload(response) {
   const contentType = response.headers.get("content-type") || "";
@@ -261,8 +263,30 @@ export function DashboardShell({ initialPosts }) {
   function handleFileChange(event) {
     const file = event.currentTarget.files?.[0];
     clearPreview();
+    setError("");
 
     if (!file) {
+      return;
+    }
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      setError("Only image and video uploads are supported.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    if (isImage && file.size > MAX_IMAGE_SIZE) {
+      setError("Images must be 8MB or smaller.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      setError("Videos must be 20MB or smaller.");
+      event.currentTarget.value = "";
       return;
     }
 
@@ -682,12 +706,12 @@ export function DashboardShell({ initialPosts }) {
                 ref={contentRef}
                 name="content"
                 rows="14"
-                placeholder="Write your post in Markdown. Use ## headings, **bold**, *italic*, lists, quotes, and links."
+                placeholder="Write your post in Markdown. Use ## main headings, ### subheadings, **bold**, *italic*, clean spacing, and plain Markdown only."
                 value={draft.content}
                 onChange={(event) => updateDraftField("content", event.target.value)}
                 required
               />
-              <span className="editor-form__hint">Tip: use the toolbar above to insert headings, bold, italic, lists, quotes, and links instantly.</span>
+              <span className="editor-form__hint">Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, and avoid HTML tags like &lt;p&gt; or &lt;br&gt;.</span>
             </label>
 
             <div className="editor-live-preview">
@@ -696,7 +720,7 @@ export function DashboardShell({ initialPosts }) {
                 <span>Markdown renders exactly like the public post page.</span>
               </div>
               <div className="editor-live-preview__body blog-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{previewContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent}</ReactMarkdown>
               </div>
             </div>
           </div>
@@ -734,7 +758,7 @@ export function DashboardShell({ initialPosts }) {
           </label>
 
           <p className="editor-form__hint">
-            Upload one featured image or video. If you skip media, Century Blog will generate a branded cover so the post still looks complete across the homepage and article page.
+            Upload one featured image or video. Images can be up to 8MB and videos up to 20MB. If you skip media, Century Blog will generate a branded cover so the post still looks complete across the homepage and article page.
           </p>
 
           {previewUrl ? (
