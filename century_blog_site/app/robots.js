@@ -18,7 +18,7 @@ export default function robots() {
         disallow: ["/dashboard", "/api/"]
       }
     ],
-    sitemap: `${siteUrl}/sitemap.xml`,
+    sitemap: [`${siteUrl}/sitemap.xml`, `${siteUrl}/news-sitemap.xml`],
     host: new URL(siteUrl).host
   };
 }

@@ -137,34 +137,55 @@ export default async function PostPage({ params }) {
     )
     .slice(0, 3);
   const siteUrl = getSiteUrl();
+  const organizationId = `${siteUrl}#organization`;
   const categoryMeta = getCategoryMeta(post.category);
   const articleMedia = getDisplayMedia(post, "article");
   const renderedContent = getRenderableContent(post);
+  const articleUrl = `${siteUrl}/news/${post.slug}`;
+  const imageUrls = isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined;
+  const authorEntity = {
+    "@type": "Organization",
+    name: post.author || "Century Blog Editorial Team",
+    url: `${siteUrl}/about`
+  };
 
   const jsonLd = [
     {
       "@context": "https://schema.org",
-      "@type": "BlogPosting",
+      "@type": "NewsArticle",
       headline: post.title,
+      alternativeHeadline: post.excerpt,
       description: post.excerpt,
       datePublished: post.publishedAt,
       dateModified: post.updatedAt || post.publishedAt,
       keywords: buildPostKeywords(post).join(", "),
       articleSection: categoryMeta.label,
+      inLanguage: "en-NG",
+      isAccessibleForFree: true,
+      author: authorEntity,
+      creator: [authorEntity],
+      copyrightHolder: {
+        "@id": organizationId
+      },
       about: currentCountries.map((country) => ({
         "@type": "Place",
         name: country
       })),
-      author: {
-        "@type": "Organization",
-        name: post.author || "Century Blog Editorial Team"
-      },
       publisher: {
-        "@type": "Organization",
-        name: "Century Blog"
+        "@id": organizationId
       },
-      mainEntityOfPage: `${siteUrl}/news/${post.slug}`,
-      image: isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined
+      mainEntityOfPage: {
+        "@type": "WebPage",
+        "@id": articleUrl
+      },
+      image: imageUrls,
+      thumbnailUrl: imageUrls,
+      url: articleUrl,
+      sourceOrganization: post.sourceName ? {
+        "@type": "Organization",
+        name: post.sourceName,
+        url: post.sourceUrl || undefined
+      } : undefined
     },
     buildBreadcrumbJsonLd([
       { name: "Home", url: siteUrl },

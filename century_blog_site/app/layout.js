@@ -80,13 +80,41 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const organizationId = `${siteUrl}#organization`;
+  const websiteId = `${siteUrl}#website`;
   const organizationLd = {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    "@type": "NewsMediaOrganization",
+    "@id": organizationId,
     name: "Century Blog",
     url: siteUrl,
     logo: `${siteUrl}/century-blog-logo.png`,
+    publishingPrinciples: `${siteUrl}/about`,
+    ethicsPolicy: `${siteUrl}/about`,
+    correctionsPolicy: `${siteUrl}/contact`,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      url: `${siteUrl}/contact`,
+      availableLanguage: ["English"]
+    },
     sameAs: socialLinks.map((link) => link.href)
+  };
+  const websiteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": websiteId,
+    url: siteUrl,
+    name: "Century Blog",
+    publisher: {
+      "@id": organizationId
+    },
+    inLanguage: "en-NG",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${siteUrl}/?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
   };
 
   return (
@@ -112,7 +140,10 @@ export default function RootLayout({ children }) {
             </Script>
           </>
         ) : null}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify([organizationLd, websiteLd]) }}
+        />
         {children}
       </body>
     </html>
