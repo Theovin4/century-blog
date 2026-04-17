@@ -8,6 +8,7 @@ import {
   writeCloudinaryJson
 } from "@/lib/cloudinary";
 
+const STORE_CACHE_TTL_MS = 5000;
 const storeCache = new Map();
 
 function getCacheKey(localFilePath, publicId) {
@@ -16,6 +17,28 @@ function getCacheKey(localFilePath, publicId) {
 
 function clonePayload(value) {
   return value === undefined ? value : JSON.parse(JSON.stringify(value));
+}
+
+function getCachedPayload(cacheKey) {
+  const entry = storeCache.get(cacheKey);
+
+  if (!entry) {
+    return undefined;
+  }
+
+  if (entry.expiresAt <= Date.now()) {
+    storeCache.delete(cacheKey);
+    return undefined;
+  }
+
+  return clonePayload(entry.value);
+}
+
+function setCachedPayload(cacheKey, value) {
+  storeCache.set(cacheKey, {
+    value: clonePayload(value),
+    expiresAt: Date.now() + STORE_CACHE_TTL_MS
+  });
 }
 
 function getItemKey(item, index) {
@@ -82,9 +105,10 @@ function mergePayloads(primary, secondary) {
 
 export async function readJsonStore(localFilePath, publicId, fallbackValue) {
   const cacheKey = getCacheKey(localFilePath, publicId);
+  const cached = getCachedPayload(cacheKey);
 
-  if (storeCache.has(cacheKey)) {
-    return clonePayload(storeCache.get(cacheKey));
+  if (cached !== undefined) {
+    return cached;
   }
 
   if (publicId && isCloudinaryConfigured()) {
@@ -95,10 +119,10 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
           const file = await fs.readFile(localFilePath, "utf8");
           const local = JSON.parse(file);
           const merged = mergePayloads(remote, local);
-          storeCache.set(cacheKey, merged);
+          setCachedPayload(cacheKey, merged);
           return clonePayload(merged);
         } catch {
-          storeCache.set(cacheKey, remote);
+          setCachedPayload(cacheKey, remote);
           return clonePayload(remote);
         }
       }
@@ -110,7 +134,7 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
   try {
     const file = await fs.readFile(localFilePath, "utf8");
     const parsed = JSON.parse(file);
-    storeCache.set(cacheKey, parsed);
+    setCachedPayload(cacheKey, parsed);
     return clonePayload(parsed);
   } catch {
     return fallbackValue;
@@ -119,7 +143,7 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
 
 export async function writeJsonStore(localFilePath, publicId, payload) {
   const cacheKey = getCacheKey(localFilePath, publicId);
-  storeCache.set(cacheKey, clonePayload(payload));
+  setCachedPayload(cacheKey, payload);
 
   try {
     await fs.mkdir(path.dirname(localFilePath), { recursive: true });

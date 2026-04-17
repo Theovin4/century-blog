@@ -19,6 +19,7 @@ import {
   getRenderableContent,
   getSiteUrl,
   isImageMedia,
+  normalizeMarkdownContent,
   normalizeStoredText,
   toAbsoluteUrl
 } from "@/lib/site";
@@ -44,7 +45,7 @@ async function getLocalPostFallback(slug) {
       ...post,
       title: normalizeStoredText(post.title),
       excerpt: normalizeStoredText(post.excerpt),
-      content: normalizeStoredText(post.content),
+      content: normalizeMarkdownContent(post.content),
       author: normalizeStoredText(post.author) || "Century Blog Editorial Team",
       type: post.type || "manual",
       readTime: post.readTime || "1 min read",
