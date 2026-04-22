@@ -143,19 +143,41 @@ function hydratePostsWithSeedDefaults(posts, seedPosts) {
   return posts.map((post) => mergeSeedPost(seedMap.get(post.slug), post));
 }
 
+function getFeatureSortTimestamp(post) {
+  const timestamp = new Date(post?.updatedAt || post?.publishedAt || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function normalizeFeaturedPosts(posts) {
+  const featuredPosts = posts.filter((post) => post.featured);
+
+  if (featuredPosts.length <= 1) {
+    return posts;
+  }
+
+  const canonicalFeaturedId = [...featuredPosts]
+    .sort((left, right) => getFeatureSortTimestamp(right) - getFeatureSortTimestamp(left))[0]
+    ?.id;
+
+  return posts.map((post) => ({
+    ...post,
+    featured: canonicalFeaturedId ? String(post.id) === String(canonicalFeaturedId) : false
+  }));
+}
+
 async function readPostsSource() {
   const seedPosts = (await readLocalSeedPosts()).map(normalizePost);
   const remotePosts = await readJsonStore(localFilePath, publicId, null);
 
   if (Array.isArray(remotePosts) && remotePosts.length) {
-    return hydratePostsWithSeedDefaults(remotePosts, seedPosts);
+    return normalizeFeaturedPosts(hydratePostsWithSeedDefaults(remotePosts, seedPosts));
   }
 
-  return seedPosts;
+  return normalizeFeaturedPosts(seedPosts);
 }
 
 async function writePostsSource(posts) {
-  await writeJsonStore(localFilePath, publicId, posts.map(sanitizePost));
+  await writeJsonStore(localFilePath, publicId, normalizeFeaturedPosts(posts).map(sanitizePost));
 }
 
 function tokenizeTitle(value) {

@@ -575,7 +575,7 @@ export function buildBreadcrumbJsonLd(items) {
   };
 }
 
-export function prioritizePosts(posts, { preferManual = true } = {}) {
+export function prioritizePosts(posts, { preferManual = false } = {}) {
   return [...(posts || [])].sort((left, right) => {
     if (left.featured !== right.featured) {
       return left.featured ? -1 : 1;
