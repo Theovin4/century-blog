@@ -127,19 +127,25 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Lifestyle, Education, Daily gist, Nigeria, World, Sports & Entertainment, Tech, Health And Business</p>
+              <p className="brand-copy__tag">Nigeria-first reporting with fast updates on world news, business, sports, lifestyle, tech, and culture.</p>
             </div>
           </div>
-          <h1>Breaking Nigerian News, Global Stories & Real-Time Updates That Matter</h1>
+          <p className="hero-kicker">Independent digital news platform for readers who want clear updates without clutter.</p>
+          <h1>Breaking news, daily gist, and current stories made easier to follow</h1>
           <p className="hero-text">
-            Stay ahead with trending stories from Nigeria and around the world, from politics and business to tech, health, sports, and entertainment. We deliver fast, reliable, and engaging news designed for readers who want to stay informed, inspired, and ahead of the conversation.
+            Read the latest stories from Nigeria and beyond in a cleaner format built for mobile and desktop. Century Blog brings together timely headlines, explainers, and culture stories in one place.
           </p>
+          <div className="hero-highlights" aria-label="Century Blog highlights">
+            <span className="hero-highlight">Nigeria and world headlines</span>
+            <span className="hero-highlight">Fast-loading reading experience</span>
+            <span className="hero-highlight">Business, sports, tech, health, and lifestyle</span>
+          </div>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
               Read Latest News Now
             </a>
             <Link href="/about" className="button button-secondary">
-              Learn about us
+              About Century Blog
             </Link>
           </div>
         </div>

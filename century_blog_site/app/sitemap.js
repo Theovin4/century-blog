@@ -33,6 +33,18 @@ export default async function sitemap() {
       changeFrequency: "monthly",
       priority: 0.5
     },
+    {
+      url: `${siteUrl}/terms-and-conditions`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5
+    },
+    {
+      url: `${siteUrl}/cookies-policy`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.5
+    },
     ...categoryOptions.map((category) => ({
       url: `${siteUrl}/category/${category}`,
       lastModified: now,

@@ -59,7 +59,7 @@ button {
 .hero-grid {
   grid-template-columns: 1.1fr 0.9fr;
   align-items: stretch;
-  min-height: 65vh;
+  min-height: 58vh;
 }
 
 .hero-copy,
@@ -157,20 +157,32 @@ button {
   font-size: 0.95rem;
   font-family: "Segoe UI", sans-serif;
 }
+
+.hero-kicker {
+  margin: 0 0 0.85rem;
+  color: #dbe6ff;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.7;
+  max-width: 42rem;
+}
+
 .hero-copy {
   display: flex;
   flex-direction: column;
   justify-content: center;
   border-radius: 32px;
+  gap: 0.2rem;
 }
 
 .hero-copy h1,
 .article h1,
 .dashboard-panel h1 {
   margin: 0.35rem 0 1rem;
-  font-size: clamp(2.8rem, 6vw, 5.6rem);
-  line-height: 0.95;
+  font-size: clamp(2.5rem, 5vw, 4.4rem);
+  line-height: 1.02;
   letter-spacing: -0.04em;
+  max-width: 12ch;
 }
 
 .hero-text,
@@ -214,6 +226,35 @@ button {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+}
+
+.hero-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.3rem 0 1.3rem;
+}
+
+.hero-highlight {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.72rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.04);
+  color: #eef3ff;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.92rem;
+}
+
+.hero-highlight::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--pink), var(--gold));
+  box-shadow: 0 0 0 4px rgba(255, 94, 122, 0.12);
 }
 
 .button {
@@ -1016,6 +1057,10 @@ button {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .hero-copy h1 {
+    max-width: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1041,7 +1086,7 @@ button {
   .hero-copy h1,
   .article h1,
   .dashboard-panel h1 {
-    font-size: 2.8rem;
+    font-size: 2.45rem;
   }
 
   .hero-copy,
@@ -1054,6 +1099,20 @@ button {
   .newsletter-panel,
   .post-share-panel {
     padding: 1.2rem;
+  }
+
+  .hero-kicker,
+  .brand-copy__tag {
+    font-size: 0.92rem;
+  }
+
+  .hero-highlights {
+    margin-bottom: 1.1rem;
+  }
+
+  .hero-highlight {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .social-links-grid,
