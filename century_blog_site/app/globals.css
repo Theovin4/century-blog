@@ -719,10 +719,28 @@ button {
   line-height: 0.98;
 }
 
+.legal-card h2 {
+  margin: 1.4rem 0 0.65rem;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1.2;
+}
+
 .legal-card p {
   color: var(--muted);
   font-family: "Segoe UI", sans-serif;
   line-height: 1.8;
+}
+
+.legal-card ul {
+  margin: 0.4rem 0 1rem;
+  padding-left: 1.25rem;
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.8;
+}
+
+.legal-card li {
+  margin: 0.4rem 0;
 }
 
 .back-home-button {
@@ -1086,7 +1104,7 @@ button {
   .hero-copy h1,
   .article h1,
   .dashboard-panel h1 {
-    font-size: 2.45rem;
+    font-size: 2.15rem;
   }
 
   .hero-copy,
@@ -1101,6 +1119,11 @@ button {
     padding: 1.2rem;
   }
 
+  .feature-card,
+  .article-hero {
+    min-height: 20rem;
+  }
+
   .hero-kicker,
   .brand-copy__tag {
     font-size: 0.92rem;
@@ -1113,6 +1136,21 @@ button {
   .hero-highlight {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .hero-actions .button,
+  .footer-links a {
+    width: 100%;
+  }
+
+  .legal-card {
+    padding: 1.35rem;
+    border-radius: 24px;
+  }
+
+  .legal-card h1 {
+    font-size: 2rem;
+    line-height: 1.05;
   }
 
   .social-links-grid,

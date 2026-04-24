@@ -20,17 +20,25 @@ export default function CookiesPolicyPage() {
         <span className="eyebrow">Cookies Policy</span>
         <h1>How cookies are used on Century Blog</h1>
         <p>
-          Century Blog may use cookies and similar technologies to keep the website secure, measure
-          traffic, understand reader behaviour, and improve how pages load across devices.
+          Century Blog uses cookies and similar technologies to keep the site working properly,
+          measure traffic, and improve the reading experience.
         </p>
+        <h2>Why cookies may be used</h2>
+        <ul>
+          <li>To help pages load correctly and keep the site secure.</li>
+          <li>To understand visits, page views, and reader behaviour.</li>
+          <li>To support analytics, advertising, or embedded media tools.</li>
+        </ul>
+        <h2>Third-party tools</h2>
         <p>
           Some cookies may be placed by trusted third-party services such as analytics, embedded
           media providers, advertising networks, or newsletter tools. These services may use
           cookies to measure performance, personalise experiences, or support ad delivery.
         </p>
+        <h2>Your choice</h2>
         <p>
-          You can manage or disable cookies through your browser settings. Please note that
-          disabling certain cookies may affect how some parts of the website function.
+          You can control or disable cookies in your browser settings. If you disable some cookies,
+          parts of the website may not work as smoothly.
         </p>
         <p>
           Century Blog may update this cookies policy whenever new services, advertising tools, or

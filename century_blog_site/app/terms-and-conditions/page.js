@@ -20,24 +20,31 @@ export default function TermsAndConditionsPage() {
         <span className="eyebrow">Terms and Conditions</span>
         <h1>Rules for using Century Blog</h1>
         <p>
-          By using Century Blog, you agree to access the website responsibly and to use its
-          content for lawful, personal, and informational purposes only.
+          By using Century Blog, you agree to use the website lawfully and responsibly. The site is
+          provided for news, information, and general reading.
+        </p>
+        <h2>What you can do</h2>
+        <ul>
+          <li>Read and share links to our stories for personal use.</li>
+          <li>Browse the website on mobile or desktop for news and updates.</li>
+          <li>Contact us if you notice a correction, issue, or business enquiry.</li>
+        </ul>
+        <h2>What you should not do</h2>
+        <ul>
+          <li>Copy or republish full articles without permission.</li>
+          <li>Use the site for unlawful activity or abusive behaviour.</li>
+          <li>Attempt to damage, disrupt, or misuse the website.</li>
+        </ul>
+        <h2>Content and links</h2>
+        <p>
+          Century Blog owns its original branding, layout, and editorial content unless a different
+          owner is clearly credited. Third-party links, embedded content, and outside services may
+          appear on the site, but their content and policies are managed by those providers.
         </p>
         <p>
-          All articles, headlines, graphics, branding, and editorial materials published on Century
-          Blog remain the property of the site or their respective credited owners unless stated
-          otherwise. Content may not be copied, republished, or redistributed in bulk without
-          permission.
-        </p>
-        <p>
-          Century Blog may update, edit, remove, or correct published content at any time in order
-          to improve accuracy, clarity, or reader experience. We do not guarantee that every page
-          will always be uninterrupted or error free.
-        </p>
-        <p>
-          External links, embedded media, and third-party services may appear on the website for
-          reference, sharing, analytics, advertising, or sourcing. Century Blog is not responsible
-          for the policies or content of third-party websites.
+          We may edit, update, correct, or remove content at any time to improve accuracy and
+          reader experience. While we aim to keep the site available and accurate, we cannot
+          promise that every page will always be uninterrupted or error free.
         </p>
       </section>
       <SiteFooter />
