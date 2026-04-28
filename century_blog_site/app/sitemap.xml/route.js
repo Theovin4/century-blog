@@ -1,14 +1,37 @@
+import { NextResponse } from "next/server";
 import { getPosts } from "@/lib/posts-store";
 import { categoryOptions, getSiteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export default async function sitemap() {
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function renderUrlEntry({ url, lastModified, changeFrequency, priority }) {
+  return [
+    "  <url>",
+    `    <loc>${escapeXml(url)}</loc>`,
+    lastModified ? `    <lastmod>${escapeXml(new Date(lastModified).toISOString())}</lastmod>` : "",
+    changeFrequency ? `    <changefreq>${escapeXml(changeFrequency)}</changefreq>` : "",
+    typeof priority === "number" ? `    <priority>${priority}</priority>` : "",
+    "  </url>"
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function GET() {
   const siteUrl = getSiteUrl();
-  const now = new Date();
+  const now = new Date().toISOString();
   const posts = await getPosts();
 
-  return [
+  const urls = [
     {
       url: siteUrl,
       lastModified: now,
@@ -53,9 +76,20 @@ export default async function sitemap() {
     })),
     ...posts.map((post) => ({
       url: `${siteUrl}/news/${post.slug}`,
-      lastModified: new Date(post.updatedAt || post.publishedAt),
+      lastModified: post.updatedAt || post.publishedAt,
       changeFrequency: "daily",
       priority: 0.9
     }))
   ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+    .map(renderUrlEntry)
+    .join("\n")}\n</urlset>`;
+
+  return new NextResponse(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "no-store"
+    }
+  });
 }
