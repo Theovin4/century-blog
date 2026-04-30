@@ -108,6 +108,18 @@ function mergeSeedPost(seedPost, currentPost) {
 
   const merged = { ...currentPost };
 
+  if (isSeedPostNewer(seedPost, currentPost)) {
+    merged.title = seedPost.title || merged.title;
+    merged.excerpt = seedPost.excerpt || merged.excerpt;
+    merged.content = seedPost.content || merged.content;
+    merged.author = seedPost.author || merged.author;
+    merged.category = seedPost.category || merged.category;
+    merged.regionFocus = seedPost.regionFocus || merged.regionFocus;
+    merged.readTime = seedPost.readTime || merged.readTime;
+    merged.coverStyle = seedPost.coverStyle || merged.coverStyle;
+    merged.updatedAt = seedPost.updatedAt || merged.updatedAt;
+  }
+
   if (shouldHydrateSeedMedia(currentPost) && seedPost.mediaUrl) {
     merged.mediaUrl = seedPost.mediaUrl;
     merged.originalMediaUrl = seedPost.originalMediaUrl || seedPost.mediaUrl;
@@ -146,6 +158,10 @@ function hydratePostsWithSeedDefaults(posts, seedPosts) {
 function getFeatureSortTimestamp(post) {
   const timestamp = new Date(post?.updatedAt || post?.publishedAt || "").getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isSeedPostNewer(seedPost, currentPost) {
+  return getFeatureSortTimestamp(seedPost) > getFeatureSortTimestamp(currentPost);
 }
 
 function normalizeFeaturedPosts(posts) {
