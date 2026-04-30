@@ -144,9 +144,50 @@ function hydratePostsWithSeedDefaults(posts, seedPosts) {
   return posts.map((post) => mergeSeedPost(seedMap.get(post.slug), post));
 }
 
+function buildDuplicateKey(post) {
+  const sourceUrl = String(post?.sourceUrl || "").trim().toLowerCase();
+
+  if (sourceUrl) {
+    return `source:${sourceUrl}`;
+  }
+
+  const title = normalizeStoredText(post?.title || "").trim().toLowerCase();
+  const excerpt = normalizeStoredText(post?.excerpt || "").trim().toLowerCase();
+  const contentSnippet = normalizeMarkdownContent(post?.content || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase()
+    .slice(0, 240);
+
+  return `content:${title}|${excerpt}|${contentSnippet}`;
+}
+
 function getFeatureSortTimestamp(post) {
   const timestamp = new Date(post?.updatedAt || post?.publishedAt || "").getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function dedupePosts(posts) {
+  const deduped = new Map();
+
+  for (const post of posts || []) {
+    const key = buildDuplicateKey(post);
+    const current = deduped.get(key);
+
+    if (!current) {
+      deduped.set(key, post);
+      continue;
+    }
+
+    if (current.featured !== post.featured) {
+      deduped.set(key, post.featured ? post : current);
+      continue;
+    }
+
+    deduped.set(key, getFeatureSortTimestamp(post) >= getFeatureSortTimestamp(current) ? post : current);
+  }
+
+  return [...deduped.values()];
 }
 
 function normalizeFeaturedPosts(posts) {
@@ -171,10 +212,10 @@ async function readPostsSource() {
   const remotePosts = await readJsonStore(localFilePath, publicId, null);
 
   if (Array.isArray(remotePosts) && remotePosts.length) {
-    return normalizeFeaturedPosts(hydratePostsWithSeedDefaults(remotePosts, seedPosts));
+    return normalizeFeaturedPosts(dedupePosts(hydratePostsWithSeedDefaults(remotePosts, seedPosts)));
   }
 
-  return normalizeFeaturedPosts(seedPosts);
+  return normalizeFeaturedPosts(dedupePosts(seedPosts));
 }
 
 async function writePostsSource(posts) {
