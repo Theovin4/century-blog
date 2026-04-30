@@ -9,6 +9,7 @@ import {
   buildCategoryKeywords,
   categoryOptions,
   filterPosts,
+  getActiveCategories,
   getCategoryMeta,
   getSiteUrl,
   isValidCategory,
@@ -49,8 +50,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export function generateStaticParams() {
-  return categoryOptions.map((category) => ({ category }));
+export async function generateStaticParams() {
+  const posts = await getPosts();
+  return getActiveCategories(posts).map((category) => ({ category }));
 }
 
 export default async function CategoryPage({ params, searchParams }) {
@@ -63,6 +65,12 @@ export default async function CategoryPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
   const posts = await getPosts();
+  const activeCategories = getActiveCategories(posts);
+
+  if (!activeCategories.includes(category)) {
+    notFound();
+  }
+
   const filteredPosts = prioritizePosts(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
@@ -92,7 +100,7 @@ export default async function CategoryPage({ params, searchParams }) {
         <p className="hero-text">{meta.description}</p>
       </section>
 
-      <PostFilters query={query} category={category} action={`/category/${category}`} />
+      <PostFilters query={query} category={category} action={`/category/${category}`} categories={activeCategories} />
 
       <section className="section-block">
         <div className="post-grid">
@@ -100,9 +108,6 @@ export default async function CategoryPage({ params, searchParams }) {
             <PostCard key={post.slug} post={post} />
           ))}
         </div>
-        {filteredPosts.length === 0 ? (
-          <p className="empty-state">No posts matched this category filter yet.</p>
-        ) : null}
       </section>
 
       <SiteFooter />

@@ -634,6 +634,16 @@ export function filterPosts(posts, filters = {}) {
   });
 }
 
+export function getActiveCategories(posts) {
+  const active = new Set(
+    (posts || [])
+      .map((post) => String(post.category || "").trim())
+      .filter((category) => categoryOptions.includes(category))
+  );
+
+  return categoryOptions.filter((category) => active.has(category));
+}
+
 export function getTopStories(posts, limit = 4) {
   return prioritizePosts(posts).slice(0, limit);
 }
