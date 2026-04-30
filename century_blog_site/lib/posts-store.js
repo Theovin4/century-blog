@@ -12,6 +12,7 @@ import {
   getCoverStyle,
   inferMediaType,
   isValidCategory,
+  getPostTimestamp,
   normalizeMarkdownContent,
   normalizeStoredText,
   slugify
@@ -222,7 +223,7 @@ export async function replaceAllPosts(posts) {
 
 export async function getPosts() {
   const posts = await readPostsSource();
-  return posts.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+  return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
 
 export async function getPostBySlug(slug) {

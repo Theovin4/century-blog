@@ -576,6 +576,15 @@ export function buildBreadcrumbJsonLd(items) {
   };
 }
 
+export function getPostTimestamp(post) {
+  const timestamp = new Date(post?.updatedAt || post?.publishedAt || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function sortPostsByRecency(posts) {
+  return [...(posts || [])].sort((left, right) => getPostTimestamp(right) - getPostTimestamp(left));
+}
+
 export function prioritizePosts(posts, { preferManual = false } = {}) {
   return [...(posts || [])].sort((left, right) => {
     if (left.featured !== right.featured) {
@@ -586,7 +595,7 @@ export function prioritizePosts(posts, { preferManual = false } = {}) {
       return (left.type || "manual") === "manual" ? -1 : 1;
     }
 
-    return new Date(right.publishedAt) - new Date(left.publishedAt);
+    return getPostTimestamp(right) - getPostTimestamp(left);
   });
 }
 
@@ -602,11 +611,7 @@ export function pickFeaturedPost(posts) {
     return manuallyFeatured;
   }
 
-  const recentPosts = prioritizedPosts.slice(0, 5);
-  const mediaFirstPool = recentPosts.filter(
-    (post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType)
-  );
-  const candidatePool = mediaFirstPool.length ? mediaFirstPool : recentPosts;
+  const candidatePool = sortPostsByRecency(prioritizedPosts).slice(0, 5);
 
   if (!candidatePool.length) {
     return prioritizedPosts[0] || null;

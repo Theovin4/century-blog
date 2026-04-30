@@ -12,7 +12,7 @@ import {
   getCategoryMeta,
   getSiteUrl,
   isValidCategory,
-  prioritizePosts
+  sortPostsByRecency
 } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -77,7 +77,7 @@ export default async function CategoryPage({ params, searchParams }) {
     notFound();
   }
 
-  const filteredPosts = prioritizePosts(filterPosts(posts, { query, category }));
+  const filteredPosts = sortPostsByRecency(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
 

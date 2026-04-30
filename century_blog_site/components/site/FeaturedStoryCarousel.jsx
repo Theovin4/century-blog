@@ -2,26 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { formatLongDate, getCategoryMeta, getDisplayMedia, isImageMedia, isVideoMedia, pickFeaturedPost, prioritizePosts } from "@/lib/site";
+import { formatLongDate, getCategoryMeta, getDisplayMedia, pickFeaturedPost, sortPostsByRecency } from "@/lib/site";
 
 function buildRotationPool(posts) {
-  const prioritized = prioritizePosts(posts || []);
-  if (!prioritized.length) {
+  const recentPosts = sortPostsByRecency(posts || []).slice(0, 5);
+
+  if (!recentPosts.length) {
     return [];
   }
 
-  const manuallyFeatured = prioritized.find((post) => post.featured) || null;
-  const mediaFirst = prioritized.filter(
-    (post) => isImageMedia(post.mediaUrl, post.mediaType) || isVideoMedia(post.mediaUrl, post.mediaType)
-  );
-  const poolBase = mediaFirst.length ? mediaFirst : prioritized;
-  const trimmed = poolBase.slice(0, 5);
+  const manuallyFeatured = recentPosts.find((post) => post.featured) || null;
 
   if (manuallyFeatured) {
-    return [manuallyFeatured, ...trimmed.filter((post) => post.slug !== manuallyFeatured.slug)];
+    return [manuallyFeatured, ...recentPosts.filter((post) => post.slug !== manuallyFeatured.slug)];
   }
 
-  return trimmed;
+  return recentPosts;
 }
 
 export function FeaturedStoryCarousel({ posts }) {

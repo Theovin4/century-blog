@@ -16,6 +16,7 @@ import {
   getSiteUrl,
   isImageMedia,
   prioritizePosts,
+  sortPostsByRecency,
   socialLinks,
   toAbsoluteUrl
 } from "@/lib/site";
@@ -58,8 +59,9 @@ export default async function HomePage({ searchParams }) {
   const query = String(resolvedSearchParams?.q || "").trim();
   const posts = await getPosts();
   const prioritizedPosts = prioritizePosts(posts);
-  const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query }));
-  const visiblePosts = filteredPosts.length ? filteredPosts : prioritizedPosts;
+  const recentPosts = sortPostsByRecency(posts);
+  const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
+  const visiblePosts = filteredPosts.length ? filteredPosts : recentPosts;
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
   const secondaryPosts = visiblePosts.slice(0, 18);
   const activeCategories = getActiveCategories(prioritizedPosts);
