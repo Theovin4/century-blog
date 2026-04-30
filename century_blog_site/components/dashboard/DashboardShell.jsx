@@ -119,15 +119,11 @@ export function DashboardShell({ initialPosts }) {
 
   const orderedPosts = useMemo(() => {
     return [...posts].sort((left, right) => {
-      if ((left.type || "manual") !== (right.type || "manual")) {
-        return (left.type || "manual") === "manual" ? -1 : 1;
-      }
-
       if (left.featured !== right.featured) {
         return left.featured ? -1 : 1;
       }
 
-      return new Date(right.publishedAt) - new Date(left.publishedAt);
+      return new Date(right.updatedAt || right.publishedAt) - new Date(left.updatedAt || left.publishedAt);
     });
   }, [posts]);
 
@@ -559,7 +555,7 @@ export function DashboardShell({ initialPosts }) {
       ) : null}
 
       <div className="dashboard-toolbar">
-        <p>Logged in. Publish from here, feature stories, and run your news engine without leaving the dashboard.</p>
+        <p>Logged in. Publish, edit, feature, and manage both manual and auto posts here in newest-first order.</p>
         <div className="dashboard-toolbar__actions">
           <button type="button" className="button button-secondary" onClick={startCreateMode}>
             New post

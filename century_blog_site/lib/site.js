@@ -184,6 +184,20 @@ export function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta["daily-gist"];
 }
 
+export function getActiveCategories(posts, availableCategories = categoryOptions) {
+  const counts = new Map();
+
+  for (const post of posts || []) {
+    if (!isValidCategory(post?.category)) {
+      continue;
+    }
+
+    counts.set(post.category, (counts.get(post.category) || 0) + 1);
+  }
+
+  return availableCategories.filter((category) => (counts.get(category) || 0) > 0);
+}
+
 export function getPostTypeMeta(type) {
   return postTypeMeta[type] || postTypeMeta.manual;
 }
@@ -294,7 +308,7 @@ function splitTitleLines(title, maxLineLength = 26) {
   }
 
   if (lines.length === 3 && words.join(" ").length > lines.join(" ").length) {
-    lines[2] = `${lines[2].slice(0, Math.max(0, maxLineLength - 1)).trimEnd()}…`;
+    lines[2] = `${lines[2].slice(0, Math.max(0, maxLineLength - 3)).trimEnd()}...`;
   }
 
   return lines;
@@ -411,19 +425,14 @@ export function normalizeStoredText(value) {
     .replace(/\\r\\n/g, "\n")
     .replace(/\\n/g, "\n")
     .replace(/\r\n/g, "\n")
-    .replace(/â€™/g, "’")
-    .replace(/â€œ/g, "“")
-    .replace(/â€/g, "”")
-    .replace(/â€“/g, "–")
-    .replace(/â€”/g, "—")
-    .replace(/â€¦/g, "…")
-    .replace(/â€˜/g, "‘")
-    .replace(/â€¢/g, "•")
-    .replace(/(\d)�\?\?(\d)/g, "$1-$2")
-    .replace(/(\w)�\?\?(\w)/g, "$1'$2")
-    .replace(/�\?\?/g, "'")
-    .replace(/�\?�/g, "–")
-    .replace(/�/g, "'");
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, "\"")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u2022/g, "-")
+    .replace(/\u00A0/g, " ")
+    .replace(/\uFFFD/g, "'")
+    .trimEnd();
 }
 
 export function normalizeMarkdownContent(value) {
@@ -432,14 +441,6 @@ export function normalizeMarkdownContent(value) {
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<p[^>]*>/gi, "")
     .replace(/<[^>]+>/g, "")
-    .replace(/â€™/g, "'")
-    .replace(/â€œ/g, "\"")
-    .replace(/â€/g, "\"")
-    .replace(/â€“/g, "-")
-    .replace(/â€”/g, "--")
-    .replace(/â€¦/g, "...")
-    .replace(/â€˜/g, "'")
-    .replace(/â€¢/g, "-")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

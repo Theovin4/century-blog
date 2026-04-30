@@ -20,11 +20,16 @@ export default function ContactPage() {
         <span className="eyebrow">Contact</span>
         <h1>Reach Century Blog</h1>
         <p>
-          For editorial feedback, partnerships, corrections, or advertising enquiries, you can
-          contact the Century Blog team through this email or use the contact form below.
+          Contact Century Blog for corrections, editorial feedback, business enquiries, or general
+          support. We read submissions from readers, brands, and partners through the contact form
+          below.
         </p>
         <p>
           <strong>1todoyou2@gmail.com</strong>
+        </p>
+        <p>
+          If you are reporting an error in a published story, include the article link and the
+          correction you want us to review so we can respond more quickly.
         </p>
         <ContactForm />
       </section>

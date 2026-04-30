@@ -5,9 +5,9 @@ import { PostCard } from "@/components/site/PostCard";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
+  getActiveCategories,
   buildBreadcrumbJsonLd,
   buildCategoryKeywords,
-  categoryOptions,
   filterPosts,
   getCategoryMeta,
   getSiteUrl,
@@ -21,6 +21,13 @@ export async function generateMetadata({ params }) {
   const { category } = await params;
 
   if (!isValidCategory(category)) {
+    return { title: "Category Not Found" };
+  }
+
+  const posts = await getPosts();
+  const activeCategories = getActiveCategories(posts);
+
+  if (!activeCategories.includes(category)) {
     return { title: "Category Not Found" };
   }
 
@@ -49,8 +56,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export function generateStaticParams() {
-  return categoryOptions.map((category) => ({ category }));
+export async function generateStaticParams() {
+  const posts = await getPosts();
+  return getActiveCategories(posts).map((category) => ({ category }));
 }
 
 export default async function CategoryPage({ params, searchParams }) {
@@ -63,6 +71,12 @@ export default async function CategoryPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
   const posts = await getPosts();
+  const activeCategories = getActiveCategories(posts);
+
+  if (!activeCategories.includes(category)) {
+    notFound();
+  }
+
   const filteredPosts = prioritizePosts(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
@@ -92,7 +106,12 @@ export default async function CategoryPage({ params, searchParams }) {
         <p className="hero-text">{meta.description}</p>
       </section>
 
-      <PostFilters query={query} category={category} action={`/category/${category}`} />
+      <PostFilters
+        query={query}
+        category={category}
+        action={`/category/${category}`}
+        categories={activeCategories}
+      />
 
       <section className="section-block">
         <div className="post-grid">

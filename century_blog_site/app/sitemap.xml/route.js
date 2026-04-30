@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPosts } from "@/lib/posts-store";
-import { categoryOptions, getSiteUrl } from "@/lib/site";
+import { getActiveCategories, getSiteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +30,7 @@ export async function GET() {
   const siteUrl = getSiteUrl();
   const now = new Date().toISOString();
   const posts = await getPosts();
+  const activeCategories = getActiveCategories(posts);
 
   const urls = [
     {
@@ -68,7 +69,7 @@ export async function GET() {
       changeFrequency: "monthly",
       priority: 0.5
     },
-    ...categoryOptions.map((category) => ({
+    ...activeCategories.map((category) => ({
       url: `${siteUrl}/category/${category}`,
       lastModified: now,
       changeFrequency: "daily",

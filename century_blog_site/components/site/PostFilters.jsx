@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { featuredCategoryOptions, getCategoryMeta } from "@/lib/site";
 
-export function PostFilters({ query = "", category = "", action = "/" }) {
+export function PostFilters({ query = "", category = "", action = "/", categories = featuredCategoryOptions }) {
   return (
     <section className="filter-bar">
       <form className="filter-bar__form" method="GET" action={action}>
@@ -21,7 +21,7 @@ export function PostFilters({ query = "", category = "", action = "/" }) {
         <Link href="/" className={`filter-chip filter-chip--category ${category ? "" : "is-active"}`}>
           All News
         </Link>
-        {featuredCategoryOptions.map((item) => (
+        {categories.map((item) => (
           <Link
             key={item}
             href={`/category/${item}`}

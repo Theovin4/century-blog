@@ -68,11 +68,9 @@ export function FeaturedStoryCarousel({ posts }) {
       {featuredHasVideo ? (
         <video
           className="feature-card__video"
-          autoPlay
           muted
-          loop
           playsInline
-          preload="metadata"
+          preload="none"
           poster={featuredMedia.posterUrl || undefined}
         >
           <source src={featuredMedia.url} type={featuredMedia.type} />

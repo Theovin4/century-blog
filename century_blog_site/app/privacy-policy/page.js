@@ -34,8 +34,13 @@ export default function PrivacyPolicyPage() {
           enquiries.
         </p>
         <p>
-          This policy should be updated whenever you add new third-party services, mailing lists,
-          contact forms, analytics providers, or external newsletter tools such as Substack.
+          We do not sell personal contact details submitted through our forms. Where third-party
+          services such as hosting, analytics, newsletter tools, or advertising providers process
+          data, they do so under their own policies and technical safeguards.
+        </p>
+        <p>
+          Century Blog may update this privacy policy as the website changes. The latest version on
+          this page is the one that applies to current visitors.
         </p>
       </section>
       <SiteFooter />

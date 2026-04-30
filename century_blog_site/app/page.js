@@ -4,10 +4,10 @@ import { NewsletterForm } from "@/components/forms/NewsletterForm";
 import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
-import { NewsTicker } from "@/components/site/NewsTicker";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
+  getActiveCategories,
   buildBreadcrumbJsonLd,
   filterPosts,
   getCategoryMeta,
@@ -62,6 +62,7 @@ export default async function HomePage({ searchParams }) {
   const visiblePosts = filteredPosts.length ? filteredPosts : prioritizedPosts;
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
   const secondaryPosts = visiblePosts.slice(0, 18);
+  const activeCategories = getActiveCategories(prioritizedPosts);
   const siteUrl = getSiteUrl();
 
   const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
@@ -153,17 +154,15 @@ export default async function HomePage({ searchParams }) {
         <FeaturedStoryCarousel posts={visiblePosts} />
       </section>
 
-      {prioritizedPosts.length > 1 ? <NewsTicker posts={prioritizedPosts.slice(0, 10)} /> : null}
-
       <section className="section-block section-card">
         <div className="section-header">
           <div>
             <span className="eyebrow">Browse Sections</span>
             <h2>Follow the topics you care about most</h2>
           </div>
-          <p>Move quickly from Nigeria and world headlines into business, tech, entertainment, and health updates.</p>
+          <p>Jump straight into the sections that are active right now without landing on thin or empty pages.</p>
         </div>
-        <PostFilters query={query} category="" action="/" />
+        <PostFilters query={query} category="" action="/" categories={activeCategories} />
       </section>
 
       {mostReadPosts.length ? (
@@ -173,7 +172,7 @@ export default async function HomePage({ searchParams }) {
               <span className="eyebrow">Most Read</span>
               <h2>Most read news and trending stories right now</h2>
             </div>
-            <p>Catch the biggest stories readers are opening most across Nigeria news, world updates, business, sports, entertainment, and culture.</p>
+            <p>Stories with the strongest reader momentum across the site, from fast-moving headlines to useful explainers people are spending time on.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
@@ -189,7 +188,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Latest Headlines</span>
             <h2>Latest breaking news and new stories</h2>
           </div>
-          <p>Follow the newest breaking news, trending Nigeria headlines, global updates, and timely explainers as soon as they go live.</p>
+          <p>Fresh reporting and newly published stories in true recency order, so readers always see the latest updates first.</p>
         </div>
 
         <div className="post-grid">

@@ -43,7 +43,7 @@ export function ContactForm() {
     <form className="stack-form" onSubmit={handleSubmit}>
       <label>
         <span>Name</span>
-        <input name="name" type="text" placeholder="Your name" />
+        <input name="name" type="text" placeholder="Your name" required />
       </label>
       <label>
         <span>Email address</span>

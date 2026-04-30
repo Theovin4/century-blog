@@ -81,37 +81,72 @@ function trimToLength(value, maxLength) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 3).trim()}...` : text;
 }
 
+function buildTargetAudience(article) {
+  return article.regionFocus === "nigeria"
+    ? "Nigerians, students, workers, entrepreneurs, and everyday readers"
+    : "General news readers, professionals, students, and internationally aware audiences";
+}
+
+function buildPrimaryKeyword(article) {
+  return trimToLength(article.title || "", 90);
+}
+
+function buildSecondaryKeywords(article, category) {
+  return [
+    `${category} news`,
+    article.regionFocus === "nigeria" ? "Nigeria news" : "world news",
+    article.sourceCountry || "",
+    article.sourceName || "",
+    article.section || ""
+  ].filter(Boolean);
+}
+
 function buildArticleContent(article) {
   const title = article.title;
   const sourceName = article.sourceName || "international wires";
   const description = stripHtml(article.description || article.content || article.title);
   const context = stripHtml(article.content || article.description || article.title);
   const regionLine = article.regionFocus === "nigeria"
-    ? "Because Century Blog prioritises Nigeria, this development is especially important for readers tracking how local events connect to daily life, business, and policy shifts."
-    : "This story has been included in the global mix because it is part of the wider conversation shaping headlines beyond Nigeria and could still matter to readers watching international trends.";
+    ? "For Nigerian readers, the practical value of this story is not just the headline itself but how it could affect daily decisions, public conversation, and the wider national mood."
+    : "Even when a story breaks outside Nigeria, the useful question is what it signals for readers who follow markets, politics, culture, technology, or public life from a global perspective.";
+  const localRelevance = article.regionFocus === "nigeria"
+    ? "That local relevance matters because readers are often looking for direct consequences: transport costs, policy changes, school decisions, business sentiment, consumer confidence, or how public institutions respond after the first headline."
+    : "That wider relevance matters because international stories often influence prices, investor confidence, migration conversations, social media trends, diplomatic pressure, and the way local audiences interpret big global events.";
 
   return [
-    `${title} is one of the latest stories drawing attention right now, and the conversation is building because the issue connects directly to what readers care about: impact, urgency, and what could happen next. The report, which emerged through ${sourceName}, has quickly entered the wider news cycle and is already shaping how people are discussing the subject online and offline.`,
+    `${title} is drawing attention because it sits at the point where public interest, timing, and real-world impact meet. According to reporting linked to ${sourceName}, the issue is already moving beyond a simple headline and into the wider conversation about what happens next.`,
     "",
-    `At the centre of the story is a simple question: why does this matter now? ${description} Rather than treating the headline as a passing trend, it helps to look at the context around it, the people affected, and the likely ripple effect over the next few days.`,
+    `${description} Rather than treating the update as background noise, it helps to look at what led to this moment, who is affected, and why the next few days could matter just as much as the first report.`,
     "",
-    "## Why this story matters",
+    "## Background and context",
     "",
-    `${regionLine} Readers often respond strongly to stories like this because they touch public confidence, practical decision-making, and the broader mood around current affairs. In many cases, what looks like a single headline can signal a bigger pattern in governance, society, technology, business, or culture.`,
+    `${context} In fast-moving news cycles, the first version of a story usually creates curiosity, but the background is what gives it real meaning. That is why readers look beyond the headline for context, competing viewpoints, and signs of whether the matter is likely to grow or cool down quickly.`,
     "",
-    `Another reason this update is gaining traction is timing. News attention moves quickly, but stories with real-world consequences tend to linger longer in search, social feeds, and conversations between friends, workers, students, and families. When a headline keeps showing up across multiple channels, it usually means the audience wants clarity, not just speed.`,
+    `${regionLine} ${localRelevance}`,
     "",
-    "## The latest angle readers should watch",
+    "## What the update means in practice",
     "",
-    `${context} As more details emerge, the strongest reader interest will likely focus on accountability, practical outcomes, and whether the next official steps match the seriousness of the issue. That is where the story moves from being merely trending to being genuinely useful.`,
+    `What makes this kind of story important is the chain reaction it can create. A policy issue can affect households and businesses. A business story can shape spending and confidence. A technology or cultural story can alter behaviour, opportunities, and online conversation almost immediately. Readers do not only want to know what happened; they want to know what it changes.`,
     "",
-    `For Century Blog, the goal is not to repeat a source article word for word, but to give readers a clean, original summary that explains the stakes. That means highlighting what the headline means, why it is circulating so widely, and what kind of developments are most likely to follow.`,
+    `In this case, the strongest reader questions are likely to centre on accountability, direct impact, and whether official reactions match the seriousness of the moment. If the issue involves government, people will watch for clarity and implementation. If it involves business, they will watch for prices, confidence, and operational consequences. If it touches culture or public sentiment, they will watch how quickly the reaction spreads and whether it lasts.`,
     "",
-    "## What happens next",
+    "## Examples and practical insight",
     "",
-    `The next phase of this story will probably be shaped by official statements, reactions from affected groups, and how quickly new evidence or updates come into public view. Readers should watch for follow-up clarification, policy responses, and whether the conversation remains strong beyond the first wave of attention.`,
+    `A useful way to read stories like this is to compare them with similar moments from the past. Sometimes the first wave of reaction is emotional, but the deeper impact only appears later in regulation, business behaviour, public trust, or community response. That is why follow-up reporting often matters more than the initial headline.`,
     "",
-    `In the meantime, this remains a high-interest story because it sits at the intersection of relevance and momentum. It is timely enough to matter today, but broad enough to keep influencing search behaviour, social discussion, and daily news consumption in the hours ahead.`
+    `For everyday readers, the practical insight is simple: look for the consequence, not just the noise. Ask who gains, who loses, what changes immediately, and what still depends on confirmation. That approach separates useful reporting from empty hype and helps people make sense of trending developments with more confidence.`,
+    "",
+    "## Common mistakes to avoid when reading this story",
+    "",
+    `One common mistake is reacting to the first version of a breaking report as if every key fact is already settled. Another is focusing only on dramatic angles without checking whether the underlying issue has clear evidence, credible sourcing, or likely follow-up action. Fast headlines create momentum, but careful reading creates understanding.`,
+    "",
+    `It is also easy to miss the local angle. A global event may still affect Nigerian readers through fuel prices, financial markets, technology access, migration decisions, education, or public debate. In the same way, a Nigeria-focused update can have wider relevance when it reflects a broader regional or international trend.`,
+    "",
+    "## Expert tips for following developments",
+    "",
+    `The smartest way to track this story is to watch for confirmed statements, policy movement, verified numbers, and follow-up reactions from the people most directly affected. Readers should also pay attention to whether the conversation shifts from emotion to action, because that is usually the point where a trending topic becomes a genuinely important public story.`,
+    "",
+    `The clearest takeaway is that ${title} matters because it combines timing with consequence. It is not only a story people are talking about now; it is also one that could shape decisions, attitudes, and further reporting in the near term. That is the difference between a passing headline and a story worth following closely.`
   ].join("\n");
 }
 
@@ -254,7 +289,7 @@ async function searchUnsplashImage(query) {
   };
 }
 
-async function resolveImage(article) {
+async function resolveImage(article, preferredQuery = "") {
   if (article.mediaUrl) {
     return {
       mediaUrl: article.mediaUrl,
@@ -263,7 +298,7 @@ async function resolveImage(article) {
     };
   }
 
-  const searchQuery = `${article.title} ${article.regionFocus === "nigeria" ? "Nigeria" : "world"}`;
+  const searchQuery = String(preferredQuery || "").trim() || `${article.title} ${article.regionFocus === "nigeria" ? "Nigeria" : "world"}`;
   return (await searchPexelsImage(searchQuery)) || (await searchUnsplashImage(searchQuery)) || {
     mediaUrl: "",
     imageCreditName: "",
@@ -329,20 +364,34 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
   }
 
   const systemPrompt = [
-    "You are rewriting a trending news item into an original Century Blog article.",
-    "Return only valid JSON with these keys: title, excerpt, content, category, author.",
-    "The article must be original, human-first, SEO-friendly, and not copy source phrasing.",
-    "Write in polished newsroom English with a modern blog voice.",
-    "Keep excerpt under 240 characters.",
-    "Write article content in Markdown with 3 subheadings using ##.",
-    "Keep the body around 500 to 650 words.",
-    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist.",
-    "Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
-    "Do not mention that an AI wrote the article."
+    "GOAL: Generate a high-quality, 100% original, AdSense-approved blog post that delivers real value, strong user experience, and meets Google content quality standards. Content must be written for humans first, SEO second.",
+    "ROLE: Act as an expert SEO content writer, journalist, and subject-matter analyst. Produce engaging, authoritative, and insight-driven content suitable for publication.",
+    "Return only valid JSON with these keys: title, metaDescription, excerpt, content, category, author, unsplashImages.",
+    "STRICT CONTENT RULES: Content must be 100% original, must not rewrite or paraphrase existing articles, must provide unique insights, real-world relevance, and what-this-means value, and should add Nigerian or local context where appropriate.",
+    "The title must be SEO-optimised and click-worthy.",
+    "The metaDescription must be 150 to 160 characters, compelling, and naturally keyword-aware.",
+    "The excerpt must be concise, compelling, and suitable for homepage cards.",
+    "The article must be 700 to 1000 words, written in British English, professional, clear, engaging, natural, and never robotic.",
+    "Write the article body in Markdown only.",
+    "Use this exact article structure: ## Introduction, ## Context / Background, ## Main Explanation / Guide, ## Practical Examples / Insights, ## Common Mistakes to Avoid, ## Expert Tips / Pro Advice, ## Conclusion.",
+    "Use short paragraphs with exactly one blank line between paragraphs.",
+    "Use H2 and H3 headings, use bullet points with -, use numbered lists with 1. 2. 3. when helpful, and never use HTML tags.",
+    "Naturally include the primary keyword in the title, meta description, and introduction. Use secondary keywords naturally without keyword stuffing.",
+    "Sound like a real expert. Be specific, practical, and helpful. Avoid fake statistics, vague claims, AI clichés, fluff, filler, plagiarism, and thin content.",
+    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist. Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
+    "The unsplashImages value must be a JSON object with featuredImage, supportingImage1, supportingImage2, and supportingImage3. Each item must include searchQuery, altText, filename, and placement. Use short specific search queries only, prefer realistic editorial imagery, avoid generic terms, and use broader African context when Nigerian visuals are unlikely."
   ].join(" ");
+
+  const primaryKeyword = buildPrimaryKeyword(article);
+  const secondaryKeywords = buildSecondaryKeywords(article, baseCandidate.category);
 
   const userPrompt = JSON.stringify({
     publication: "Century Blog",
+    topic: article.title,
+    targetAudience: buildTargetAudience(article),
+    primaryKeyword,
+    secondaryKeywords,
+    tone: "Professional, clear, engaging, natural",
     regionPriority: article.regionFocus,
     suggestedCategory: baseCandidate.category,
     sourceName: article.sourceName,
@@ -384,14 +433,20 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
     const payload = await response.json();
     const parsed = extractJsonPayload(getResponseText(payload));
     const category = isValidCategory(parsed.category) ? parsed.category : baseCandidate.category;
+    const featuredImageQuery = String(
+      parsed?.unsplashImages?.featuredImage?.searchQuery ||
+      parsed?.unsplashImages?.featured_image?.search_query ||
+      ""
+    ).trim();
 
     return {
       ...baseCandidate,
       title: trimToLength(parsed.title || baseCandidate.title, 140),
-      excerpt: trimToLength(parsed.excerpt || baseCandidate.excerpt, 280),
+      excerpt: trimToLength(parsed.metaDescription || parsed.excerpt || baseCandidate.excerpt, 280),
       content: String(parsed.content || baseCandidate.content).trim(),
       category,
-      author: trimToLength(parsed.author || baseCandidate.author, 80)
+      author: trimToLength(parsed.author || baseCandidate.author, 80),
+      _featuredImageQuery: featuredImageQuery
     };
   } catch {
     return baseCandidate;
@@ -399,7 +454,6 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
 }
 
 async function buildCandidate(article) {
-  const image = await resolveImage(article);
   const category = mapTopicToCategory(article);
 
   const baseCandidate = {
@@ -416,14 +470,22 @@ async function buildCandidate(article) {
     autoProvider: article.autoProvider,
     autoSourceId: article.autoSourceId,
     trendingScore: computeTrendingScore(article),
-    mediaUrl: image.mediaUrl,
-    imageCreditName: image.imageCreditName,
-    imageCreditUrl: image.imageCreditUrl,
+    mediaUrl: article.mediaUrl || "",
+    imageCreditName: article.mediaUrl ? article.sourceName : "",
+    imageCreditUrl: article.mediaUrl ? article.sourceUrl : "",
     mediaType: article.mediaType || "image/jpeg",
     publishedAt: article.publishedAt
   };
 
-  return rewriteCandidateWithAi(article, baseCandidate);
+  const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate);
+  const image = await resolveImage(article, rewrittenCandidate._featuredImageQuery || rewrittenCandidate.title);
+
+  return {
+    ...rewrittenCandidate,
+    mediaUrl: image.mediaUrl,
+    imageCreditName: image.imageCreditName,
+    imageCreditUrl: image.imageCreditUrl
+  };
 }
 
 export async function fetchAutomatedNewsCandidates(settings = null) {
