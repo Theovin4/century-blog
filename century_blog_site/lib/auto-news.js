@@ -1,7 +1,7 @@
 import { isPersistentStorageReady } from "@/lib/cloudinary";
 import { createAutoPost } from "@/lib/posts-store";
 import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
-import { categoryMeta, isValidCategory, slugify } from "@/lib/site";
+import { categoryMeta, isValidCategory, normalizeMarkdownContent, slugify } from "@/lib/site";
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY || "";
 const GNEWS_API_KEY = process.env.GNEWS_API_KEY || "";
@@ -11,6 +11,34 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || "gpt-5-mini";
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 36;
+const MIN_SOURCE_SCORE = 4;
+const MIN_ARTICLE_WORDS = 700;
+const MAX_ARTICLE_WORDS = 1100;
+const MAX_REWRITE_ATTEMPTS = 2;
+const REQUIRED_HEADINGS = [
+  "## Introduction",
+  "## Context / Background",
+  "## Main Explanation / Guide",
+  "## Practical Examples / Insights",
+  "## Common Mistakes to Avoid",
+  "## Expert Tips / Pro Advice",
+  "## Conclusion"
+];
+const GENERIC_FILLER_PATTERNS = [
+  /in today's digital world/i,
+  /it is important to note that/i,
+  /this article explores/i,
+  /delve into/i,
+  /in conclusion[, ]/i,
+  /without further ado/i
+];
+const CLICKBAIT_PATTERNS = [
+  /\byou won't believe\b/i,
+  /\bshocking\b/i,
+  /\bbreaks the internet\b/i,
+  /\bgoes viral\b/i,
+  /\bmust see\b/i
+];
 
 function stripHtml(value) {
   return String(value || "")
@@ -81,6 +109,128 @@ function trimToLength(value, maxLength) {
   return text.length > maxLength ? `${text.slice(0, maxLength - 3).trim()}...` : text;
 }
 
+function countWords(value) {
+  const normalized = normalizeMarkdownContent(value);
+  return normalized ? normalized.split(/\s+/).filter(Boolean).length : 0;
+}
+
+function extractSentences(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function buildSourceSummary(article) {
+  return [
+    article.description,
+    article.content,
+    `${article.sourceName} reported the story on ${new Date(article.publishedAt).toLocaleString("en-NG", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    })}.`,
+    article.sourceUrl ? `Primary source link: ${article.sourceUrl}` : ""
+  ]
+    .flatMap((value) => extractSentences(value).slice(0, 2))
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function getNigeriaRelevance(article, category) {
+  if (article.regionFocus === "nigeria" || category === "nigeria") {
+    return "Explain clearly what this means for Nigerians, including everyday impact, public reaction, and any policy, money, education, safety, or lifestyle implications.";
+  }
+
+  return "Explain why a Nigerian reader should care, whether through prices, jobs, migration, technology access, education, diplomacy, culture, or wider African relevance.";
+}
+
+function getCategoryWritingRule(category) {
+  const rules = {
+    business: "Focus on money, market impact, pricing, jobs, business confidence, and the practical takeaway for workers or entrepreneurs.",
+    tech: "Explain the product, use case, adoption barrier, and why the development matters beyond the announcement itself.",
+    health: "Be cautious, clear, and non-sensational. Focus on verified guidance, practical safety information, and what readers should or should not do.",
+    nigeria: "Ground the article in local context, everyday implications, and why the issue matters now for people in Nigeria.",
+    world: "Explain the global development clearly, then connect it to why a Nigerian reader should care right now.",
+    education: "Emphasise students, schools, deadlines, opportunities, and the practical consequences of the update.",
+    entertainment: "Focus on the cultural angle, audience reaction, career significance, and why the story has momentum.",
+    lifestyle: "Make the piece useful and relatable, with clear real-life application instead of vague inspiration.",
+    "daily-gist": "Keep the writing lively but still useful, contextual, and specific. Avoid empty buzz or gossip-style filler."
+  };
+
+  return rules[category] || rules.nigeria;
+}
+
+function scoreSourceArticle(article) {
+  let score = 0;
+  const reasons = [];
+  const description = String(article.description || "").trim();
+  const content = String(article.content || "").trim();
+  const title = String(article.title || "").trim();
+
+  if (title.length >= 30 && !CLICKBAIT_PATTERNS.some((pattern) => pattern.test(title))) {
+    score += 1;
+  } else {
+    reasons.push("weak-title");
+  }
+
+  if (description.length >= 120) {
+    score += 2;
+  } else {
+    reasons.push("thin-description");
+  }
+
+  if (content.length >= 220) {
+    score += 2;
+  } else {
+    reasons.push("thin-source-content");
+  }
+
+  if (article.regionFocus === "nigeria") {
+    score += 1;
+  }
+
+  if (article.sourceUrl) {
+    score += 1;
+  } else {
+    reasons.push("missing-source-url");
+  }
+
+  if (article.mediaUrl) {
+    score += 1;
+  }
+
+  return { score, reasons };
+}
+
+function deriveImageSearchQuery(article, candidate) {
+  const category = candidate?.category || mapTopicToCategory(article);
+  const titleTokens = slugify(candidate?.title || article.title || "")
+    .split("-")
+    .filter((token) => token.length > 3)
+    .slice(0, 4);
+  const fallback = `${article.title} ${article.regionFocus === "nigeria" ? "Nigeria" : "Africa"}`;
+
+  if (/champions league|premier league|football|match|stadium|goal/i.test(article.title)) {
+    return `${titleTokens.slice(0, 2).join(" ")} football stadium`.trim();
+  }
+
+  if (category === "business") {
+    return `${titleTokens.slice(0, 3).join(" ")} market africa`.trim() || fallback;
+  }
+
+  if (category === "tech") {
+    return `${titleTokens.slice(0, 3).join(" ")} technology africa`.trim() || fallback;
+  }
+
+  if (category === "health") {
+    return `${titleTokens.slice(0, 3).join(" ")} healthcare africa`.trim() || fallback;
+  }
+
+  return titleTokens.length ? `${titleTokens.join(" ")} ${article.regionFocus === "nigeria" ? "Nigeria" : "Africa"}` : fallback;
+}
+
 function buildTargetAudience(article) {
   return article.regionFocus === "nigeria"
     ? "Nigerians, students, workers, entrepreneurs, and everyday readers"
@@ -114,37 +264,43 @@ function buildArticleContent(article) {
     : "That wider relevance matters because international stories often influence prices, investor confidence, migration conversations, social media trends, diplomatic pressure, and the way local audiences interpret big global events.";
 
   return [
+    "## Introduction",
+    "",
     `${title} is drawing attention because it sits at the point where public interest, timing, and real-world impact meet. According to reporting linked to ${sourceName}, the issue is already moving beyond a simple headline and into the wider conversation about what happens next.`,
     "",
     `${description} Rather than treating the update as background noise, it helps to look at what led to this moment, who is affected, and why the next few days could matter just as much as the first report.`,
     "",
-    "## Background and context",
+    "## Context / Background",
     "",
     `${context} In fast-moving news cycles, the first version of a story usually creates curiosity, but the background is what gives it real meaning. That is why readers look beyond the headline for context, competing viewpoints, and signs of whether the matter is likely to grow or cool down quickly.`,
     "",
     `${regionLine} ${localRelevance}`,
     "",
-    "## What the update means in practice",
+    "## Main Explanation / Guide",
     "",
     `What makes this kind of story important is the chain reaction it can create. A policy issue can affect households and businesses. A business story can shape spending and confidence. A technology or cultural story can alter behaviour, opportunities, and online conversation almost immediately. Readers do not only want to know what happened; they want to know what it changes.`,
     "",
     `In this case, the strongest reader questions are likely to centre on accountability, direct impact, and whether official reactions match the seriousness of the moment. If the issue involves government, people will watch for clarity and implementation. If it involves business, they will watch for prices, confidence, and operational consequences. If it touches culture or public sentiment, they will watch how quickly the reaction spreads and whether it lasts.`,
     "",
-    "## Examples and practical insight",
+    `What this means for readers is that the story should be judged not only by the headline but by the consequences that follow. Who is affected, what changes immediately, and what should people watch next are the questions that turn a trending report into a useful article.`,
+    "",
+    "## Practical Examples / Insights",
     "",
     `A useful way to read stories like this is to compare them with similar moments from the past. Sometimes the first wave of reaction is emotional, but the deeper impact only appears later in regulation, business behaviour, public trust, or community response. That is why follow-up reporting often matters more than the initial headline.`,
     "",
     `For everyday readers, the practical insight is simple: look for the consequence, not just the noise. Ask who gains, who loses, what changes immediately, and what still depends on confirmation. That approach separates useful reporting from empty hype and helps people make sense of trending developments with more confidence.`,
     "",
-    "## Common mistakes to avoid when reading this story",
+    "## Common Mistakes to Avoid",
     "",
     `One common mistake is reacting to the first version of a breaking report as if every key fact is already settled. Another is focusing only on dramatic angles without checking whether the underlying issue has clear evidence, credible sourcing, or likely follow-up action. Fast headlines create momentum, but careful reading creates understanding.`,
     "",
     `It is also easy to miss the local angle. A global event may still affect Nigerian readers through fuel prices, financial markets, technology access, migration decisions, education, or public debate. In the same way, a Nigeria-focused update can have wider relevance when it reflects a broader regional or international trend.`,
     "",
-    "## Expert tips for following developments",
+    "## Expert Tips / Pro Advice",
     "",
     `The smartest way to track this story is to watch for confirmed statements, policy movement, verified numbers, and follow-up reactions from the people most directly affected. Readers should also pay attention to whether the conversation shifts from emotion to action, because that is usually the point where a trending topic becomes a genuinely important public story.`,
+    "",
+    "## Conclusion",
     "",
     `The clearest takeaway is that ${title} matters because it combines timing with consequence. It is not only a story people are talking about now; it is also one that could shape decisions, attitudes, and further reporting in the near term. That is the difference between a passing headline and a story worth following closely.`
   ].join("\n");
@@ -358,7 +514,128 @@ function isOpenAiRewriteEnabled() {
   return Boolean(OPENAI_API_KEY);
 }
 
-async function rewriteCandidateWithAi(article, baseCandidate) {
+function findRepeatedPhrase(content) {
+  const phrases = normalizeMarkdownContent(content)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  for (let index = 0; index < phrases.length - 5; index += 1) {
+    const phrase = phrases.slice(index, index + 5).join(" ");
+
+    if (!phrase || phrase.length < 25) {
+      continue;
+    }
+
+    const occurrences = normalizeMarkdownContent(content).toLowerCase().split(phrase).length - 1;
+
+    if (occurrences > 1) {
+      return phrase;
+    }
+  }
+
+  return "";
+}
+
+function getSectionContent(content, heading) {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`${escapedHeading}\\s*([\\s\\S]*?)(?=\\n## |$)`, "i");
+  const match = String(content || "").match(pattern);
+  return String(match?.[1] || "").trim();
+}
+
+function evaluateCandidateQuality(article, candidate) {
+  const content = String(candidate?.content || "").trim();
+  const wordCount = countWords(content);
+  const reasons = [];
+  let score = 10;
+
+  if (!content) {
+    reasons.push("missing-content");
+    return { passed: false, score: 0, reasons, wordCount };
+  }
+
+  for (const heading of REQUIRED_HEADINGS) {
+    if (!content.includes(heading)) {
+      reasons.push(`missing-heading:${heading.replace("## ", "")}`);
+      score -= 2;
+    }
+  }
+
+  if (wordCount < MIN_ARTICLE_WORDS) {
+    reasons.push("too-short");
+    score -= 3;
+  }
+
+  if (wordCount > MAX_ARTICLE_WORDS) {
+    reasons.push("too-long");
+    score -= 1;
+  }
+
+  const repeatedPhrase = findRepeatedPhrase(content);
+
+  if (repeatedPhrase) {
+    reasons.push("repeated-phrases");
+    score -= 2;
+  }
+
+  if (GENERIC_FILLER_PATTERNS.some((pattern) => pattern.test(content))) {
+    reasons.push("generic-filler");
+    score -= 2;
+  }
+
+  const introduction = getSectionContent(content, "## Introduction");
+  const conclusion = getSectionContent(content, "## Conclusion");
+
+  if (countWords(introduction) < 70) {
+    reasons.push("weak-introduction");
+    score -= 2;
+  }
+
+  if (countWords(conclusion) < 50) {
+    reasons.push("thin-conclusion");
+    score -= 2;
+  }
+
+  const nigeriaMentioned = /nigeria|nigerian|lagos|abuja|naira|africa|african/i.test(content);
+
+  if (!nigeriaMentioned) {
+    reasons.push("missing-local-relevance");
+    score -= 2;
+  }
+
+  const utilitySignals = /what this means|why it matters|who is affected|watch next|takeaway|practical/i.test(content);
+
+  if (!utilitySignals) {
+    reasons.push("weak-reader-utility");
+    score -= 2;
+  }
+
+  if (trimToLength(candidate?.title || "", 140).length < 35) {
+    reasons.push("weak-title");
+    score -= 1;
+  }
+
+  if (trimToLength(candidate?.excerpt || "", 280).length < 110) {
+    reasons.push("weak-excerpt");
+    score -= 1;
+  }
+
+  if (!candidate?.mediaUrl && !candidate?._featuredImageQuery) {
+    reasons.push("poor-image-match");
+    score -= 1;
+  }
+
+  return {
+    passed: reasons.length === 0,
+    score: Math.max(0, score),
+    reasons,
+    wordCount
+  };
+}
+
+async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] } = {}) {
   if (!isOpenAiRewriteEnabled()) {
     return baseCandidate;
   }
@@ -366,20 +643,26 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
   const systemPrompt = [
     "GOAL: Generate a high-quality, 100% original, AdSense-approved blog post that delivers real value, strong user experience, and meets Google content quality standards. Content must be written for humans first, SEO second.",
     "ROLE: Act as an expert SEO content writer, journalist, and subject-matter analyst. Produce engaging, authoritative, and insight-driven content suitable for publication.",
+    "You must follow the user's latest master prompt in substance while returning only valid JSON for the app.",
     "Return only valid JSON with these keys: title, metaDescription, excerpt, content, category, author, unsplashImages.",
-    "STRICT CONTENT RULES: Content must be 100% original, must not rewrite or paraphrase existing articles, must provide unique insights, real-world relevance, and what-this-means value, and should add Nigerian or local context where appropriate.",
-    "The title must be SEO-optimised and click-worthy.",
-    "The metaDescription must be 150 to 160 characters, compelling, and naturally keyword-aware.",
+    "STRICT CONTENT RULES: Content must be 100% original. Do not rewrite or paraphrase existing articles. Provide unique insights, meaningful explanations, real-world relevance, and what-this-means value. Add Nigerian or local context where appropriate. Avoid generic or shallow explanations.",
+    "The title must be SEO-optimized and click-worthy.",
+    "The metaDescription must be 150 to 160 characters, compelling, and keyword-aware.",
     "The excerpt must be concise, compelling, and suitable for homepage cards.",
-    "The article must be 700 to 1000 words, written in British English, professional, clear, engaging, natural, and never robotic.",
+    "The article must be 700 to 1000 words, written in clear British English, professional, clear, engaging, natural, and never robotic.",
     "Write the article body in Markdown only.",
     "Use this exact article structure: ## Introduction, ## Context / Background, ## Main Explanation / Guide, ## Practical Examples / Insights, ## Common Mistakes to Avoid, ## Expert Tips / Pro Advice, ## Conclusion.",
-    "Use short paragraphs with exactly one blank line between paragraphs.",
-    "Use H2 and H3 headings, use bullet points with -, use numbered lists with 1. 2. 3. when helpful, and never use HTML tags.",
+    "Use short paragraphs of 2 to 4 lines max with exactly one blank line between paragraphs.",
+    "Use ## for main headings and ### for subheadings where helpful.",
+    "Use bold as **text**, italics as *text*, bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
     "Naturally include the primary keyword in the title, meta description, and introduction. Use secondary keywords naturally without keyword stuffing.",
-    "Sound like a real expert. Be specific, practical, and helpful. Avoid fake statistics, vague claims, AI clichés, fluff, filler, plagiarism, and thin content.",
+    "Sound like a real expert. Be specific, practical, helpful, and human. Avoid fake statistics, unverifiable claims, AI cliches, fluff, filler, plagiarism, and thin content.",
+    "Maintain reader interest throughout with relatable examples and local Nigerian relevance where appropriate.",
+    "Reduce news-summary tone. The article must clearly answer what happened, why it matters, who is affected, and what readers should watch next.",
     "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist. Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
-    "The unsplashImages value must be a JSON object with featuredImage, supportingImage1, supportingImage2, and supportingImage3. Each item must include searchQuery, altText, filename, and placement. Use short specific search queries only, prefer realistic editorial imagery, avoid generic terms, and use broader African context when Nigerian visuals are unlikely."
+    "The unsplashImages value must be a JSON object with featuredImage, supportingImage1, supportingImage2, and supportingImage3. Each item must include searchQuery, altText, filename, and placement.",
+    "Use short specific image search queries only, prefer realistic editorial imagery, avoid generic terms, and use broader African context when Nigerian visuals are unlikely.",
+    "Although the user's public output format is Title, Meta Description, Full Article, and [UNSPLASH_IMAGES], you must map that faithfully into the required JSON fields for the application."
   ].join(" ");
 
   const primaryKeyword = buildPrimaryKeyword(article);
@@ -397,10 +680,20 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
     sourceName: article.sourceName,
     sourceUrl: article.sourceUrl,
     sourceCountry: article.sourceCountry,
+    categoryWritingRule: getCategoryWritingRule(baseCandidate.category),
+    nigeriaRelevance: getNigeriaRelevance(article, baseCandidate.category),
+    sourceSummary: buildSourceSummary(article),
+    storyAngleQuestions: [
+      "What happened?",
+      "Why does it matter?",
+      "Who is affected?",
+      "What should readers watch next?"
+    ],
     title: article.title,
     description: article.description,
     content: article.content,
-    publishedAt: article.publishedAt
+    publishedAt: article.publishedAt,
+    revisionNotes
   });
 
   try {
@@ -442,7 +735,7 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
     return {
       ...baseCandidate,
       title: trimToLength(parsed.title || baseCandidate.title, 140),
-      excerpt: trimToLength(parsed.metaDescription || parsed.excerpt || baseCandidate.excerpt, 280),
+      excerpt: trimToLength(parsed.excerpt || parsed.metaDescription || baseCandidate.excerpt, 280),
       content: String(parsed.content || baseCandidate.content).trim(),
       category,
       author: trimToLength(parsed.author || baseCandidate.author, 80),
@@ -451,6 +744,36 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
   } catch {
     return baseCandidate;
   }
+}
+
+async function reviseCandidateWithAi(article, candidate, qualityReport) {
+  if (!isOpenAiRewriteEnabled()) {
+    return candidate;
+  }
+
+  return generateAiCandidate(article, candidate, {
+    revisionNotes: [
+      "Repair the article so it fully passes the content requirements before publication.",
+      `Current quality issues: ${qualityReport.reasons.join(", ")}.`,
+      "Keep the structure exact and improve originality, usefulness, and local relevance without sounding robotic."
+    ]
+  });
+}
+
+async function rewriteCandidateWithAi(article, baseCandidate) {
+  const initialCandidate = await generateAiCandidate(article, baseCandidate);
+  let currentCandidate = initialCandidate;
+  let qualityReport = evaluateCandidateQuality(article, initialCandidate);
+
+  for (let attempt = 0; attempt < MAX_REWRITE_ATTEMPTS && !qualityReport.passed; attempt += 1) {
+    currentCandidate = await reviseCandidateWithAi(article, currentCandidate, qualityReport);
+    qualityReport = evaluateCandidateQuality(article, currentCandidate);
+  }
+
+  return {
+    ...currentCandidate,
+    qualityReport
+  };
 }
 
 async function buildCandidate(article) {
@@ -478,13 +801,16 @@ async function buildCandidate(article) {
   };
 
   const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate);
-  const image = await resolveImage(article, rewrittenCandidate._featuredImageQuery || rewrittenCandidate.title);
+  const imageQuery = rewrittenCandidate._featuredImageQuery || deriveImageSearchQuery(article, rewrittenCandidate);
+  const image = await resolveImage(article, imageQuery);
+  const qualityReport = rewrittenCandidate.qualityReport || evaluateCandidateQuality(article, rewrittenCandidate);
 
   return {
     ...rewrittenCandidate,
     mediaUrl: image.mediaUrl,
     imageCreditName: image.imageCreditName,
-    imageCreditUrl: image.imageCreditUrl
+    imageCreditUrl: image.imageCreditUrl,
+    qualityReport
   };
 }
 
@@ -503,7 +829,9 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
   const globalArticles = dedupeArticles([...newsApiGlobal, ...gNewsGlobal]).sort(
     (left, right) => computeTrendingScore(right) - computeTrendingScore(left)
   );
-  const selectedArticles = chooseArticles(nigeriaArticles, globalArticles, activeSettings);
+  const filteredNigeriaArticles = nigeriaArticles.filter((article) => scoreSourceArticle(article).score >= MIN_SOURCE_SCORE);
+  const filteredGlobalArticles = globalArticles.filter((article) => scoreSourceArticle(article).score >= MIN_SOURCE_SCORE);
+  const selectedArticles = chooseArticles(filteredNigeriaArticles, filteredGlobalArticles, activeSettings);
 
   return Promise.all(selectedArticles.map(buildCandidate));
 }
@@ -541,6 +869,15 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const skippedPosts = [];
 
   for (const candidate of candidates) {
+    if (!candidate.qualityReport?.passed) {
+      skippedPosts.push({
+        title: candidate.title,
+        reason: "quality-gate",
+        details: candidate.qualityReport?.reasons || []
+      });
+      continue;
+    }
+
     const result = await createAutoPost(candidate);
 
     if (result.created) {
