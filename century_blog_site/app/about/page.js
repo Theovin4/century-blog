@@ -4,7 +4,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 export const metadata = {
   title: "About",
   description:
-    "Learn about Century Blog, a Nigerian digital publication covering news, lifestyle, health, education, business, technology, sports, and daily gist.",
+    "Learn about Century Blog, a Nigerian digital publication covering lifestyle, health, education, and daily gist.",
   alternates: {
     canonical: "/about"
   }
@@ -18,27 +18,18 @@ export default function AboutPage() {
           Back to Home
         </Link>
         <span className="eyebrow">About Century Blog</span>
-        <h1>Clear news and useful stories for everyday readers</h1>
+        <h1>Stories that feel close to everyday life in Nigeria</h1>
         <p>
-          Century Blog is an independent digital publication created for readers who want clear,
-          timely, and easy-to-read stories from Nigeria and around the world.
+          Century Blog is a modern Nigerian blog built to cover lifestyle, health, education, and
+          daily gist with a clean reading experience and clear editorial presentation.
         </p>
-        <h2>What we cover</h2>
-        <ul>
-          <li>Nigerian news, public updates, and daily conversations.</li>
-          <li>World stories that affect readers locally and globally.</li>
-          <li>Business, technology, education, health, lifestyle, sports, and entertainment.</li>
-        </ul>
-        <h2>Our editorial approach</h2>
         <p>
-          We aim to publish information in simple language, with clear headlines, useful context,
-          and a reading experience that works well on mobile and desktop. When a story needs an
-          update or correction, we review it and improve the page as quickly as possible.
+          We publish stories that matter to students, families, professionals, and curious readers
+          who want practical updates, cultural conversations, and useful explainers in one place.
         </p>
-        <h2>Who we serve</h2>
         <p>
-          Century Blog is for students, families, professionals, business owners, and curious
-          readers who want news and explainers without clutter or confusing presentation.
+          Our goal is simple: make important stories easier to understand, easier to discover, and
+          more enjoyable to read on mobile and desktop.
         </p>
       </section>
       <SiteFooter />

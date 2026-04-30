@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { featuredCategoryOptions, getCategoryMeta } from "@/lib/site";
 
-export function PostFilters({ query = "", category = "", action = "/", categories }) {
-  const visibleCategories = Array.isArray(categories) ? categories : featuredCategoryOptions;
-
+export function PostFilters({ query = "", category = "", action = "/" }) {
   return (
     <section className="filter-bar">
       <form className="filter-bar__form" method="GET" action={action}>
@@ -23,7 +21,7 @@ export function PostFilters({ query = "", category = "", action = "/", categorie
         <Link href="/" className={`filter-chip filter-chip--category ${category ? "" : "is-active"}`}>
           All News
         </Link>
-        {visibleCategories.map((item) => (
+        {featuredCategoryOptions.map((item) => (
           <Link
             key={item}
             href={`/category/${item}`}

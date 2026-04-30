@@ -4,6 +4,7 @@ import { NewsletterForm } from "@/components/forms/NewsletterForm";
 import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
+import { NewsTicker } from "@/components/site/NewsTicker";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
@@ -11,7 +12,6 @@ import {
   filterPosts,
   getCategoryMeta,
   getDisplayMedia,
-  getActiveCategories,
   getMostReadPosts,
   getSiteUrl,
   isImageMedia,
@@ -61,8 +61,7 @@ export default async function HomePage({ searchParams }) {
   const filteredPosts = prioritizePosts(filterPosts(prioritizedPosts, { query }));
   const visiblePosts = filteredPosts.length ? filteredPosts : prioritizedPosts;
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
-  const secondaryPosts = visiblePosts.slice(0, 12);
-  const activeCategories = getActiveCategories(posts);
+  const secondaryPosts = visiblePosts.slice(0, 18);
   const siteUrl = getSiteUrl();
 
   const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
@@ -154,6 +153,8 @@ export default async function HomePage({ searchParams }) {
         <FeaturedStoryCarousel posts={visiblePosts} />
       </section>
 
+      {prioritizedPosts.length > 1 ? <NewsTicker posts={prioritizedPosts.slice(0, 10)} /> : null}
+
       <section className="section-block section-card">
         <div className="section-header">
           <div>
@@ -162,7 +163,7 @@ export default async function HomePage({ searchParams }) {
           </div>
           <p>Move quickly from Nigeria and world headlines into business, tech, entertainment, and health updates.</p>
         </div>
-        <PostFilters query={query} category="" action="/" categories={activeCategories} />
+        <PostFilters query={query} category="" action="/" />
       </section>
 
       {mostReadPosts.length ? (
