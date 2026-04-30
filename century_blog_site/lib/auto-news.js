@@ -73,7 +73,7 @@ function computeTrendingScore(article) {
 
 function createExcerpt(article) {
   const hook = sentenceCase(article.description || article.title);
-  return hook.length > 220 ? `${hook.slice(0, 217).trim()}...` : hook;
+  return hook.length > 155 ? `${hook.slice(0, 152).trim()}...` : hook;
 }
 
 function trimToLength(value, maxLength) {
@@ -86,33 +86,86 @@ function buildArticleContent(article) {
   const sourceName = article.sourceName || "international wires";
   const description = stripHtml(article.description || article.content || article.title);
   const context = stripHtml(article.content || article.description || article.title);
+  const audienceLine = article.regionFocus === "nigeria"
+    ? "For Nigerian readers, the practical question is how this development may affect daily decisions, public debate, business planning, travel, education, household spending, or trust in institutions."
+    : "For readers following global affairs, the practical question is how this development may influence markets, policy, public confidence, and the wider news agenda.";
   const regionLine = article.regionFocus === "nigeria"
-    ? "Because Century Blog prioritises Nigeria, this development is especially important for readers tracking how local events connect to daily life, business, and policy shifts."
-    : "This story has been included in the global mix because it is part of the wider conversation shaping headlines beyond Nigeria and could still matter to readers watching international trends.";
+    ? "The Nigerian angle matters because major headlines rarely stay isolated. They often shape household choices, business expectations, public conversation, and how people judge official responses."
+    : "The global angle matters because international headlines can still shape local conversations through trade, energy prices, technology, sport, migration, finance, and public policy.";
 
   return [
-    `${title} is one of the latest stories drawing attention right now, and the conversation is building because the issue connects directly to what readers care about: impact, urgency, and what could happen next. The report, which emerged through ${sourceName}, has quickly entered the wider news cycle and is already shaping how people are discussing the subject online and offline.`,
+    `${title} has become a story worth following because it raises questions that go beyond the headline. Readers do not only need to know that it happened; they need to understand the context, the likely impact, and what to watch next.`,
     "",
-    `At the centre of the story is a simple question: why does this matter now? ${description} Rather than treating the headline as a passing trend, it helps to look at the context around it, the people affected, and the likely ripple effect over the next few days.`,
+    `The available report from ${sourceName} points to this key issue: ${description} The details may continue to develop, but the story already offers useful lessons about timing, public reaction, and real-world consequences.`,
     "",
-    "## Why this story matters",
+    "## Context and background",
     "",
-    `${regionLine} Readers often respond strongly to stories like this because they touch public confidence, practical decision-making, and the broader mood around current affairs. In many cases, what looks like a single headline can signal a bigger pattern in governance, society, technology, business, or culture.`,
+    `${context} The most useful way to read this story is to separate the confirmed information from the wider reaction around it. That helps readers avoid panic, rumour, and shallow interpretations.`,
     "",
-    `Another reason this update is gaining traction is timing. News attention moves quickly, but stories with real-world consequences tend to linger longer in search, social feeds, and conversations between friends, workers, students, and families. When a headline keeps showing up across multiple channels, it usually means the audience wants clarity, not just speed.`,
+    `${regionLine} Stories like this can also reveal bigger patterns: how quickly information spreads, how institutions respond, and how ordinary people make sense of fast-moving news.`,
     "",
-    "## The latest angle readers should watch",
+    "## What this means for readers",
     "",
-    `${context} As more details emerge, the strongest reader interest will likely focus on accountability, practical outcomes, and whether the next official steps match the seriousness of the issue. That is where the story moves from being merely trending to being genuinely useful.`,
+    `${audienceLine} The value of the story is not only in the headline, but in the questions it creates for the days ahead.`,
     "",
-    `For Century Blog, the goal is not to repeat a source article word for word, but to give readers a clean, original summary that explains the stakes. That means highlighting what the headline means, why it is circulating so widely, and what kind of developments are most likely to follow.`,
+    "Readers should pay attention to:",
     "",
-    "## What happens next",
+    "- whether official statements clarify the situation",
+    "- how affected groups respond",
+    "- whether the issue creates wider economic, social, or policy effects",
+    "- whether new evidence changes the first public understanding of the story",
     "",
-    `The next phase of this story will probably be shaped by official statements, reactions from affected groups, and how quickly new evidence or updates come into public view. Readers should watch for follow-up clarification, policy responses, and whether the conversation remains strong beyond the first wave of attention.`,
+    "## Practical examples and insights",
     "",
-    `In the meantime, this remains a high-interest story because it sits at the intersection of relevance and momentum. It is timely enough to matter today, but broad enough to keep influencing search behaviour, social discussion, and daily news consumption in the hours ahead.`
+    "A headline can affect people in different ways. A business owner may look for signs of market pressure. A student may want a simple explanation of the issue. A family may want to know whether it affects safety, cost of living, public services, or future plans.",
+    "",
+    "That is why useful reporting should explain the meaning of a story, not just repeat the latest update.",
+    "",
+    "## Common mistakes to avoid",
+    "",
+    "- Do not rely on headlines alone without reading the details.",
+    "- Do not share unverified claims simply because they are trending.",
+    "- Do not assume the first version of a developing story is the final version.",
+    "- Do not ignore local impact, especially when a global story may still affect Nigerian readers.",
+    "",
+    "## Expert tips and what to watch next",
+    "",
+    "The strongest next step is to watch for verified updates from credible sources, official responses, and practical consequences. Readers should also compare how different trusted outlets frame the story, because that often reveals what is confirmed and what remains uncertain.",
+    "",
+    "For Century Blog readers, the main takeaway is simple: follow the story with context. The headline matters, but the impact matters more.",
+    "",
+    "## Image Recommendations",
+    "",
+    `- Featured image idea: A clear editorial photo representing ${title}, with people, location, or topic-specific visual detail rather than a generic background.`,
+    "- Supporting image idea: A close-up image showing the real-world setting connected to the story.",
+    "- Supporting image idea: A contextual image showing readers, commuters, workers, students, officials, or businesses affected by the issue.",
+    "- Supporting image idea: A simple explainer-style visual showing the key issue, timeline, or impact."
   ].join("\n");
+}
+
+function buildAutoPostSystemPrompt() {
+  return [
+    "You are an expert SEO content writer, journalist, and subject-matter analyst for Century Blog.",
+    "Create a high-quality, original blog post that provides real value, strong user experience, and meets Google content quality and AdSense standards.",
+    "Write for humans first and SEO second. Use a professional, clear, engaging, human tone with no robotic or AI-sounding phrasing.",
+    "Return only valid JSON with these keys: title, metaDescription, excerpt, content, category, author.",
+    "The title must be SEO optimised, click-worthy, and under 140 characters.",
+    "The metaDescription and excerpt must be 150 to 160 characters where possible, never above 280 characters.",
+    "The content must be 700 to 1000 words in Markdown.",
+    "Use British English.",
+    "Use ## for main headings and ### for subheadings.",
+    "Use short paragraphs of 2 to 4 lines maximum.",
+    "Use bullet points where helpful.",
+    "Do not use HTML tags.",
+    "Do not copy or closely rewrite the source article. Add original explanation, context, useful analysis, and real-world impact.",
+    "Include Nigerian relevance where applicable, especially for Nigeria-focused stories or topics that affect Nigerian readers.",
+    "Avoid fake data, unverifiable claims, filler, vague statements, and keyword stuffing.",
+    "Use this structure inside content: Introduction, ## Context and background, ## Main explanation, ## Practical examples and insights, ## Common mistakes to avoid, ## Expert tips and pro advice, ## Conclusion, ## Image Recommendations.",
+    "Under Image Recommendations, include one very specific featured image idea and two or three supporting image ideas.",
+    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist.",
+    "Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
+    "Do not mention that an AI wrote the article."
+  ].join(" ");
 }
 
 async function fetchJson(url, options = {}) {
@@ -328,21 +381,14 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
     return baseCandidate;
   }
 
-  const systemPrompt = [
-    "You are rewriting a trending news item into an original Century Blog article.",
-    "Return only valid JSON with these keys: title, excerpt, content, category, author.",
-    "The article must be original, human-first, SEO-friendly, and not copy source phrasing.",
-    "Write in polished newsroom English with a modern blog voice.",
-    "Keep excerpt under 240 characters.",
-    "Write article content in Markdown with 3 subheadings using ##.",
-    "Keep the body around 500 to 650 words.",
-    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist.",
-    "Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
-    "Do not mention that an AI wrote the article."
-  ].join(" ");
-
   const userPrompt = JSON.stringify({
     publication: "Century Blog",
+    goal: "Create a high-quality, original, AdSense-ready article for humans first and SEO second.",
+    targetAudience: article.regionFocus === "nigeria"
+      ? "Nigerians, students, professionals, entrepreneurs, families, and general readers"
+      : "General readers who want clear context and practical impact",
+    tone: "Professional, clear, engaging, human",
+    wordCount: "700-1000 words",
     regionPriority: article.regionFocus,
     suggestedCategory: baseCandidate.category,
     sourceName: article.sourceName,
@@ -367,7 +413,7 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
         input: [
           {
             role: "system",
-            content: [{ type: "input_text", text: systemPrompt }]
+            content: [{ type: "input_text", text: buildAutoPostSystemPrompt() }]
           },
           {
             role: "user",
@@ -388,7 +434,7 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
     return {
       ...baseCandidate,
       title: trimToLength(parsed.title || baseCandidate.title, 140),
-      excerpt: trimToLength(parsed.excerpt || baseCandidate.excerpt, 280),
+      excerpt: trimToLength(parsed.metaDescription || parsed.excerpt || baseCandidate.excerpt, 280),
       content: String(parsed.content || baseCandidate.content).trim(),
       category,
       author: trimToLength(parsed.author || baseCandidate.author, 80)
