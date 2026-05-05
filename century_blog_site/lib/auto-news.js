@@ -600,23 +600,35 @@ function isOpenAiRewriteEnabled() {
 }
 
 function findRepeatedPhrase(content) {
-  const phrases = normalizeMarkdownContent(content)
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
+  const repeatedSentenceMap = new Map();
+  const repeatedParagraphMap = new Map();
+  const normalized = normalizeMarkdownContent(content);
 
-  for (let index = 0; index < phrases.length - 5; index += 1) {
-    const phrase = phrases.slice(index, index + 5).join(" ");
+  const sentences = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.replace(/\s+/g, " ").trim().toLowerCase())
+    .filter((sentence) => sentence.length >= 70);
 
-    if (!phrase || phrase.length < 25) {
-      continue;
+  for (const sentence of sentences) {
+    const count = (repeatedSentenceMap.get(sentence) || 0) + 1;
+    repeatedSentenceMap.set(sentence, count);
+
+    if (count >= 2) {
+      return sentence;
     }
+  }
 
-    const occurrences = normalizeMarkdownContent(content).toLowerCase().split(phrase).length - 1;
+  const paragraphs = normalized
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim().toLowerCase())
+    .filter((paragraph) => paragraph.length >= 140 && !paragraph.startsWith("## "));
 
-    if (occurrences > 1) {
-      return phrase;
+  for (const paragraph of paragraphs) {
+    const count = (repeatedParagraphMap.get(paragraph) || 0) + 1;
+    repeatedParagraphMap.set(paragraph, count);
+
+    if (count >= 2) {
+      return paragraph;
     }
   }
 
