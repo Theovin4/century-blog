@@ -577,7 +577,7 @@ export function buildBreadcrumbJsonLd(items) {
 }
 
 export function getPostTimestamp(post) {
-  const timestamp = new Date(post?.updatedAt || post?.publishedAt || "").getTime();
+  const timestamp = new Date(post?.publishedAt || post?.updatedAt || "").getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 

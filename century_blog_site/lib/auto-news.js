@@ -480,6 +480,14 @@ function chooseArticles(nigeriaArticles, globalArticles, settings) {
   return combined;
 }
 
+function withSourceFallback(filteredArticles, allArticles) {
+  if (filteredArticles.length) {
+    return filteredArticles;
+  }
+
+  return allArticles.slice(0, Math.max(1, Math.min(3, allArticles.length)));
+}
+
 function getResponseText(payload) {
   if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -831,7 +839,11 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
   );
   const filteredNigeriaArticles = nigeriaArticles.filter((article) => scoreSourceArticle(article).score >= MIN_SOURCE_SCORE);
   const filteredGlobalArticles = globalArticles.filter((article) => scoreSourceArticle(article).score >= MIN_SOURCE_SCORE);
-  const selectedArticles = chooseArticles(filteredNigeriaArticles, filteredGlobalArticles, activeSettings);
+  const selectedArticles = chooseArticles(
+    withSourceFallback(filteredNigeriaArticles, nigeriaArticles),
+    withSourceFallback(filteredGlobalArticles, globalArticles),
+    activeSettings
+  );
 
   return Promise.all(selectedArticles.map(buildCandidate));
 }
@@ -911,6 +923,7 @@ export function getAutomationProviderSummary() {
     pexelsEnabled: Boolean(PEXELS_API_KEY),
     unsplashEnabled: Boolean(UNSPLASH_ACCESS_KEY),
     openAiRewriteEnabled: isOpenAiRewriteEnabled(),
+    cronSecretEnabled: Boolean(process.env.CRON_SECRET || process.env.AUTO_NEWS_CRON_SECRET),
     storageReady: isPersistentStorageReady(),
     openAiModel: OPENAI_REWRITE_MODEL
   };

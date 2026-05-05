@@ -600,6 +600,7 @@ export function DashboardShell({ initialPosts }) {
           <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
           <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
           <span className="pill pill-status-ok">Rewrite engine ready</span>
+          <span className={`pill ${providerSummary.cronSecretEnabled ? "pill-status-ok" : "pill-status-off"}`}>Cron auth {providerSummary.cronSecretEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${aiEnhanced ? "pill-status-ok" : "pill-status-off"}`}>AI voice {aiEnhanced ? providerSummary.openAiModel || "on" : "optional"}</span>
           <span className={`pill ${storageReady ? "pill-status-ok" : "pill-status-off"}`}>Storage {storageReady ? "ready" : "missing"}</span>
         </div>
@@ -611,6 +612,11 @@ export function DashboardShell({ initialPosts }) {
         {!aiEnhanced ? (
           <p className="dashboard-warning dashboard-warning--soft">
             The rewrite engine still works, but premium AI rewrite needs an <code>OPENAI_API_KEY</code> in Vercel.
+          </p>
+        ) : null}
+        {!providerSummary.cronSecretEnabled ? (
+          <p className="dashboard-warning dashboard-warning--soft">
+            Scheduled auto posting needs a <code>CRON_SECRET</code> or <code>AUTO_NEWS_CRON_SECRET</code> in Vercel so cron requests can reach the automation route securely.
           </p>
         ) : null}
         <div className="automation-panel__actions">

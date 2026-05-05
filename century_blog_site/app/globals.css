@@ -1264,6 +1264,17 @@ button {
   background: transparent;
 }
 
+.blog-content__image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 1.15rem 0;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.45);
+  object-fit: cover;
+}
+
 .editor-form__split {
   display: grid;
   gap: 1rem;

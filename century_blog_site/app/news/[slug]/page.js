@@ -143,6 +143,41 @@ export default async function PostPage({ params }) {
   const renderedContent = getRenderableContent(post);
   const articleUrl = `${siteUrl}/news/${post.slug}`;
   const imageUrls = isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined;
+  const markdownComponents = {
+    img({ src, alt = "" }) {
+      const resolvedSrc = toAbsoluteUrl(src || "");
+
+      if (!resolvedSrc) {
+        return null;
+      }
+
+      return (
+        <img
+          className="blog-content__image"
+          src={resolvedSrc}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+      );
+    },
+    a({ href, children, ...props }) {
+      const resolvedHref = href ? toAbsoluteUrl(href) : "";
+      const isExternal = /^https?:\/\//i.test(resolvedHref) && !resolvedHref.startsWith(siteUrl);
+
+      return (
+        <a
+          href={resolvedHref || href}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noreferrer" : undefined}
+          {...props}
+        >
+          {children}
+        </a>
+      );
+    }
+  };
   const authorEntity = {
     "@type": "Organization",
     name: post.author || "Century Blog Editorial Team",
@@ -241,7 +276,7 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{renderedContent}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{renderedContent}</ReactMarkdown>
         </div>
       </article>
 
