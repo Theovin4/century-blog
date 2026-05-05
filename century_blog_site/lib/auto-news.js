@@ -39,6 +39,8 @@ const CLICKBAIT_PATTERNS = [
   /\bgoes viral\b/i,
   /\bmust see\b/i
 ];
+const NIGERIA_FALLBACK_QUERY = "Nigeria OR Lagos OR Abuja OR naira OR Super Eagles";
+const GLOBAL_FALLBACK_QUERY = "world news OR global economy OR technology OR politics";
 
 function stripHtml(value) {
   return String(value || "")
@@ -316,6 +318,19 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+async function fetchJsonSafe(url, options = {}) {
+  try {
+    const payload = await fetchJson(url, options);
+    return { ok: true, payload, error: "" };
+  } catch (error) {
+    return {
+      ok: false,
+      payload: null,
+      error: error?.message || "Request failed"
+    };
+  }
+}
+
 function isFreshEnough(article) {
   const publishedAt = new Date(article.publishedAt).getTime();
 
@@ -366,26 +381,88 @@ function normalizeGNewsArticle(article, regionFocus) {
 
 async function fetchNewsApiStories(regionFocus) {
   if (!NEWS_API_KEY) {
-    return [];
+    return { articles: [], diagnostics: { provider: "newsapi", regionFocus, enabled: false, requests: [] } };
   }
 
-  const endpoint = regionFocus === "nigeria"
-    ? `https://newsapi.org/v2/top-headlines?country=ng&language=en&pageSize=12&apiKey=${NEWS_API_KEY}`
-    : `https://newsapi.org/v2/top-headlines?language=en&pageSize=12&apiKey=${NEWS_API_KEY}`;
-  const payload = await fetchJson(endpoint);
-  return (payload.articles || []).map((article) => normalizeNewsApiArticle(article, regionFocus));
+  const requests = [];
+  const endpoints = regionFocus === "nigeria"
+    ? [
+        `https://newsapi.org/v2/top-headlines?country=ng&language=en&pageSize=12&apiKey=${NEWS_API_KEY}`,
+        `https://newsapi.org/v2/everything?q=${encodeURIComponent(NIGERIA_FALLBACK_QUERY)}&language=en&sortBy=publishedAt&pageSize=12&apiKey=${NEWS_API_KEY}`
+      ]
+    : [
+        `https://newsapi.org/v2/top-headlines?language=en&pageSize=12&apiKey=${NEWS_API_KEY}`,
+        `https://newsapi.org/v2/everything?q=${encodeURIComponent(GLOBAL_FALLBACK_QUERY)}&language=en&sortBy=publishedAt&pageSize=12&apiKey=${NEWS_API_KEY}`
+      ];
+
+  const articles = [];
+
+  for (const endpoint of endpoints) {
+    const result = await fetchJsonSafe(endpoint);
+    requests.push({
+      endpoint,
+      ok: result.ok,
+      count: result.ok ? Number(result.payload?.articles?.length || 0) : 0,
+      error: result.ok ? "" : result.error
+    });
+
+    if (result.ok) {
+      articles.push(...(result.payload?.articles || []).map((article) => normalizeNewsApiArticle(article, regionFocus)));
+    }
+  }
+
+  return {
+    articles,
+    diagnostics: {
+      provider: "newsapi",
+      regionFocus,
+      enabled: true,
+      requests
+    }
+  };
 }
 
 async function fetchGNewsStories(regionFocus) {
   if (!GNEWS_API_KEY) {
-    return [];
+    return { articles: [], diagnostics: { provider: "gnews", regionFocus, enabled: false, requests: [] } };
   }
 
-  const endpoint = regionFocus === "nigeria"
-    ? `https://gnews.io/api/v4/top-headlines?country=ng&lang=en&max=10&apikey=${GNEWS_API_KEY}`
-    : `https://gnews.io/api/v4/top-headlines?lang=en&max=10&apikey=${GNEWS_API_KEY}`;
-  const payload = await fetchJson(endpoint);
-  return (payload.articles || []).map((article) => normalizeGNewsArticle(article, regionFocus));
+  const requests = [];
+  const endpoints = regionFocus === "nigeria"
+    ? [
+        `https://gnews.io/api/v4/top-headlines?country=ng&lang=en&max=10&apikey=${GNEWS_API_KEY}`,
+        `https://gnews.io/api/v4/search?q=${encodeURIComponent(NIGERIA_FALLBACK_QUERY)}&lang=en&max=10&sortby=publishedAt&apikey=${GNEWS_API_KEY}`
+      ]
+    : [
+        `https://gnews.io/api/v4/top-headlines?lang=en&max=10&apikey=${GNEWS_API_KEY}`,
+        `https://gnews.io/api/v4/search?q=${encodeURIComponent(GLOBAL_FALLBACK_QUERY)}&lang=en&max=10&sortby=publishedAt&apikey=${GNEWS_API_KEY}`
+      ];
+
+  const articles = [];
+
+  for (const endpoint of endpoints) {
+    const result = await fetchJsonSafe(endpoint);
+    requests.push({
+      endpoint,
+      ok: result.ok,
+      count: result.ok ? Number(result.payload?.articles?.length || 0) : 0,
+      error: result.ok ? "" : result.error
+    });
+
+    if (result.ok) {
+      articles.push(...(result.payload?.articles || []).map((article) => normalizeGNewsArticle(article, regionFocus)));
+    }
+  }
+
+  return {
+    articles,
+    diagnostics: {
+      provider: "gnews",
+      regionFocus,
+      enabled: true,
+      requests
+    }
+  };
 }
 
 function dedupeArticles(articles) {
@@ -825,16 +902,23 @@ async function buildCandidate(article) {
 export async function fetchAutomatedNewsCandidates(settings = null) {
   const activeSettings = settings || await getAutomationSettings();
   const [newsApiNigeria, newsApiGlobal, gNewsNigeria, gNewsGlobal] = await Promise.all([
-    fetchNewsApiStories("nigeria").catch(() => []),
-    fetchNewsApiStories("global").catch(() => []),
-    fetchGNewsStories("nigeria").catch(() => []),
-    fetchGNewsStories("global").catch(() => [])
+    fetchNewsApiStories("nigeria").catch(() => ({ articles: [], diagnostics: { provider: "newsapi", regionFocus: "nigeria", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } })),
+    fetchNewsApiStories("global").catch(() => ({ articles: [], diagnostics: { provider: "newsapi", regionFocus: "global", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } })),
+    fetchGNewsStories("nigeria").catch(() => ({ articles: [], diagnostics: { provider: "gnews", regionFocus: "nigeria", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } })),
+    fetchGNewsStories("global").catch(() => ({ articles: [], diagnostics: { provider: "gnews", regionFocus: "global", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } }))
   ]);
 
-  const nigeriaArticles = dedupeArticles([...newsApiNigeria, ...gNewsNigeria]).sort(
+  const diagnostics = [
+    newsApiNigeria.diagnostics,
+    newsApiGlobal.diagnostics,
+    gNewsNigeria.diagnostics,
+    gNewsGlobal.diagnostics
+  ];
+
+  const nigeriaArticles = dedupeArticles([...newsApiNigeria.articles, ...gNewsNigeria.articles]).sort(
     (left, right) => computeTrendingScore(right) - computeTrendingScore(left)
   );
-  const globalArticles = dedupeArticles([...newsApiGlobal, ...gNewsGlobal]).sort(
+  const globalArticles = dedupeArticles([...newsApiGlobal.articles, ...gNewsGlobal.articles]).sort(
     (left, right) => computeTrendingScore(right) - computeTrendingScore(left)
   );
   const filteredNigeriaArticles = nigeriaArticles.filter((article) => scoreSourceArticle(article).score >= MIN_SOURCE_SCORE);
@@ -845,7 +929,21 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
     activeSettings
   );
 
-  return Promise.all(selectedArticles.map(buildCandidate));
+  const candidates = await Promise.all(selectedArticles.map(buildCandidate));
+
+  return {
+    candidates,
+    diagnostics: {
+      providers: diagnostics,
+      totals: {
+        nigeriaRaw: nigeriaArticles.length,
+        globalRaw: globalArticles.length,
+        nigeriaQualified: filteredNigeriaArticles.length,
+        globalQualified: filteredGlobalArticles.length,
+        selected: selectedArticles.length
+      }
+    }
+  };
 }
 
 export async function runAutomatedNewsIngestion({ force = false } = {}) {
@@ -863,15 +961,27 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     return skipped;
   }
 
-  const candidates = await fetchAutomatedNewsCandidates(settings);
+  const candidateResult = await fetchAutomatedNewsCandidates(settings);
+  const candidates = candidateResult.candidates;
+  const diagnostics = candidateResult.diagnostics;
 
   if (!candidates.length) {
+    const providerFailures = diagnostics.providers
+      .flatMap((provider) => provider.requests || [])
+      .filter((request) => !request.ok)
+      .length;
+    const qualifiedCount = Number(diagnostics.totals?.nigeriaQualified || 0) + Number(diagnostics.totals?.globalQualified || 0);
     const empty = {
       status: "idle",
-      message: "No fresh articles were available from the configured providers.",
+      message: providerFailures
+        ? "Automation ran, but the news providers did not return usable stories."
+        : qualifiedCount
+          ? "Automation found stories, but none were selected for publishing."
+          : "Automation ran, but no fresh qualifying articles were available from the configured providers.",
       publishedCount: 0,
       createdPosts: [],
-      skippedPosts: []
+      skippedPosts: [],
+      diagnostics
     };
     await markAutomationRun(empty);
     return empty;
@@ -906,10 +1016,11 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     status: createdPosts.length ? "success" : "idle",
     message: createdPosts.length
       ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"}.`
-      : "Every fetched article matched an existing post, so nothing new was published.",
+      : "Automation ran, but every fetched article was skipped as a duplicate or failed quality review.",
     publishedCount: createdPosts.length,
     createdPosts,
-    skippedPosts
+    skippedPosts,
+    diagnostics
   };
 
   await markAutomationRun(summary);
