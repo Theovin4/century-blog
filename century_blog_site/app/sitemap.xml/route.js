@@ -1,15 +1,39 @@
-import type { MetadataRoute } from "next";
+import { NextResponse } from "next/server";
 import { getPosts } from "@/lib/posts-store";
 import { getActiveCategories } from "@/lib/site";
 
+export const dynamic = "force-dynamic";
+
 const siteUrl = "https://centuryblogg.vercel.app";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function renderUrlEntry({ url, lastModified, changeFrequency, priority }) {
+  return [
+    "  <url>",
+    `    <loc>${escapeXml(url)}</loc>`,
+    lastModified ? `    <lastmod>${escapeXml(new Date(lastModified).toISOString())}</lastmod>` : "",
+    changeFrequency ? `    <changefreq>${escapeXml(changeFrequency)}</changefreq>` : "",
+    typeof priority === "number" ? `    <priority>${priority}</priority>` : "",
+    "  </url>"
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function GET() {
+  const now = new Date().toISOString();
   const posts = await getPosts();
   const activeCategories = getActiveCategories(posts);
 
-  return [
+  const urls = [
     {
       url: siteUrl,
       lastModified: now,
@@ -55,14 +79,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...activeCategories.map((category) => ({
       url: `${siteUrl}/category/${category}`,
       lastModified: now,
-      changeFrequency: "daily" as const,
+      changeFrequency: "daily",
       priority: 0.8
     })),
     ...posts.map((post) => ({
       url: `${siteUrl}/news/${post.slug}`,
-      lastModified: new Date(post.updatedAt || post.publishedAt || now),
-      changeFrequency: "daily" as const,
+      lastModified: post.updatedAt || post.publishedAt,
+      changeFrequency: "daily",
       priority: 0.9
     }))
   ];
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+    .map(renderUrlEntry)
+    .join("\n")}\n</urlset>`;
+
+  return new NextResponse(xml, {
+    headers: {
+      "Content-Type": "application/xml; charset=utf-8",
+      "Cache-Control": "no-store"
+    }
+  });
 }
