@@ -286,6 +286,7 @@ export function findSimilarPost(candidate, posts) {
   const candidateTitle = String(candidate?.title || "").trim();
   const candidateSourceUrl = String(candidate?.sourceUrl || "").trim();
   const candidateSourceId = String(candidate?.autoSourceId || "").trim();
+  const candidateType = String(candidate?.type || "").trim() || "manual";
 
   return posts.find((post) => {
     if (candidateSourceUrl && post.sourceUrl && post.sourceUrl === candidateSourceUrl) {
@@ -294,6 +295,10 @@ export function findSimilarPost(candidate, posts) {
 
     if (candidateSourceId && post.autoSourceId && post.autoSourceId === candidateSourceId) {
       return true;
+    }
+
+    if (candidateType === "auto" && (candidateSourceUrl || candidateSourceId)) {
+      return false;
     }
 
     return titleSimilarity(post.title, candidateTitle) >= 0.72;

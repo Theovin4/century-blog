@@ -1030,6 +1030,18 @@ button {
   line-height: 1.6;
 }
 
+.editor-status-card__details {
+  margin: 0.85rem 0 0;
+  padding-left: 1.1rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+.editor-status-card__details li + li {
+  margin-top: 0.35rem;
+}
+
 .editor-status-card__actions {
   display: flex;
   gap: 0.75rem;

@@ -521,6 +521,14 @@ export function DashboardShell({ initialPosts }) {
       setResultCard({
         title: Number(data.publishedCount || 0) > 0 ? "Automation posted new stories" : "Automation run completed",
         text: data.message || "The automation engine finished its latest run.",
+        details: Array.isArray(data.skippedPosts)
+          ? data.skippedPosts.slice(0, 5).map((item) => {
+              const detailText = Array.isArray(item.details) && item.details.length
+                ? ` (${item.details.join(", ")})`
+                : "";
+              return `${item.title}: ${item.reason}${detailText}`;
+            })
+          : [],
         href: leadPost ? getLivePostPath(leadPost) : "/",
         actionLabel: leadPost ? "View newest post" : "View homepage"
       });
@@ -651,6 +659,13 @@ export function DashboardShell({ initialPosts }) {
               <div>
                 <strong>{resultCard.title}</strong>
                 <p>{resultCard.text}</p>
+                {Array.isArray(resultCard.details) && resultCard.details.length ? (
+                  <ul className="editor-status-card__details">
+                    {resultCard.details.map((detail) => (
+                      <li key={detail}>{detail}</li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
               <div className="editor-status-card__actions">
                 {resultCard.href ? (

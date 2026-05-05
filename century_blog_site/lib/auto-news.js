@@ -1012,11 +1012,14 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     }
   }
 
+  const duplicateCount = skippedPosts.filter((item) => item.reason === "duplicate").length;
+  const qualityCount = skippedPosts.filter((item) => item.reason === "quality-gate").length;
+
   const summary = {
     status: createdPosts.length ? "success" : "idle",
     message: createdPosts.length
       ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"}.`
-      : "Automation ran, but every fetched article was skipped as a duplicate or failed quality review.",
+      : `Automation ran, but nothing was published. Duplicates: ${duplicateCount}. Quality review skips: ${qualityCount}.`,
     publishedCount: createdPosts.length,
     createdPosts,
     skippedPosts,
