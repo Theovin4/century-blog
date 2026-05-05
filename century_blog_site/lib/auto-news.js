@@ -634,22 +634,27 @@ function evaluateCandidateQuality(article, candidate) {
   const content = String(candidate?.content || "").trim();
   const wordCount = countWords(content);
   const reasons = [];
+  const blockingReasons = [];
   let score = 10;
 
   if (!content) {
     reasons.push("missing-content");
-    return { passed: false, score: 0, reasons, wordCount };
+    blockingReasons.push("missing-content");
+    return { passed: false, score: 0, reasons, blockingReasons, wordCount };
   }
 
   for (const heading of REQUIRED_HEADINGS) {
     if (!content.includes(heading)) {
-      reasons.push(`missing-heading:${heading.replace("## ", "")}`);
+      const reason = `missing-heading:${heading.replace("## ", "")}`;
+      reasons.push(reason);
+      blockingReasons.push(reason);
       score -= 2;
     }
   }
 
   if (wordCount < MIN_ARTICLE_WORDS) {
     reasons.push("too-short");
+    blockingReasons.push("too-short");
     score -= 3;
   }
 
@@ -662,43 +667,46 @@ function evaluateCandidateQuality(article, candidate) {
 
   if (repeatedPhrase) {
     reasons.push("repeated-phrases");
+    blockingReasons.push("repeated-phrases");
     score -= 2;
   }
 
   if (GENERIC_FILLER_PATTERNS.some((pattern) => pattern.test(content))) {
     reasons.push("generic-filler");
+    blockingReasons.push("generic-filler");
     score -= 2;
   }
 
   const introduction = getSectionContent(content, "## Introduction");
   const conclusion = getSectionContent(content, "## Conclusion");
 
-  if (countWords(introduction) < 70) {
+  if (countWords(introduction) < 45) {
     reasons.push("weak-introduction");
-    score -= 2;
+    score -= 1;
   }
 
-  if (countWords(conclusion) < 50) {
+  if (countWords(conclusion) < 35) {
     reasons.push("thin-conclusion");
-    score -= 2;
+    score -= 1;
   }
 
   const nigeriaMentioned = /nigeria|nigerian|lagos|abuja|naira|africa|african/i.test(content);
 
   if (!nigeriaMentioned) {
     reasons.push("missing-local-relevance");
-    score -= 2;
+    score -= 1;
   }
 
   const utilitySignals = /what this means|why it matters|who is affected|watch next|takeaway|practical/i.test(content);
 
   if (!utilitySignals) {
     reasons.push("weak-reader-utility");
-    score -= 2;
+    score -= 1;
   }
 
   if (trimToLength(candidate?.title || "", 140).length < 35) {
     reasons.push("weak-title");
+    blockingReasons.push("weak-title");
     score -= 1;
   }
 
@@ -709,13 +717,14 @@ function evaluateCandidateQuality(article, candidate) {
 
   if (!candidate?.mediaUrl && !candidate?._featuredImageQuery) {
     reasons.push("poor-image-match");
-    score -= 1;
+    score -= 0.5;
   }
 
   return {
-    passed: reasons.length === 0,
+    passed: blockingReasons.length === 0 && Math.max(0, score) >= 6,
     score: Math.max(0, score),
     reasons,
+    blockingReasons,
     wordCount
   };
 }
