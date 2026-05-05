@@ -62,7 +62,7 @@ export default async function HomePage({ searchParams }) {
   const recentPosts = sortPostsByRecency(posts);
   const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
   const visiblePosts = filteredPosts.length ? filteredPosts : recentPosts;
-  const mostReadPosts = getMostReadPosts(prioritizedPosts, 4);
+  const mostReadPosts = getMostReadPosts(prioritizedPosts, 5);
   const secondaryPosts = visiblePosts.slice(0, 18);
   const activeCategories = getActiveCategories(prioritizedPosts);
   const siteUrl = getSiteUrl();
@@ -190,7 +190,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Latest Headlines</span>
             <h2>Latest breaking news and new stories</h2>
           </div>
-          <p>Fresh reporting and newly published stories in true recency order, so readers always see the latest updates first.</p>
+          <p>Latest breaking news, trending stories, and fresh updates published in clear chronological order for readers following Nigeria and world headlines.</p>
         </div>
 
         <div className="post-grid">

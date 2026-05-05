@@ -47,6 +47,7 @@ function sanitizePost(post) {
     sourceUrl: post.sourceUrl || "",
     sourceCountry: post.sourceCountry || "",
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
+    sitePublishedAt: post.sitePublishedAt || post.publishedAt || post.updatedAt || "",
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
     trendingScore: Number(post.trendingScore || 0),
@@ -80,6 +81,7 @@ function normalizePost(post) {
     sourceUrl: post.sourceUrl || "",
     sourceCountry: post.sourceCountry || "",
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
+    sitePublishedAt: post.sitePublishedAt || (post.type === "auto" ? post.updatedAt || post.publishedAt || "" : post.publishedAt || post.updatedAt || ""),
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
     trendingScore: Number(post.trendingScore || 0),
@@ -310,6 +312,7 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
   const slug = buildUniqueSlug(posts, title, existing?.id || "");
   const publishedAt = input.publishedAt || existing?.publishedAt || new Date().toISOString();
   const updatedAt = new Date().toISOString();
+  const sitePublishedAt = existing?.sitePublishedAt || new Date().toISOString();
 
   let media = null;
 
@@ -351,6 +354,7 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
     imageCreditName: input.imageCreditName || existing?.imageCreditName || "",
     imageCreditUrl: input.imageCreditUrl || existing?.imageCreditUrl || "",
     publishedAt,
+    sitePublishedAt,
     updatedAt,
     readTime: estimateReadTime(input.content),
     coverStyle: getCoverStyle(input.category || existing?.category),
