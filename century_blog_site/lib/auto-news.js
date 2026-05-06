@@ -116,6 +116,15 @@ function countWords(value) {
   return normalized ? normalized.split(/\s+/).filter(Boolean).length : 0;
 }
 
+function sanitizeGeneratedArticleContent(content) {
+  return String(content || "")
+    .replace(/^\s*!\[[^\]]*]\(https?:\/\/source\.unsplash\.com\/[^)]+\)\s*$/gim, "")
+    .replace(/^\s*https?:\/\/source\.unsplash\.com\/\S+\s*$/gim, "")
+    .replace(/<img\b[^>]*src=["']https?:\/\/source\.unsplash\.com\/[^"'<>]+["'][^>]*>/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function extractSentences(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -842,7 +851,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
       ...baseCandidate,
       title: trimToLength(parsed.title || baseCandidate.title, 140),
       excerpt: trimToLength(parsed.excerpt || parsed.metaDescription || baseCandidate.excerpt, 280),
-      content: String(parsed.content || baseCandidate.content).trim(),
+      content: sanitizeGeneratedArticleContent(String(parsed.content || baseCandidate.content).trim()),
       category,
       author: trimToLength(parsed.author || baseCandidate.author, 80),
       _featuredImageQuery: featuredImageQuery
@@ -913,6 +922,7 @@ async function buildCandidate(article) {
 
   return {
     ...rewrittenCandidate,
+    content: sanitizeGeneratedArticleContent(rewrittenCandidate.content),
     mediaUrl: image.mediaUrl,
     imageCreditName: image.imageCreditName,
     imageCreditUrl: image.imageCreditUrl,

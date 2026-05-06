@@ -152,17 +152,19 @@ export default async function PostPage({ params }) {
         return null;
       }
 
+      const fallbackToFeaturedImage = /source\.unsplash\.com/i.test(resolvedSrc) && articleMedia?.kind === "image" && articleMedia?.url;
+      const targetSrc = fallbackToFeaturedImage ? articleMedia.url : resolvedSrc;
       const displaySrc = isImageMedia(resolvedSrc) ? getOptimizedImageUrl(resolvedSrc, {
         width: 1400,
         height: 900,
         fit: "fit"
-      }) : resolvedSrc;
+      }) : targetSrc;
 
       return (
         <img
           className="blog-content__image"
-          src={displaySrc}
-          alt={alt}
+          src={fallbackToFeaturedImage ? targetSrc : displaySrc}
+          alt={alt || post.title}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
@@ -176,6 +178,8 @@ export default async function PostPage({ params }) {
       const shouldRenderAsImage = resolvedHref && isImageMedia(resolvedHref) && (!childText || childText === href || childText === resolvedHref);
 
       if (shouldRenderAsImage) {
+        const fallbackToFeaturedImage = /source\.unsplash\.com/i.test(resolvedHref) && articleMedia?.kind === "image" && articleMedia?.url;
+        const targetSrc = fallbackToFeaturedImage ? articleMedia.url : resolvedHref;
         const displaySrc = getOptimizedImageUrl(resolvedHref, {
           width: 1400,
           height: 900,
@@ -185,8 +189,8 @@ export default async function PostPage({ params }) {
         return (
           <img
             className="blog-content__image"
-            src={displaySrc}
-            alt=""
+            src={fallbackToFeaturedImage ? targetSrc : displaySrc}
+            alt={post.title}
             loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
