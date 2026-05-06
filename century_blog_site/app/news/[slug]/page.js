@@ -16,6 +16,7 @@ import {
   formatLongDate,
   getCategoryMeta,
   getDisplayMedia,
+  getOptimizedImageUrl,
   getRenderableContent,
   getSiteUrl,
   isImageMedia,
@@ -151,10 +152,16 @@ export default async function PostPage({ params }) {
         return null;
       }
 
+      const displaySrc = isImageMedia(resolvedSrc) ? getOptimizedImageUrl(resolvedSrc, {
+        width: 1400,
+        height: 900,
+        fit: "fit"
+      }) : resolvedSrc;
+
       return (
         <img
           className="blog-content__image"
-          src={resolvedSrc}
+          src={displaySrc}
           alt={alt}
           loading="lazy"
           decoding="async"

@@ -435,15 +435,38 @@ export function normalizeStoredText(value) {
     .trimEnd();
 }
 
+function convertStandaloneImageUrlsToMarkdown(value) {
+  return String(value || "")
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+
+      if (!trimmed || trimmed.startsWith("![")) {
+        return line;
+      }
+
+      const candidate = trimmed.replace(/^<|>$/g, "");
+
+      if (!/^https?:\/\//i.test(candidate) || !isImageMedia(candidate)) {
+        return line;
+      }
+
+      return `![](${candidate})`;
+    })
+    .join("\n");
+}
+
 export function normalizeMarkdownContent(value) {
-  return normalizeStoredText(value)
+  return convertStandaloneImageUrlsToMarkdown(
+    normalizeStoredText(value)
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<p[^>]*>/gi, "")
     .replace(/<[^>]+>/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim();
+    .trim()
+  );
 }
 
 export function getRenderableContent(postOrContent) {

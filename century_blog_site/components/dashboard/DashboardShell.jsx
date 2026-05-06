@@ -8,8 +8,10 @@ import {
   editorCategoryOptions,
   getCategoryMeta,
   getDisplayMedia,
+  getOptimizedImageUrl,
   getPostTypeMeta,
   getRenderableContent,
+  isAbsoluteUrl,
   isImageMedia,
   isVideoMedia
 } from "@/lib/site";
@@ -48,6 +50,31 @@ const markdownTools = [
 const REQUEST_TIMEOUT_MS = 25000;
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
+
+const markdownPreviewComponents = {
+  img({ src, alt = "" }) {
+    const target = String(src || "");
+
+    if (!target) {
+      return null;
+    }
+
+    const displaySrc = isImageMedia(target)
+      ? getOptimizedImageUrl(target, { width: 1200, height: 800, fit: "fit" })
+      : target;
+
+    return (
+      <img
+        className="blog-content__image"
+        src={displaySrc}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        referrerPolicy={isAbsoluteUrl(target) ? "no-referrer" : undefined}
+      />
+    );
+  }
+};
 
 async function readResponsePayload(response) {
   const contentType = response.headers.get("content-type") || "";
@@ -737,7 +764,7 @@ export function DashboardShell({ initialPosts }) {
                 <span>Markdown renders exactly like the public post page.</span>
               </div>
               <div className="editor-live-preview__body blog-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{previewContent}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownPreviewComponents}>{previewContent}</ReactMarkdown>
               </div>
             </div>
           </div>
