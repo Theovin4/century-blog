@@ -73,6 +73,28 @@ const markdownPreviewComponents = {
         referrerPolicy={isAbsoluteUrl(target) ? "no-referrer" : undefined}
       />
     );
+  },
+  a({ href, children, ...props }) {
+    const target = String(href || "");
+    const childText = Array.isArray(children) ? children.join("").trim() : String(children || "").trim();
+    const shouldRenderAsImage = target && isImageMedia(target) && (!childText || childText === target);
+
+    if (shouldRenderAsImage) {
+      const displaySrc = getOptimizedImageUrl(target, { width: 1200, height: 800, fit: "fit" });
+
+      return (
+        <img
+          className="blog-content__image"
+          src={displaySrc}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          referrerPolicy={isAbsoluteUrl(target) ? "no-referrer" : undefined}
+        />
+      );
+    }
+
+    return <a href={href} {...props}>{children}</a>;
   }
 };
 

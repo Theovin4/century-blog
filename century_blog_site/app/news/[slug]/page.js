@@ -172,6 +172,27 @@ export default async function PostPage({ params }) {
     a({ href, children, ...props }) {
       const resolvedHref = href ? toAbsoluteUrl(href) : "";
       const isExternal = /^https?:\/\//i.test(resolvedHref) && !resolvedHref.startsWith(siteUrl);
+      const childText = Array.isArray(children) ? children.join("").trim() : String(children || "").trim();
+      const shouldRenderAsImage = resolvedHref && isImageMedia(resolvedHref) && (!childText || childText === href || childText === resolvedHref);
+
+      if (shouldRenderAsImage) {
+        const displaySrc = getOptimizedImageUrl(resolvedHref, {
+          width: 1400,
+          height: 900,
+          fit: "fit"
+        });
+
+        return (
+          <img
+            className="blog-content__image"
+            src={displaySrc}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+          />
+        );
+      }
 
       return (
         <a

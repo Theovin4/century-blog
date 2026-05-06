@@ -16,17 +16,16 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const siteUrl = getSiteUrl();
   const cutoff = Date.now() - (2 * 24 * 60 * 60 * 1000);
-  const posts = (await getPosts()).filter((post) => post?.slug).slice(0, 1000);
+  const posts = (await getPosts())
+    .filter((post) => post?.slug)
+    .filter((post) => new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt).getTime() >= cutoff)
+    .slice(0, 1000);
 
   const xmlEntries = posts
     .map((post) => {
       const publicationDate = new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt);
-      const hasRecentNewsMetadata = publicationDate.getTime() >= cutoff;
-      const newsBlock = hasRecentNewsMetadata
-        ? `\n    <news:news>\n      <news:publication>\n        <news:name>${escapeXml("Century Blog")}</news:name>\n        <news:language>en</news:language>\n      </news:publication>\n      <news:publication_date>${escapeXml(publicationDate.toISOString())}</news:publication_date>\n      <news:title>${escapeXml(post.title)}</news:title>\n    </news:news>`
-        : "";
 
-      return `  <url>\n    <loc>${escapeXml(`${siteUrl}/news/${post.slug}`)}</loc>${newsBlock}\n  </url>`;
+      return `  <url>\n    <loc>${escapeXml(`${siteUrl}/news/${post.slug}`)}</loc>\n    <news:news>\n      <news:publication>\n        <news:name>${escapeXml("Century Blog")}</news:name>\n        <news:language>en</news:language>\n      </news:publication>\n      <news:publication_date>${escapeXml(publicationDate.toISOString())}</news:publication_date>\n      <news:title>${escapeXml(post.title)}</news:title>\n    </news:news>\n  </url>`;
     })
     .join("\n");
 

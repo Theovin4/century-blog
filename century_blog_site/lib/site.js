@@ -456,9 +456,15 @@ function convertStandaloneImageUrlsToMarkdown(value) {
     .join("\n");
 }
 
+function convertHtmlImagesToMarkdown(value) {
+  return String(value || "").replace(/<img\b[^>]*src=["']([^"'<>]+)["'][^>]*alt=["']([^"'<>]*)["'][^>]*>/gi, "![$2]($1)")
+    .replace(/<img\b[^>]*alt=["']([^"'<>]*)["'][^>]*src=["']([^"'<>]+)["'][^>]*>/gi, "![$1]($2)")
+    .replace(/<img\b[^>]*src=["']([^"'<>]+)["'][^>]*>/gi, "![]($1)");
+}
+
 export function normalizeMarkdownContent(value) {
   return convertStandaloneImageUrlsToMarkdown(
-    normalizeStoredText(value)
+    convertHtmlImagesToMarkdown(normalizeStoredText(value))
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n\n")
     .replace(/<p[^>]*>/gi, "")
