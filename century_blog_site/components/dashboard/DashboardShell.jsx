@@ -10,6 +10,7 @@ import {
   getDisplayMedia,
   getOptimizedImageUrl,
   getPostTypeMeta,
+  getProxiedImageUrl,
   getRenderableContent,
   isAbsoluteUrl,
   isImageMedia,
@@ -59,9 +60,10 @@ const markdownPreviewComponents = {
       return null;
     }
 
-    const displaySrc = isImageMedia(target)
-      ? getOptimizedImageUrl(target, { width: 1200, height: 800, fit: "fit" })
-      : target;
+    const imageSrc = getProxiedImageUrl(target);
+    const displaySrc = isImageMedia(imageSrc)
+      ? getOptimizedImageUrl(imageSrc, { width: 1200, height: 800, fit: "fit" })
+      : imageSrc;
 
     return (
       <img
@@ -80,7 +82,8 @@ const markdownPreviewComponents = {
     const shouldRenderAsImage = target && isImageMedia(target) && (!childText || childText === target);
 
     if (shouldRenderAsImage) {
-      const displaySrc = getOptimizedImageUrl(target, { width: 1200, height: 800, fit: "fit" });
+      const imageSrc = getProxiedImageUrl(target);
+      const displaySrc = getOptimizedImageUrl(imageSrc, { width: 1200, height: 800, fit: "fit" });
 
       return (
         <img

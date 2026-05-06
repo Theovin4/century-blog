@@ -172,6 +172,20 @@ export function toAbsoluteUrl(value) {
   return `${getSiteUrl()}${String(value).startsWith("/") ? "" : "/"}${value}`;
 }
 
+export function getProxiedImageUrl(value) {
+  const target = String(value || "").trim();
+
+  if (!target) {
+    return "";
+  }
+
+  if (!isAbsoluteUrl(target) || isCloudinaryUrl(target) || target.startsWith(getSiteUrl())) {
+    return target;
+  }
+
+  return `${getSiteUrl()}/api/image-proxy?url=${encodeURIComponent(target)}`;
+}
+
 export function formatLongDate(value) {
   return new Intl.DateTimeFormat("en-NG", {
     day: "numeric",

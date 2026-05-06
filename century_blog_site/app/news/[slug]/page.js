@@ -17,6 +17,7 @@ import {
   getCategoryMeta,
   getDisplayMedia,
   getOptimizedImageUrl,
+  getProxiedImageUrl,
   getRenderableContent,
   getSiteUrl,
   isImageMedia,
@@ -154,16 +155,17 @@ export default async function PostPage({ params }) {
 
       const fallbackToFeaturedImage = /source\.unsplash\.com/i.test(resolvedSrc) && articleMedia?.kind === "image" && articleMedia?.url;
       const targetSrc = fallbackToFeaturedImage ? articleMedia.url : resolvedSrc;
-      const displaySrc = isImageMedia(resolvedSrc) ? getOptimizedImageUrl(resolvedSrc, {
+      const candidateSrc = fallbackToFeaturedImage ? targetSrc : getProxiedImageUrl(resolvedSrc);
+      const displaySrc = isImageMedia(candidateSrc) ? getOptimizedImageUrl(candidateSrc, {
         width: 1400,
         height: 900,
         fit: "fit"
-      }) : targetSrc;
+      }) : candidateSrc;
 
       return (
         <img
           className="blog-content__image"
-          src={fallbackToFeaturedImage ? targetSrc : displaySrc}
+          src={displaySrc}
           alt={alt || post.title}
           loading="lazy"
           decoding="async"
@@ -180,7 +182,8 @@ export default async function PostPage({ params }) {
       if (shouldRenderAsImage) {
         const fallbackToFeaturedImage = /source\.unsplash\.com/i.test(resolvedHref) && articleMedia?.kind === "image" && articleMedia?.url;
         const targetSrc = fallbackToFeaturedImage ? articleMedia.url : resolvedHref;
-        const displaySrc = getOptimizedImageUrl(resolvedHref, {
+        const proxiedSrc = fallbackToFeaturedImage ? targetSrc : getProxiedImageUrl(targetSrc);
+        const displaySrc = getOptimizedImageUrl(proxiedSrc, {
           width: 1400,
           height: 900,
           fit: "fit"
@@ -189,7 +192,7 @@ export default async function PostPage({ params }) {
         return (
           <img
             className="blog-content__image"
-            src={fallbackToFeaturedImage ? targetSrc : displaySrc}
+            src={displaySrc}
             alt={post.title}
             loading="lazy"
             decoding="async"
