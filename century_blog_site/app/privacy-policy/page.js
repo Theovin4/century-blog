@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { buildPageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Privacy Policy",
   description:
     "Read the Century Blog privacy policy for information about cookies, analytics, ads, and user data.",
-  alternates: {
-    canonical: "/privacy-policy"
-  }
-};
+  path: "/privacy-policy",
+  keywords: ["Century Blog privacy policy", "cookies", "analytics", "user data", "AdSense privacy"]
+});
 
 export default function PrivacyPolicyPage() {
   return (
@@ -41,6 +41,10 @@ export default function PrivacyPolicyPage() {
         <p>
           Century Blog may update this privacy policy as the website changes. The latest version on
           this page is the one that applies to current visitors.
+        </p>
+        <p>
+          If you need clarification about how contact details, analytics, or advertising tools are
+          used on this site, please contact us through the details on the contact page.
         </p>
       </section>
       <SiteFooter />

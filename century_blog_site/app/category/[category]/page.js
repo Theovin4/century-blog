@@ -36,7 +36,7 @@ export async function generateMetadata({ params }) {
   const canonical = `${siteUrl}/category/${category}`;
 
   return {
-    title: `${meta.label} Posts`,
+    title: `${meta.label} News and Stories`,
     description: meta.description,
     keywords: buildCategoryKeywords(category),
     alternates: {
@@ -70,6 +70,7 @@ export default async function CategoryPage({ params, searchParams }) {
 
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
+  const page = Math.max(1, Number.parseInt(String(resolvedSearchParams?.page || "1"), 10) || 1);
   const posts = await getPosts();
   const activeCategories = getActiveCategories(posts);
 
@@ -80,6 +81,24 @@ export default async function CategoryPage({ params, searchParams }) {
   const filteredPosts = sortPostsByRecency(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
+  const pageSize = 12;
+  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedPosts = filteredPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const buildPageHref = (nextPage) => {
+    const search = new URLSearchParams();
+
+    if (query) {
+      search.set("q", query);
+    }
+
+    if (nextPage > 1) {
+      search.set("page", String(nextPage));
+    }
+
+    const suffix = search.toString();
+    return suffix ? `/category/${category}?${suffix}` : `/category/${category}`;
+  };
 
   const jsonLd = [
     {
@@ -103,7 +122,9 @@ export default async function CategoryPage({ params, searchParams }) {
         </Link>
         <span className="eyebrow">Category</span>
         <h1 className="category-page__title">{meta.label}</h1>
-        <p className="hero-text">{meta.description}</p>
+        <p className="hero-text">
+          {meta.description} Browse the latest articles in true recency order, with mobile-friendly cards, working search, and clear paths back to the homepage and related sections.
+        </p>
       </section>
 
       <PostFilters
@@ -115,12 +136,33 @@ export default async function CategoryPage({ params, searchParams }) {
 
       <section className="section-block">
         <div className="post-grid">
-          {filteredPosts.map((post) => (
+          {paginatedPosts.map((post) => (
             <PostCard key={post.slug} post={post} />
           ))}
         </div>
         {filteredPosts.length === 0 ? (
           <p className="empty-state">No posts matched this category filter yet.</p>
+        ) : null}
+        {filteredPosts.length > pageSize ? (
+          <div className="pagination-row">
+            {currentPage > 1 ? (
+              <Link href={buildPageHref(currentPage - 1)} className="button button-secondary">
+                Newer page
+              </Link>
+            ) : (
+              <span className="pagination-row__spacer" />
+            )}
+            <span className="pagination-row__label">
+              Page {currentPage} of {totalPages}
+            </span>
+            {currentPage < totalPages ? (
+              <Link href={buildPageHref(currentPage + 1)} className="button button-secondary">
+                Older page
+              </Link>
+            ) : (
+              <span className="pagination-row__spacer" />
+            )}
+          </div>
         ) : null}
       </section>
 

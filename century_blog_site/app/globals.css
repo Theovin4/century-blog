@@ -1845,3 +1845,109 @@ button {
 .mini-post-card strong {
   text-wrap: balance;
 }
+
+.site-footer__trust {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.site-footer__trust strong {
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+.site-footer__trust p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.trust-panel__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.source-box {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.1rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.source-box h2 {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 1.2rem;
+}
+
+.source-box p {
+  margin: 0;
+}
+
+.source-box--notice {
+  border-color: rgba(255, 207, 90, 0.18);
+  background: rgba(65, 44, 7, 0.28);
+}
+
+.source-box--author {
+  margin-top: 1.35rem;
+}
+
+.ad-placeholder {
+  margin-top: 1.5rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ad-placeholder__label {
+  display: inline-flex;
+  margin-bottom: 0.5rem;
+  padding: 0.42rem 0.72rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef3ff;
+  font-family: "Segoe UI", sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ad-placeholder__copy,
+.pagination-row__label {
+  margin: 0;
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.7;
+}
+
+.pagination-row {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.pagination-row__spacer {
+  min-width: 9rem;
+}
+
+.loading-panel {
+  min-height: 40vh;
+  display: grid;
+  align-content: center;
+}
+
+@media (max-width: 640px) {
+  .pagination-row__spacer {
+    display: none;
+  }
+}

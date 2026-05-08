@@ -15,14 +15,14 @@ export const categoryMeta = {
     description: "Markets, money, jobs, entrepreneurship, and business developments that matter."
   },
   tech: {
-    label: "Tech",
+    label: "Technology",
     accent: "linear-gradient(135deg, #00c6ff, #0072ff)",
-    description: "Technology trends, digital products, startups, AI, and innovation updates."
+    description: "Technology trends, digital products, startups, AI, and innovation updates with practical context."
   },
   entertainment: {
-    label: "Entertainment",
+    label: "Entertainment & Sports",
     accent: "linear-gradient(135deg, #ff6a88, #ff99ac)",
-    description: "Celebrities, music, film, creators, and internet culture worth watching."
+    description: "Celebrities, music, film, sports, creators, and internet culture worth watching."
   },
   health: {
     label: "Health",
@@ -40,13 +40,13 @@ export const categoryMeta = {
     description: "School news, exams, admissions, and learning opportunities."
   },
   "daily-gist": {
-    label: "Daily Gist",
+    label: "Daily Gist & Culture",
     accent: "linear-gradient(135deg, #7f7fd5, #91eae4)",
-    description: "Trending headlines, buzz, and current conversations in Nigeria."
+    description: "Trending headlines, cultural conversations, and current buzz people in Nigeria are following closely."
   }
 };
 
-export const featuredCategoryOptions = ["nigeria", "world", "business", "tech", "entertainment", "health"];
+export const featuredCategoryOptions = ["nigeria", "world", "business", "tech", "entertainment", "lifestyle", "health"];
 export const categoryOptions = Object.keys(categoryMeta);
 export const editorCategoryOptions = categoryOptions;
 
@@ -133,6 +133,39 @@ export function getSiteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
 }
 
+export function buildPageMetadata({
+  title,
+  description,
+  path = "/",
+  keywords = [],
+  type = "website"
+}) {
+  const siteUrl = getSiteUrl();
+  const canonical = `${siteUrl}${path === "/" ? "" : path}`;
+
+  return {
+    title,
+    description,
+    keywords,
+    alternates: {
+      canonical: path
+    },
+    openGraph: {
+      title: `${title} | Century Blog`,
+      description,
+      url: canonical,
+      siteName: "Century Blog",
+      locale: "en_NG",
+      type
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${title} | Century Blog`,
+      description
+    }
+  };
+}
+
 export function getSubstackUrl() {
   return process.env.NEXT_PUBLIC_SUBSTACK_URL || "";
 }
@@ -196,6 +229,68 @@ export function formatLongDate(value) {
 
 export function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta["daily-gist"];
+}
+
+export function getAuthorProfile(author) {
+  const name = String(author || "").trim() || "Century Blog Editorial Team";
+
+  if (/century blog/i.test(name)) {
+    return {
+      name,
+      bio: "Century Blog Editorial Team reports, edits, and reviews stories with an emphasis on clarity, source awareness, and everyday relevance for readers in Nigeria and beyond."
+    };
+  }
+
+  if (/desk/i.test(name)) {
+    return {
+      name,
+      bio: `${name} covers developing stories and wider context for Century Blog readers, with a focus on accuracy, readability, and useful follow-through.`
+    };
+  }
+
+  return {
+    name,
+    bio: `${name} writes and contributes to Century Blog coverage with a focus on clear reporting, context, and reader-first storytelling.`
+  };
+}
+
+export function getArticleSchemaType(post) {
+  const category = String(post?.category || "");
+  const hasSource = Boolean(post?.sourceName || post?.sourceUrl);
+  const isNewsCategory = ["nigeria", "world", "business", "health", "education", "daily-gist"].includes(category);
+
+  return hasSource || post?.type === "auto" || isNewsCategory ? "NewsArticle" : "BlogPosting";
+}
+
+export function getArticleDisclaimer(post) {
+  const text = `${post?.title || ""} ${post?.excerpt || ""} ${post?.content || ""}`.toLowerCase();
+  const category = String(post?.category || "").toLowerCase();
+  const checks = [
+    {
+      match:
+        category === "health" ||
+        /\bhealth|virus|disease|hospital|medical|treatment|symptom|outbreak|hiv|aids\b/.test(text),
+      title: "Health reporting note",
+      body: "This article is for general information and context only. Readers should rely on qualified medical professionals, public health agencies, or official guidance for personal health decisions."
+    },
+    {
+      match:
+        category === "business" ||
+        /\bnaira|inflation|economy|market|budget|interest rate|investment|oil|stocks|bank\b/.test(text),
+      title: "Financial context note",
+      body: "This article is for news and analysis purposes only. It should not be treated as personal financial advice, investment advice, or a substitute for professional guidance."
+    },
+    {
+      match:
+        category === "world" ||
+        category === "nigeria" ||
+        /\bwar|military|election|protest|conflict|attack|security|government|senate|president|minister\b/.test(text),
+      title: "Developing story note",
+      body: "Some details in fast-moving political, conflict, or security stories can change as official statements and on-the-ground reporting are updated. Readers should watch for newer verified developments."
+    }
+  ];
+
+  return checks.find((item) => item.match) || null;
 }
 
 export function getActiveCategories(posts, availableCategories = categoryOptions) {

@@ -8,13 +8,25 @@ export function SiteFooter({ showSocial = true }) {
   return (
     <footer className="site-footer">
       {showSocial ? <SocialLinks compact /> : null}
+      <div className="site-footer__trust">
+        <strong>Century Blog standards</strong>
+        <p>
+          We aim for clear reporting, readable design, responsible sourcing, and straightforward
+          policy pages that readers and advertisers can review easily.
+        </p>
+      </div>
       <div className="footer-links">
         <Link href="/">Home</Link>
+        <Link href="/blog">Blog</Link>
         <Link href="/about">About</Link>
         <Link href="/contact">Contact</Link>
+        <Link href="/editorial-policy">Editorial Policy</Link>
+        <Link href="/corrections-policy">Corrections Policy</Link>
+        <Link href="/advertise">Advertise</Link>
+        <Link href="/disclaimer">Disclaimer</Link>
         <Link href="/privacy-policy">Privacy Policy</Link>
-        <Link href="/terms-and-conditions">Terms and Conditions</Link>
-        <Link href="/cookies-policy">Cookies Policy</Link>
+        <Link href="/terms">Terms</Link>
+        <Link href="/cookie-policy">Cookie Policy</Link>
         {substackUrl ? (
           <a href={substackUrl} target="_blank" rel="noreferrer">
             Substack

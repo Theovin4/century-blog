@@ -47,9 +47,13 @@ export async function GET() {
     { url: `${siteUrl}/blog`, lastModified: generatedAt, changeFrequency: "daily", priority: 0.9 },
     { url: `${siteUrl}/about`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.6 },
     { url: `${siteUrl}/contact`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${siteUrl}/editorial-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${siteUrl}/corrections-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${siteUrl}/advertise`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/disclaimer`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/privacy-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/terms-and-conditions`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/cookies-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
+    { url: `${siteUrl}/terms`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/cookie-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
   ];
 
   const categoryPages = activeCategories.map((category) => ({

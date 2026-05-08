@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { buildPageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Cookies Policy",
   description:
     "Read the Century Blog cookies policy to understand how cookies support analytics, ads, and site performance.",
-  alternates: {
-    canonical: "/cookies-policy"
-  }
-};
+  path: "/cookies-policy",
+  keywords: ["Century Blog cookies", "cookie policy", "analytics cookies", "advertising cookies"]
+});
 
 export default function CookiesPolicyPage() {
   return (
@@ -43,6 +43,10 @@ export default function CookiesPolicyPage() {
         <p>
           Century Blog may update this cookies policy whenever new services, advertising tools, or
           measurement features are added to the site.
+        </p>
+        <p>
+          For broader information about data handling and contact form submissions, please also see
+          the privacy policy.
         </p>
       </section>
       <SiteFooter />

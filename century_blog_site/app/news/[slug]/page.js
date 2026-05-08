@@ -4,12 +4,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AdPlaceholder } from "@/components/site/AdPlaceholder";
 import { PostEngagement } from "@/components/site/PostEngagement";
 import { PostShareBar } from "@/components/site/PostShareBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getEngagementBySlug } from "@/lib/engagement-store";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
+  getArticleDisclaimer,
+  getArticleSchemaType,
+  getAuthorProfile,
   buildBreadcrumbJsonLd,
   buildPostKeywords,
   extractMentionedCountries,
@@ -145,6 +149,11 @@ export default async function PostPage({ params }) {
   const renderedContent = getRenderableContent(post);
   const articleUrl = `${siteUrl}/news/${post.slug}`;
   const imageUrls = isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined;
+  const authorProfile = getAuthorProfile(post.author);
+  const articleDisclaimer = getArticleDisclaimer(post);
+  const articleSchemaType = getArticleSchemaType(post);
+  const updatedLabel = post.updatedAt && post.updatedAt !== post.publishedAt ? formatLongDate(post.updatedAt) : "";
+  const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl);
   const markdownComponents = {
     img({ src, alt = "" }) {
       const resolvedSrc = toAbsoluteUrl(src || "");
@@ -222,7 +231,7 @@ export default async function PostPage({ params }) {
   const jsonLd = [
     {
       "@context": "https://schema.org",
-      "@type": "NewsArticle",
+      "@type": articleSchemaType,
       headline: post.title,
       alternativeHeadline: post.excerpt,
       description: post.excerpt,
@@ -275,9 +284,11 @@ export default async function PostPage({ params }) {
           <h1>{post.title}</h1>
           <p className="article-excerpt">{post.excerpt}</p>
           <div className="article-meta">
-            <span>{formatLongDate(post.publishedAt)}</span>
+            <span>Published {formatLongDate(post.publishedAt)}</span>
+            {updatedLabel ? <span>Updated {updatedLabel}</span> : null}
             <span>{post.readTime}</span>
-            <span>{post.author || "Century Blog Editorial Team"}</span>
+            <span>{authorProfile.name}</span>
+            <span>{categoryMeta.label}</span>
           </div>
         </div>
 
@@ -311,7 +322,33 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
+          {hasSourceAttribution ? (
+            <aside className="source-box">
+              <span className="eyebrow">Source Attribution</span>
+              <p>
+                {post.sourceUrl ? (
+                  <a href={post.sourceUrl} target="_blank" rel="noreferrer">
+                    {post.sourceName || "Primary source"}
+                  </a>
+                ) : (
+                  post.sourceName
+                )}
+              </p>
+            </aside>
+          ) : null}
+          {articleDisclaimer ? (
+            <aside className="source-box source-box--notice">
+              <span className="eyebrow">{articleDisclaimer.title}</span>
+              <p>{articleDisclaimer.body}</p>
+            </aside>
+          ) : null}
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{renderedContent}</ReactMarkdown>
+          <AdPlaceholder label="Article inline ad slot" variant="inline" />
+          <aside className="source-box source-box--author">
+            <span className="eyebrow">Author</span>
+            <h2>{authorProfile.name}</h2>
+            <p>{authorProfile.bio}</p>
+          </aside>
         </div>
       </article>
 
@@ -330,6 +367,8 @@ export default async function PostPage({ params }) {
         </section>
       ) : null}
 
+      <AdPlaceholder label="Sidebar ad slot" variant="sidebar" />
+      <AdPlaceholder label="Footer ad slot" variant="footer" />
       <PostEngagement slug={post.slug} initialEngagement={engagement} />
       <PostShareBar post={post} />
       <SiteFooter showSocial={false} />

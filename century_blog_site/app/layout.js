@@ -12,7 +12,7 @@ export const metadata = {
     template: "%s | Century Blog"
   },
   description:
-    "Century Blog delivers breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, entertainment, lifestyle, education, and daily gist.",
+    "Century Blog delivers breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, education, and daily gist.",
   applicationName: "Century Blog",
   keywords: [
     "Century Blog",
@@ -20,9 +20,8 @@ export const metadata = {
     "breaking Nigerian news",
     "global stories",
     "business news Nigeria",
-    "tech news Nigeria",
+    "technology news Nigeria",
     "health news Nigeria",
-    "sports news Nigeria",
     "entertainment news Nigeria"
   ],
   authors: [{ name: "Century Blog" }],
@@ -36,7 +35,7 @@ export const metadata = {
   openGraph: {
     title: "Century Blog",
     description:
-      "Breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, and entertainment.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, and daily gist.",
     url: siteUrl,
     siteName: "Century Blog",
     locale: "en_NG",
@@ -54,7 +53,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Century Blog",
     description:
-      "Breaking Nigerian news, global stories, and real-time updates across business, tech, health, sports, and entertainment.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, and daily gist.",
     images: [`${siteUrl}/century-blog-logo.png`]
   },
   icons: {
@@ -89,9 +88,10 @@ export default function RootLayout({ children }) {
     name: "Century Blog",
     url: siteUrl,
     logo: `${siteUrl}/century-blog-logo.png`,
-    publishingPrinciples: `${siteUrl}/about`,
-    ethicsPolicy: `${siteUrl}/about`,
-    correctionsPolicy: `${siteUrl}/contact`,
+    publishingPrinciples: `${siteUrl}/editorial-policy`,
+    ethicsPolicy: `${siteUrl}/editorial-policy`,
+    correctionsPolicy: `${siteUrl}/corrections-policy`,
+    areaServed: "NG",
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "customer support",

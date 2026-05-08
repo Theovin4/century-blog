@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { NewsletterForm } from "@/components/forms/NewsletterForm";
+import { AdPlaceholder } from "@/components/site/AdPlaceholder";
 import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
@@ -63,6 +64,7 @@ export default async function HomePage({ searchParams }) {
   const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
   const visiblePosts = filteredPosts.length ? filteredPosts : recentPosts;
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 5);
+  const editorPicks = prioritizedPosts.filter((post) => !post.featured).slice(0, 3);
   const secondaryPosts = visiblePosts.slice(0, 18);
   const activeCategories = getActiveCategories(prioritizedPosts);
   const siteUrl = getSiteUrl();
@@ -95,7 +97,7 @@ export default async function HomePage({ searchParams }) {
       "@type": "Blog",
       name: "Century Blog",
       description:
-        "Century Blog is a Nigeria-first news and culture blog covering breaking Nigerian news, world updates, business, tech, health, sports, and entertainment.",
+        "Century Blog is a Nigeria-first digital publication covering breaking Nigerian news, world updates, business, technology, health, entertainment, lifestyle, education, and daily gist.",
       url: siteUrl,
       inLanguage: "en-NG",
       blogPost: prioritizedPosts.slice(0, 8).map((post) => ({
@@ -130,18 +132,18 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Nigeria-first reporting with fast updates on world news, business, sports, lifestyle, tech, and culture.</p>
+              <p className="brand-copy__tag">Nigeria-first reporting with fast updates on world news, business, technology, entertainment, lifestyle, education, health, and daily gist.</p>
             </div>
           </div>
-          <p className="hero-kicker">Independent digital news platform for readers who want clear updates without clutter.</p>
-          <h1>Breaking news, daily gist, and current stories made easier to follow</h1>
+          <p className="hero-kicker">Independent digital publication for readers who want clear updates, better context, and a cleaner reading experience.</p>
+          <h1>Breaking news, explainers, and everyday stories made easier to trust</h1>
           <p className="hero-text">
-            Read the latest stories from Nigeria and beyond in a cleaner format built for mobile and desktop. Century Blog brings together timely headlines, explainers, and culture stories in one place.
+            Read the latest stories from Nigeria and beyond in a cleaner format built for mobile and desktop. Century Blog combines timely headlines, useful context, and reader-first presentation without cluttered navigation or empty sections.
           </p>
           <div className="hero-highlights" aria-label="Century Blog highlights">
             <span className="hero-highlight">Nigeria and world headlines</span>
             <span className="hero-highlight">Fast-loading reading experience</span>
-            <span className="hero-highlight">Business, sports, tech, health, and lifestyle</span>
+            <span className="hero-highlight">Business, technology, health, lifestyle, and daily gist</span>
           </div>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
@@ -169,9 +171,9 @@ export default async function HomePage({ searchParams }) {
 
       {mostReadPosts.length ? (
         <section className="section-block section-card top-stories-panel">
-          <div className="section-header">
-            <div>
-              <span className="eyebrow">Most Read</span>
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Most Read</span>
               <h2>Most read news and trending stories right now</h2>
             </div>
             <p>Stories with the strongest reader momentum across the site, from fast-moving headlines to useful explainers people are spending time on.</p>
@@ -179,6 +181,23 @@ export default async function HomePage({ searchParams }) {
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
               <StoryHighlightCard key={post.slug} post={post} meta={`${getCategoryMeta(post.category).label} | Popular`} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {editorPicks.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Editor's Picks</span>
+              <h2>Useful stories worth spending time on</h2>
+            </div>
+            <p>Selected stories with clearer context, stronger value, and lasting relevance for readers returning to the site.</p>
+          </div>
+          <div className="mini-post-grid">
+            {editorPicks.map((post) => (
+              <StoryHighlightCard key={post.slug} post={post} meta={`${getCategoryMeta(post.category).label} | Editor's pick`} />
             ))}
           </div>
         </section>
@@ -203,12 +222,47 @@ export default async function HomePage({ searchParams }) {
         ) : null}
       </section>
 
+      <AdPlaceholder label="Homepage ad slot" variant="homepage" />
+
+      <section className="section-block section-card trust-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Editorial Standards</span>
+            <h2>Built for trust, clarity, and reader usefulness</h2>
+          </div>
+          <p>Century Blog aims to publish readable stories, attribute sources where needed, correct errors responsibly, and keep important policy pages easy to find.</p>
+        </div>
+        <div className="trust-panel__grid">
+          <Link href="/editorial-policy" className="mini-post-card">
+            <div className="mini-post-card__content">
+              <span className="mini-post-card__label">Editorial Policy</span>
+              <strong>How stories are selected, reviewed, and updated</strong>
+              <span>Read the standards behind sourcing, tone, corrections, and public-interest reporting.</span>
+            </div>
+          </Link>
+          <Link href="/corrections-policy" className="mini-post-card">
+            <div className="mini-post-card__content">
+              <span className="mini-post-card__label">Corrections Policy</span>
+              <strong>How Century Blog handles updates and fixes</strong>
+              <span>See how readers can report concerns and how corrections are applied when an article needs revision.</span>
+            </div>
+          </Link>
+          <Link href="/advertise" className="mini-post-card">
+            <div className="mini-post-card__content">
+              <span className="mini-post-card__label">Advertise</span>
+              <strong>Brand-safe opportunities for future ad partners</strong>
+              <span>Learn how Century Blog approaches advertising, layout quality, and reader-first placements.</span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       <section className="newsletter-panel section-card">
         <div>
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, tech, health, sports, and entertainment.
+            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, technology, lifestyle, health, education, and entertainment.
           </p>
         </div>
         <NewsletterForm />

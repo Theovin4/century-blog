@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { buildPageMetadata } from "@/lib/site";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Terms and Conditions",
   description:
     "Read the Century Blog terms and conditions for site usage, content rules, and publishing disclaimers.",
-  alternates: {
-    canonical: "/terms-and-conditions"
-  }
-};
+  path: "/terms-and-conditions",
+  keywords: ["Century Blog terms", "site usage rules", "content policy", "website conditions"]
+});
 
 export default function TermsAndConditionsPage() {
   return (
@@ -45,6 +45,11 @@ export default function TermsAndConditionsPage() {
           We may edit, update, correct, or remove content at any time to improve accuracy and
           reader experience. While we aim to keep the site available and accurate, we cannot
           promise that every page will always be uninterrupted or error free.
+        </p>
+        <p>
+          Use of the site also means you understand that some articles discuss developing events and
+          should be read together with official statements, source links, and later updates where
+          relevant.
         </p>
       </section>
       <SiteFooter />
