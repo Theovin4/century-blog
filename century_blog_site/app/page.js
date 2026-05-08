@@ -164,7 +164,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Browse Sections</span>
             <h2>Follow the topics you care about most</h2>
           </div>
-          <p>Jump straight into the sections that are active right now without landing on thin or empty pages.</p>
+          <p>Explore the sections currently active across Century Blog, with cleaner navigation to the stories readers are following most.</p>
         </div>
         <PostFilters query={query} category="" action="/" categories={activeCategories} />
       </section>
@@ -176,7 +176,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Most Read</span>
               <h2>Most read news and trending stories right now</h2>
             </div>
-            <p>Stories with the strongest reader momentum across the site, from fast-moving headlines to useful explainers people are spending time on.</p>
+            <p>The stories attracting the strongest reader interest across the site, from major headlines to useful explainers worth catching up on.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
@@ -193,7 +193,7 @@ export default async function HomePage({ searchParams }) {
               <span className="eyebrow">Editor&apos;s Picks</span>
               <h2>Useful stories worth spending time on</h2>
             </div>
-            <p>Selected stories with clearer context, stronger value, and lasting relevance for readers returning to the site.</p>
+            <p>A curated selection of stories with stronger context, sharper reporting, and lasting relevance beyond the daily scroll.</p>
           </div>
           <div className="mini-post-grid">
             {editorPicks.map((post) => (
@@ -209,7 +209,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Latest Headlines</span>
             <h2>Latest breaking news and new stories</h2>
           </div>
-          <p>Latest breaking news, trending stories, and fresh updates published in clear chronological order for readers following Nigeria and world headlines.</p>
+          <p>Freshly published reports, breaking updates, and developing stories presented in clear chronological order for readers tracking Nigeria and global news.</p>
         </div>
 
         <div className="post-grid">
@@ -224,45 +224,12 @@ export default async function HomePage({ searchParams }) {
 
       <AdPlaceholder label="Homepage ad slot" variant="homepage" />
 
-      <section className="section-block section-card trust-panel">
-        <div className="section-header">
-          <div>
-            <span className="eyebrow">Editorial Standards</span>
-            <h2>Built for trust, clarity, and reader usefulness</h2>
-          </div>
-          <p>Century Blog aims to publish readable stories, attribute sources where needed, correct errors responsibly, and keep important policy pages easy to find.</p>
-        </div>
-        <div className="trust-panel__grid">
-          <Link href="/editorial-policy" className="mini-post-card">
-            <div className="mini-post-card__content">
-              <span className="mini-post-card__label">Editorial Policy</span>
-              <strong>How stories are selected, reviewed, and updated</strong>
-              <span>Read the standards behind sourcing, tone, corrections, and public-interest reporting.</span>
-            </div>
-          </Link>
-          <Link href="/corrections-policy" className="mini-post-card">
-            <div className="mini-post-card__content">
-              <span className="mini-post-card__label">Corrections Policy</span>
-              <strong>How Century Blog handles updates and fixes</strong>
-              <span>See how readers can report concerns and how corrections are applied when an article needs revision.</span>
-            </div>
-          </Link>
-          <Link href="/advertise" className="mini-post-card">
-            <div className="mini-post-card__content">
-              <span className="mini-post-card__label">Advertise</span>
-              <strong>Brand-safe opportunities for future ad partners</strong>
-              <span>Learn how Century Blog approaches advertising, layout quality, and reader-first placements.</span>
-            </div>
-          </Link>
-        </div>
-      </section>
-
       <section className="newsletter-panel section-card">
         <div>
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Join the Century Blog newsletter list for new stories on Nigeria, world news, business, technology, lifestyle, health, education, and entertainment.
+            Subscribe for timely headlines, major developing stories, and selected updates from Nigeria, world news, business, technology, entertainment, lifestyle, health, and education.
           </p>
         </div>
         <NewsletterForm />
