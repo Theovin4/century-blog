@@ -293,6 +293,36 @@ export function getArticleDisclaimer(post) {
   return checks.find((item) => item.match) || null;
 }
 
+export function isSensitivePost(post) {
+  const text = `${post?.title || ""} ${post?.excerpt || ""} ${post?.content || ""}`.toLowerCase();
+  const category = String(post?.category || "").toLowerCase();
+
+  return (
+    category === "health" ||
+    category === "business" ||
+    category === "world" ||
+    (category === "nigeria" &&
+      /\bpolitic|government|security|crime|court|election|governor|senate|president|minister|attack|violence\b/.test(text)) ||
+    /\bwar|military|conflict|iran|trump|senate|election|crime|fraud|arrest|court|health|virus|disease|hospital|medical|naira|inflation|forex|cbn|bank|market\b/.test(
+      text
+    )
+  );
+}
+
+export function getSensitiveSourceNote(post) {
+  if (!isSensitivePost(post)) {
+    return null;
+  }
+
+  const hasSourceAttribution = Boolean(post?.sourceName || post?.sourceUrl);
+
+  if (hasSourceAttribution) {
+    return "This report should be read alongside official updates and verified source links where available.";
+  }
+
+  return "This report should be read alongside official updates and verified source links where available. Source details should be added as reporting develops.";
+}
+
 export function getActiveCategories(posts, availableCategories = categoryOptions) {
   const counts = new Map();
 
@@ -594,6 +624,44 @@ export function getRenderableContent(postOrContent) {
 
 export function formatArticleContent(content) {
   return getRenderableContent(content);
+}
+
+export function extractMarkdownHeadings(content, { minDepth = 2, maxDepth = 3 } = {}) {
+  const normalized = getRenderableContent(content);
+
+  return normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => {
+      const match = /^(#{2,3})\s+(.+?)\s*$/.exec(line);
+
+      if (!match) {
+        return null;
+      }
+
+      const depth = match[1].length;
+
+      if (depth < minDepth || depth > maxDepth) {
+        return null;
+      }
+
+      const text = match[2]
+        .replace(/\*\*(.+?)\*\*/g, "$1")
+        .replace(/\*(.+?)\*/g, "$1")
+        .replace(/`(.+?)`/g, "$1")
+        .trim();
+
+      if (!text) {
+        return null;
+      }
+
+      return {
+        depth,
+        text,
+        id: slugify(text)
+      };
+    })
+    .filter(Boolean);
 }
 
 export function inferMediaType(value) {

@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AdPlaceholder } from "@/components/site/AdPlaceholder";
@@ -16,6 +17,7 @@ import {
   getAuthorProfile,
   buildBreadcrumbJsonLd,
   buildPostKeywords,
+  extractMarkdownHeadings,
   extractMentionedCountries,
   formatLongDate,
   getCategoryMeta,
@@ -23,10 +25,12 @@ import {
   getOptimizedImageUrl,
   getProxiedImageUrl,
   getRenderableContent,
+  getSensitiveSourceNote,
   getSiteUrl,
   isImageMedia,
   normalizeMarkdownContent,
   normalizeStoredText,
+  slugify,
   toAbsoluteUrl
 } from "@/lib/site";
 
@@ -154,6 +158,47 @@ export default async function PostPage({ params }) {
   const articleSchemaType = getArticleSchemaType(post);
   const updatedLabel = post.updatedAt && post.updatedAt !== post.publishedAt ? formatLongDate(post.updatedAt) : "";
   const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl);
+  const sensitiveSourceNote = getSensitiveSourceNote(post);
+  const contentHeadings = extractMarkdownHeadings(renderedContent).slice(0, 8);
+  const headingIds = new Set();
+  const toHeadingId = (value) => {
+    const baseId = slugify(value || "section") || "section";
+
+    if (!headingIds.has(baseId)) {
+      headingIds.add(baseId);
+      return baseId;
+    }
+
+    let suffix = 2;
+    let candidate = `${baseId}-${suffix}`;
+
+    while (headingIds.has(candidate)) {
+      suffix += 1;
+      candidate = `${baseId}-${suffix}`;
+    }
+
+    headingIds.add(candidate);
+    return candidate;
+  };
+  const getNodeText = (children) =>
+    React.Children.toArray(children)
+      .map((child) => {
+        if (typeof child === "string") {
+          return child;
+        }
+
+        if (typeof child === "number") {
+          return String(child);
+        }
+
+        if (React.isValidElement(child)) {
+          return getNodeText(child.props?.children);
+        }
+
+        return "";
+      })
+      .join("")
+      .trim();
   const markdownComponents = {
     img({ src, alt = "" }) {
       const resolvedSrc = toAbsoluteUrl(src || "");
@@ -220,6 +265,22 @@ export default async function PostPage({ params }) {
           {children}
         </a>
       );
+    },
+    h2({ children, ...props }) {
+      const text = getNodeText(children);
+      return (
+        <h2 id={toHeadingId(text)} {...props}>
+          {children}
+        </h2>
+      );
+    },
+    h3({ children, ...props }) {
+      const text = getNodeText(children);
+      return (
+        <h3 id={toHeadingId(text)} {...props}>
+          {children}
+        </h3>
+      );
     }
   };
   const authorEntity = {
@@ -260,11 +321,15 @@ export default async function PostPage({ params }) {
       image: imageUrls,
       thumbnailUrl: imageUrls,
       url: articleUrl,
+      isPartOf: {
+        "@id": `${siteUrl}#website`
+      },
       sourceOrganization: post.sourceName ? {
         "@type": "Organization",
         name: post.sourceName,
         url: post.sourceUrl || undefined
-      } : undefined
+      } : undefined,
+      citation: post.sourceUrl ? [post.sourceUrl] : undefined
     },
     buildBreadcrumbJsonLd([
       { name: "Home", url: siteUrl },
@@ -322,9 +387,21 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
+          {contentHeadings.length >= 2 ? (
+            <aside className="source-box source-box--toc">
+              <span className="eyebrow">In This Article</span>
+              <ul className="source-box__list">
+                {contentHeadings.map((heading) => (
+                  <li key={heading.id} className={`source-box__list-item source-box__list-item--depth-${heading.depth}`}>
+                    <a href={`#${heading.id}`}>{heading.text}</a>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          ) : null}
           {hasSourceAttribution ? (
             <aside className="source-box">
-              <span className="eyebrow">Source Attribution</span>
+              <span className="eyebrow">Verified Source</span>
               <p>
                 {post.sourceUrl ? (
                   <a href={post.sourceUrl} target="_blank" rel="noreferrer">
@@ -334,6 +411,12 @@ export default async function PostPage({ params }) {
                   post.sourceName
                 )}
               </p>
+            </aside>
+          ) : null}
+          {sensitiveSourceNote ? (
+            <aside className="source-box source-box--notice">
+              <span className="eyebrow">Verification Note</span>
+              <p>{sensitiveSourceNote}</p>
             </aside>
           ) : null}
           {articleDisclaimer ? (
