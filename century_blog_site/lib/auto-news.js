@@ -1,6 +1,7 @@
 import { isPersistentStorageReady } from "@/lib/cloudinary";
 import { createAutoPost } from "@/lib/posts-store";
 import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
+import { saveAutoDraft } from "@/lib/auto-drafts-store";
 import { categoryMeta, isValidCategory, normalizeMarkdownContent, slugify } from "@/lib/site";
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY || "";
@@ -38,6 +39,18 @@ const CLICKBAIT_PATTERNS = [
   /\bbreaks the internet\b/i,
   /\bgoes viral\b/i,
   /\bmust see\b/i
+];
+const BOILERPLATE_PATTERNS = [
+  /what makes this kind of story important is the chain reaction it can create/i,
+  /for everyday readers, the practical insight is simple: look for the consequence, not just the noise/i,
+  /the clearest takeaway is that .* matters because it combines timing with consequence/i,
+  /fast headlines create momentum, but careful reading creates understanding/i,
+  /the smartest way to track this story is to watch for confirmed statements/i
+];
+const SOURCE_TRUNCATION_PATTERNS = [
+  /\[\+\d+\s+chars\]/i,
+  /\.\.\.\s+rather than treating the update as background noise/i,
+  /\.\.\.\s+in fast-moving news cycles/i
 ];
 const NIGERIA_FALLBACK_QUERY = "Nigeria OR Lagos OR Abuja OR naira OR Super Eagles";
 const GLOBAL_FALLBACK_QUERY = "world news OR global economy OR technology OR politics";
@@ -698,6 +711,18 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 2;
   }
 
+  if (BOILERPLATE_PATTERNS.some((pattern) => pattern.test(content))) {
+    reasons.push("template-boilerplate");
+    blockingReasons.push("template-boilerplate");
+    score -= 3;
+  }
+
+  if (SOURCE_TRUNCATION_PATTERNS.some((pattern) => pattern.test(content))) {
+    reasons.push("truncated-source-copy");
+    blockingReasons.push("truncated-source-copy");
+    score -= 3;
+  }
+
   const introduction = getSectionContent(content, "## Introduction");
   const conclusion = getSectionContent(content, "## Conclusion");
 
@@ -734,6 +759,12 @@ function evaluateCandidateQuality(article, candidate) {
   if (trimToLength(candidate?.excerpt || "", 280).length < 110) {
     reasons.push("weak-excerpt");
     score -= 1;
+  }
+
+  if (article?.regionFocus === "nigeria" && !/nigeria|nigerian|lagos|abuja|naira/i.test(content)) {
+    reasons.push("missing-nigeria-angle");
+    blockingReasons.push("missing-nigeria-angle");
+    score -= 2;
   }
 
   if (!candidate?.mediaUrl && !candidate?._featuredImageQuery) {
@@ -1020,12 +1051,18 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
 
   const createdPosts = [];
   const skippedPosts = [];
+  const draftedPosts = [];
 
   for (const candidate of candidates) {
     if (!candidate.qualityReport?.passed) {
+      const savedDraft = await saveAutoDraft({
+        ...candidate,
+        qualityReport: candidate.qualityReport
+      });
+      draftedPosts.push(savedDraft);
       skippedPosts.push({
         title: candidate.title,
-        reason: "quality-gate",
+        reason: "drafted-for-review",
         details: candidate.qualityReport?.reasons || []
       });
       continue;
@@ -1044,15 +1081,16 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   }
 
   const duplicateCount = skippedPosts.filter((item) => item.reason === "duplicate").length;
-  const qualityCount = skippedPosts.filter((item) => item.reason === "quality-gate").length;
+  const draftCount = skippedPosts.filter((item) => item.reason === "drafted-for-review").length;
 
   const summary = {
     status: createdPosts.length ? "success" : "idle",
     message: createdPosts.length
       ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"}.`
-      : `Automation ran, but nothing was published. Duplicates: ${duplicateCount}. Quality review skips: ${qualityCount}.`,
+      : `Automation ran, but nothing was published. Duplicates: ${duplicateCount}. Drafted for review: ${draftCount}.`,
     publishedCount: createdPosts.length,
     createdPosts,
+    draftedPosts,
     skippedPosts,
     diagnostics
   };

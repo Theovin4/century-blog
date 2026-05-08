@@ -370,6 +370,20 @@ export async function createPost(input, mediaFile = null) {
   return post;
 }
 
+export async function createPostFromRemoteMedia(input) {
+  const posts = await getPosts();
+  const post = await buildPostRecord(
+    posts,
+    { ...input, type: "manual" },
+    {
+      remoteMediaUrl: input.mediaUrl || ""
+    }
+  );
+  const updatedPosts = [post, ...posts];
+  await writePostsSource(updatedPosts);
+  return post;
+}
+
 export async function createAutoPost(input) {
   const posts = await getPosts();
   const duplicate = findSimilarPost(input, posts);

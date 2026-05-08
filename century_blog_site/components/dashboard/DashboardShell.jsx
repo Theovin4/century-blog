@@ -152,6 +152,7 @@ export function DashboardShell({ initialPosts }) {
   const [preview, setPreview] = useState(null);
   const [automationSettings, setAutomationSettings] = useState(emptyAutomation);
   const [providerSummary, setProviderSummary] = useState({});
+  const [autoDrafts, setAutoDrafts] = useState([]);
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [activeAction, setActiveAction] = useState("");
@@ -219,16 +220,20 @@ export function DashboardShell({ initialPosts }) {
   useEffect(() => {
     let active = true;
 
-    async function loadAutomationSettings() {
+    async function loadDashboardAutomation() {
       try {
-        const data = await fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings.");
+        const [settingsData, draftsData] = await Promise.all([
+          fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings."),
+          fetchWithFeedback("/api/automation/drafts", { cache: "no-store" }, "Unable to load auto drafts.")
+        ]);
 
         if (!active) {
           return;
         }
 
-        setAutomationSettings(data.settings || emptyAutomation);
-        setProviderSummary(data.providers || {});
+        setAutomationSettings(settingsData.settings || emptyAutomation);
+        setProviderSummary(settingsData.providers || {});
+        setAutoDrafts(Array.isArray(draftsData) ? draftsData : []);
       } catch (nextError) {
         if (active) {
           setError(nextError.message || "Unable to load dashboard settings.");
@@ -236,7 +241,7 @@ export function DashboardShell({ initialPosts }) {
       }
     }
 
-    loadAutomationSettings();
+    loadDashboardAutomation();
 
     return () => {
       active = false;
@@ -251,6 +256,17 @@ export function DashboardShell({ initialPosts }) {
     }
 
     setPosts(data);
+    return data;
+  }
+
+  async function refreshAutoDrafts() {
+    const data = await fetchWithFeedback("/api/automation/drafts", { cache: "no-store" }, "Unable to refresh auto drafts.");
+
+    if (!Array.isArray(data)) {
+      throw new Error("Unable to refresh auto drafts.");
+    }
+
+    setAutoDrafts(data);
     return data;
   }
 
@@ -304,6 +320,26 @@ export function DashboardShell({ initialPosts }) {
       text: "You are updating an existing article. Save when you are happy with the changes, or open the live version in a new tab.",
       href: getLivePostPath(post),
       actionLabel: "View live post"
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function startDraftReviewMode(draftPost) {
+    clearPreview();
+    setDraft({
+      id: "",
+      title: draftPost.title,
+      excerpt: draftPost.excerpt,
+      content: draftPost.content,
+      category: draftPost.category,
+      author: draftPost.author || ""
+    });
+    resetMessages();
+    setResultCard({
+      title: "Reviewing queued auto draft",
+      text: "This weak auto post was held back from public publishing. Improve it in the editor, then publish manually when it is strong enough for the live site.",
+      href: draftPost.sourceUrl || "",
+      actionLabel: draftPost.sourceUrl ? "Open source article" : "Open source"
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -421,6 +457,7 @@ export function DashboardShell({ initialPosts }) {
       clearPreview();
       setDraft(emptyDraft);
       event.currentTarget.reset();
+      await refreshAutoDrafts().catch(() => undefined);
       router.refresh();
       router.prefetch?.("/");
     } catch (nextError) {
@@ -554,6 +591,7 @@ export function DashboardShell({ initialPosts }) {
       if (Array.isArray(data.createdPosts) && data.createdPosts.length) {
         setPosts((current) => [...data.createdPosts, ...current]);
       }
+      await refreshAutoDrafts().catch(() => undefined);
       const leadPost = Array.isArray(data.createdPosts) && data.createdPosts.length
         ? data.createdPosts[0]
         : posts[0];
@@ -587,6 +625,52 @@ export function DashboardShell({ initialPosts }) {
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to run automation.");
+    } finally {
+      setSettingsBusy(false);
+      endAction();
+    }
+  }
+
+  async function handlePublishAutoDraft(draftId) {
+    setSettingsBusy(true);
+    setError("");
+    beginAction("publish-draft", draftId);
+
+    try {
+      const data = await fetchWithFeedback(`/api/automation/drafts/${draftId}/publish`, { method: "POST" }, "Unable to publish auto draft.");
+      setPosts((current) => [data, ...current]);
+      setAutoDrafts((current) => current.filter((draftItem) => String(draftItem.id) !== String(draftId)));
+      setToast({
+        text: "Draft published successfully.",
+        href: getLivePostPath(data),
+        actionLabel: "View live post"
+      });
+      setResultCard({
+        title: "Queued auto draft published",
+        text: "The reviewed draft is now live on the site. Open it to confirm the final public result.",
+        href: getLivePostPath(data),
+        actionLabel: "View live post"
+      });
+      router.refresh();
+    } catch (nextError) {
+      setError(nextError.message || "Unable to publish auto draft.");
+    } finally {
+      setSettingsBusy(false);
+      endAction();
+    }
+  }
+
+  async function handleDiscardAutoDraft(draftId) {
+    setSettingsBusy(true);
+    setError("");
+    beginAction("discard-draft", draftId);
+
+    try {
+      await fetchWithFeedback(`/api/automation/drafts/${draftId}`, { method: "DELETE" }, "Unable to discard auto draft.");
+      setAutoDrafts((current) => current.filter((draftItem) => String(draftItem.id) !== String(draftId)));
+      setToast({ text: "Draft discarded." });
+    } catch (nextError) {
+      setError(nextError.message || "Unable to discard auto draft.");
     } finally {
       setSettingsBusy(false);
       endAction();
@@ -653,6 +737,10 @@ export function DashboardShell({ initialPosts }) {
             <strong>Last run</strong>
             <span>{automationSettings.lastRunAt ? new Date(automationSettings.lastRunAt).toLocaleString("en-NG") : "Not run yet"}</span>
           </div>
+          <div className="automation-panel__card">
+            <strong>Draft queue</strong>
+            <span>{autoDrafts.length}</span>
+          </div>
         </div>
         <div className="automation-panel__providers">
           <span className={`pill ${providerSummary.newsApiEnabled ? "pill-status-ok" : "pill-status-off"}`}>NewsAPI {providerSummary.newsApiEnabled ? "ready" : "missing"}</span>
@@ -693,6 +781,53 @@ export function DashboardShell({ initialPosts }) {
           </button>
         </div>
         {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
+      </section>
+
+      <section className="section-card automation-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Auto Draft Review</span>
+            <h2>Weak auto posts held for review</h2>
+          </div>
+          <p>Anything that fails the stronger quality gate now lands here instead of going live. Review, publish manually, or discard it before your next AdSense submission.</p>
+        </div>
+        <div className="dashboard-post-list">
+          {autoDrafts.map((draftItem) => (
+            <article key={draftItem.id} className="dashboard-post-card">
+              <div className="dashboard-post-card__labels">
+                <span className="pill">{getCategoryMeta(draftItem.category).label}</span>
+                <span className="pill pill-status-off">Held from auto publish</span>
+              </div>
+              <h3>{draftItem.title}</h3>
+              <p>{draftItem.excerpt}</p>
+              <p className="dashboard-post-card__meta">
+                {draftItem.sourceName ? `Source: ${draftItem.sourceName}` : "No source label"} | Issues: {(draftItem.qualityReport?.reasons || []).slice(0, 4).join(", ") || "needs review"}
+              </p>
+              <div className="dashboard-post-card__actions">
+                <button type="button" className="button button-secondary" onClick={() => startDraftReviewMode(draftItem)}>
+                  Open in editor
+                </button>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => handlePublishAutoDraft(draftItem.id)}
+                  disabled={settingsBusy}
+                >
+                  {activeAction === "publish-draft" && activePostId === String(draftItem.id) ? "Publishing..." : "Publish draft"}
+                </button>
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => handleDiscardAutoDraft(draftItem.id)}
+                  disabled={settingsBusy}
+                >
+                  {activeAction === "discard-draft" && activePostId === String(draftItem.id) ? "Discarding..." : "Discard"}
+                </button>
+              </div>
+            </article>
+          ))}
+          {!autoDrafts.length ? <p className="empty-state">No weak auto drafts are waiting for review right now.</p> : null}
+        </div>
       </section>
 
       <div className="dashboard-grid">
