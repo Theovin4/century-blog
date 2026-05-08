@@ -26,10 +26,6 @@ export function FeaturedStoryCarousel({ posts }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
-    setIndex(0);
-  }, [rotationPool.length]);
-
-  useEffect(() => {
     if (rotationPool.length <= 1) {
       return undefined;
     }
@@ -41,7 +37,8 @@ export function FeaturedStoryCarousel({ posts }) {
     return () => window.clearInterval(interval);
   }, [rotationPool.length]);
 
-  const featuredPost = rotationPool[index] || fallbackPost;
+  const safeIndex = rotationPool.length ? index % rotationPool.length : 0;
+  const featuredPost = rotationPool[safeIndex] || fallbackPost;
 
   if (!featuredPost) {
     return null;

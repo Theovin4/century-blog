@@ -120,8 +120,8 @@ function mergeEngagementState(previous, incoming, fallbackComment = null) {
 }
 
 export function PostEngagement({ slug, initialEngagement }) {
-  const [engagement, setEngagement] = useState(initialEngagement || { slug, likes: 0, comments: [] });
-  const [liked, setLiked] = useState(false);
+  const [engagement, setEngagement] = useState(() => initialEngagement || { slug, likes: 0, comments: [] });
+  const [liked, setLiked] = useState(() => (typeof window !== "undefined" ? getLikedPosts().includes(slug) : false));
   const [likeBusy, setLikeBusy] = useState(false);
   const [commentBusy, setCommentBusy] = useState(false);
   const [commentMessage, setCommentMessage] = useState("");
@@ -131,9 +131,6 @@ export function PostEngagement({ slug, initialEngagement }) {
 
   useEffect(() => {
     let active = true;
-
-    setEngagement(initialEngagement || { slug, likes: 0, comments: [] });
-    setLiked(getLikedPosts().includes(slug));
 
     async function syncEngagement() {
       try {

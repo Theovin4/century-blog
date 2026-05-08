@@ -190,14 +190,14 @@ export default async function HomePage({ searchParams }) {
         <section className="section-block section-card top-stories-panel">
           <div className="section-header">
             <div>
-              <span className="eyebrow">Editor's Picks</span>
+              <span className="eyebrow">Editor&apos;s Picks</span>
               <h2>Useful stories worth spending time on</h2>
             </div>
             <p>Selected stories with clearer context, stronger value, and lasting relevance for readers returning to the site.</p>
           </div>
           <div className="mini-post-grid">
             {editorPicks.map((post) => (
-              <StoryHighlightCard key={post.slug} post={post} meta={`${getCategoryMeta(post.category).label} | Editor's pick`} />
+              <StoryHighlightCard key={post.slug} post={post} meta={`${getCategoryMeta(post.category).label} | Editor&apos;s pick`} />
             ))}
           </div>
         </section>
