@@ -159,6 +159,18 @@ function getLivePostPath(post) {
   return post?.slug ? `/news/${post.slug}` : "/";
 }
 
+function resolveSubmitModeToWorkflowStatus(mode) {
+  if (mode === "submit") {
+    return "pending_review";
+  }
+
+  if (mode === "publish") {
+    return "published";
+  }
+
+  return mode || "draft";
+}
+
 function toPlainText(value) {
   return String(value || "")
     .replace(/```[\s\S]*?```/g, " ")
@@ -797,7 +809,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       formData.set("imageAlt", resolvedDraft.imageAlt);
       formData.set("sourceName", resolvedDraft.sourceName);
       formData.set("sourceCountry", resolvedDraft.sourceCountry);
-      formData.set("workflowStatus", mode === "submit" ? "pending_review" : mode);
+      formData.set("workflowStatus", resolveSubmitModeToWorkflowStatus(mode));
 
       const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
 
