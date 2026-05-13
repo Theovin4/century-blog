@@ -153,7 +153,7 @@ export default async function HomePage({ searchParams }) {
             </div>
           </div>
           <p className="hero-kicker">Independent digital publication for readers who want clear updates, better context, and a cleaner reading experience.</p>
-          <h1>Nigeria news, world updates, and useful stories worth your time</h1>
+          <h1>Breaking Nigeria news, world updates, business insights, sports, technology, and original stories that matter to everyday readers.</h1>
           <p className="hero-text">
             Follow breaking stories, smart explainers, and practical updates across Nigeria, business, technology, entertainment, lifestyle, education, health, and world news.
           </p>
