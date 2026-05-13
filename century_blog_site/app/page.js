@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getPosts } from "@/lib/posts-store";
 import {
   getActiveCategories,
+  buildPageMetadata,
   buildBreadcrumbJsonLd,
   filterPosts,
   getCategoryMeta,
@@ -23,6 +24,22 @@ import {
 } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
+
+export const metadata = buildPageMetadata({
+  title: "Century Blog",
+  description:
+    "Century Blog covers Nigeria news, world updates, business, technology, entertainment, health, lifestyle, education, and daily gist in a clear reader-first format.",
+  path: "/",
+  keywords: [
+    "Century Blog",
+    "Nigeria news",
+    "world news",
+    "business news",
+    "technology news",
+    "entertainment news",
+    "lifestyle stories"
+  ]
+});
 
 function StoryHighlightCard({ post, meta }) {
   const media = getDisplayMedia(post, "story");
@@ -136,14 +153,14 @@ export default async function HomePage({ searchParams }) {
             </div>
           </div>
           <p className="hero-kicker">Independent digital publication for readers who want clear updates, better context, and a cleaner reading experience.</p>
-          <h1>Breaking news, explainers, and everyday stories made easier to trust</h1>
+          <h1>Nigeria news, world updates, and useful stories worth your time</h1>
           <p className="hero-text">
-            Read the latest stories from Nigeria and beyond in a cleaner format built for mobile and desktop. Century Blog combines timely headlines, useful context, and reader-first presentation without cluttered navigation or empty sections.
+            Follow breaking stories, smart explainers, and practical updates across Nigeria, business, technology, entertainment, lifestyle, education, health, and world news.
           </p>
           <div className="hero-highlights" aria-label="Century Blog highlights">
-            <span className="hero-highlight">Nigeria and world headlines</span>
-            <span className="hero-highlight">Fast-loading reading experience</span>
-            <span className="hero-highlight">Business, technology, health, lifestyle, and daily gist</span>
+            <span className="hero-highlight">Breaking Nigeria and world headlines</span>
+            <span className="hero-highlight">Clear business, tech, health, and lifestyle coverage</span>
+            <span className="hero-highlight">Fast mobile-friendly reading experience</span>
           </div>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
@@ -164,19 +181,38 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Browse Sections</span>
             <h2>Follow the topics you care about most</h2>
           </div>
-          <p>Explore the sections currently active across Century Blog, with cleaner navigation to the stories readers are following most.</p>
+          <p>Jump straight into the sections readers explore most, from Nigeria headlines and business updates to technology, health, lifestyle, and daily gist.</p>
         </div>
         <PostFilters query={query} category="" action="/" categories={activeCategories} />
       </section>
 
-      {mostReadPosts.length ? (
-        <section className="section-block section-card top-stories-panel">
+      <section id="latest" className="section-block">
         <div className="section-header">
           <div>
-            <span className="eyebrow">Most Read</span>
-              <h2>Most read news and trending stories right now</h2>
+            <span className="eyebrow">Latest Headlines</span>
+            <h2>Latest breaking news and fresh stories</h2>
+          </div>
+          <p>The newest reports and breaking updates from Nigeria and beyond, shown in true publishing order so readers see the freshest stories first.</p>
+        </div>
+
+        <div className="post-grid">
+          {secondaryPosts.map((post) => (
+            <PostCard key={post.slug} post={post} />
+          ))}
+        </div>
+        {secondaryPosts.length === 0 ? (
+          <p className="empty-state">No posts matched your search yet. Try another keyword.</p>
+        ) : null}
+      </section>
+
+      {mostReadPosts.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Most Read</span>
+              <h2>Most read stories on Century Blog right now</h2>
             </div>
-            <p>The stories attracting the strongest reader interest across the site, from major headlines to useful explainers worth catching up on.</p>
+            <p>The stories drawing the strongest reader attention across the site, from major developments to useful catch-up pieces.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
@@ -191,9 +227,9 @@ export default async function HomePage({ searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Editor&apos;s Picks</span>
-              <h2>Useful stories worth spending time on</h2>
+              <h2>Selected stories with stronger context and lasting value</h2>
             </div>
-            <p>A curated selection of stories with stronger context, sharper reporting, and lasting relevance beyond the daily scroll.</p>
+            <p>Handpicked stories worth spending more time on, with sharper reporting, broader context, and clearer reader relevance.</p>
           </div>
           <div className="mini-post-grid">
             {editorPicks.map((post) => (
@@ -203,25 +239,6 @@ export default async function HomePage({ searchParams }) {
         </section>
       ) : null}
 
-      <section id="latest" className="section-block">
-        <div className="section-header">
-          <div>
-            <span className="eyebrow">Latest Headlines</span>
-            <h2>Latest breaking news and new stories</h2>
-          </div>
-          <p>Freshly published reports, breaking updates, and developing stories presented in clear chronological order for readers tracking Nigeria and global news.</p>
-        </div>
-
-        <div className="post-grid">
-          {secondaryPosts.map((post) => (
-            <PostCard key={post.slug} post={post} />
-          ))}
-        </div>
-        {secondaryPosts.length === 0 ? (
-          <p className="empty-state">No posts matched your search yet. Try another keyword.</p>
-        ) : null}
-      </section>
-
       <AdPlaceholder label="Homepage ad slot" variant="homepage" />
 
       <section className="newsletter-panel section-card">
@@ -229,7 +246,7 @@ export default async function HomePage({ searchParams }) {
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Subscribe for timely headlines, major developing stories, and selected updates from Nigeria, world news, business, technology, entertainment, lifestyle, health, and education.
+            Subscribe for breaking headlines, useful explainers, and selected updates across Nigeria, world news, business, technology, entertainment, lifestyle, health, and education.
           </p>
         </div>
         <NewsletterForm />
