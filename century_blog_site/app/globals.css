@@ -1299,6 +1299,11 @@ button {
   padding: 1rem;
 }
 
+.editor-live-preview--compact {
+  align-content: start;
+  min-height: auto;
+}
+
 .editor-live-preview__header {
   display: flex;
   justify-content: space-between;
@@ -1316,6 +1321,14 @@ button {
   border-radius: 20px;
   background: rgba(6, 10, 18, 0.78);
   border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.markdown-toolbar {
+  position: sticky;
+  top: 1rem;
+  z-index: 2;
+  padding-bottom: 0.2rem;
+  background: linear-gradient(180deg, rgba(11, 13, 18, 0.96), rgba(11, 13, 18, 0.82), transparent);
 }
 
 @media (min-width: 960px) {

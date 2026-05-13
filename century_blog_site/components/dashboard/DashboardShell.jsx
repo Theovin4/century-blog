@@ -277,6 +277,7 @@ function buildResolvedDraft(draft, currentUser, editorDefaults) {
 export function DashboardShell({ initialPosts, currentUser }) {
   const router = useRouter();
   const contentRef = useRef(null);
+  const inlineImageInputRef = useRef(null);
   const [posts, setPosts] = useState(initialPosts);
   const [draft, setDraft] = useState(emptyDraft);
   const [editorDefaults, setEditorDefaults] = useState(() => readStoredEditorDefaults());
@@ -315,6 +316,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
   const [logSearch, setLogSearch] = useState("");
   const [submitMode, setSubmitMode] = useState(() => (currentUser?.role === "admin" || currentUser?.role === "super_admin" ? "publish" : "submit"));
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [inlineImageBusy, setInlineImageBusy] = useState(false);
 
   const isSuperAdmin = currentUser?.role === "super_admin";
   const isAdmin = currentUser?.role === "admin" || isSuperAdmin;
@@ -564,6 +567,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       category: editorDefaults.category || current.category || emptyDraft.category
     }));
     setShowAdvancedFields(false);
+    setShowPreview(false);
     setSubmitMode(isAdmin ? "publish" : "submit");
     resetMessages();
   }
@@ -593,6 +597,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     });
     setSubmitMode(post.workflowStatus === "published" ? "publish" : post.workflowStatus || "draft");
     setShowAdvancedFields(true);
+    setShowPreview(true);
     resetMessages();
     setResultCard({
       title: "Editing selected post",
@@ -628,6 +633,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     });
     setSubmitMode("publish");
     setShowAdvancedFields(true);
+    setShowPreview(true);
     resetMessages();
     setResultCard({
       title: "Reviewing queued auto draft",
@@ -675,6 +681,67 @@ export function DashboardShell({ initialPosts, currentUser }) {
       name: file.name,
       objectUrl
     });
+  }
+
+  async function handleInlineImageUpload(event) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files can be inserted inside article content.");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      setError("Inline article images must be 8MB or smaller.");
+      return;
+    }
+
+    setInlineImageBusy(true);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.set("image", file);
+      const upload = await fetchWithFeedback("/api/uploads/article-image", {
+        method: "POST",
+        body: formData
+      }, "Unable to upload inline article image.");
+      const altText = upload.alt || file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim();
+      const markdown = `![${altText}](${upload.url})`;
+      const textarea = contentRef.current;
+      const currentValue = draft.content || "";
+
+      if (!textarea) {
+        updateDraftField("content", [currentValue.trim(), markdown].filter(Boolean).join("\n\n"));
+      } else {
+        const start = textarea.selectionStart ?? currentValue.length;
+        const end = textarea.selectionEnd ?? currentValue.length;
+        const insertion = `${start > 0 ? "\n\n" : ""}${markdown}\n\n`;
+        const nextValue = `${currentValue.slice(0, start)}${insertion}${currentValue.slice(end)}`;
+        updateDraftField("content", nextValue);
+        requestAnimationFrame(() => {
+          textarea.focus();
+          const cursor = start + insertion.length;
+          textarea.setSelectionRange(cursor, cursor);
+        });
+      }
+
+      setToast({
+        text: "Inline image uploaded and inserted into the article.",
+        href: upload.url,
+        actionLabel: "Open image"
+      });
+      setShowPreview(true);
+    } catch (nextError) {
+      setError(nextError.message || "Unable to upload inline image.");
+    } finally {
+      setInlineImageBusy(false);
+    }
   }
 
   function insertMarkdown(tool) {
@@ -779,6 +846,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
         category: resolvedDraft.category
       });
       setShowAdvancedFields(false);
+      setShowPreview(false);
       setSubmitMode(isAdmin ? "publish" : "submit");
       event.currentTarget.reset();
       await refreshAutoDrafts().catch(() => undefined);
@@ -790,7 +858,12 @@ export function DashboardShell({ initialPosts, currentUser }) {
       router.refresh();
       router.prefetch?.("/");
     } catch (nextError) {
-      setError(nextError.message || "Unable to save post.");
+      if ((nextError.message || "").includes("Source needed before publication.")) {
+        setShowAdvancedFields(true);
+        setError("This story needs at least one verified source link before it can be submitted or published. Open Advanced settings and add the source.");
+      } else {
+        setError(nextError.message || "Unable to save post.");
+      }
     } finally {
       setSubmitBusy(false);
       endAction();
@@ -1410,7 +1483,29 @@ export function DashboardShell({ initialPosts, currentUser }) {
                     {tool.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="markdown-tool"
+                  onClick={() => inlineImageInputRef.current?.click()}
+                  disabled={inlineImageBusy}
+                >
+                  {inlineImageBusy ? "Uploading image..." : "Add image"}
+                </button>
+                <button
+                  type="button"
+                  className="markdown-tool"
+                  onClick={() => setShowPreview((current) => !current)}
+                >
+                  {showPreview ? "Hide preview" : "Show preview"}
+                </button>
               </div>
+              <input
+                ref={inlineImageInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={handleInlineImageUpload}
+              />
               <textarea
                 ref={contentRef}
                 name="content"
@@ -1420,18 +1515,27 @@ export function DashboardShell({ initialPosts, currentUser }) {
                 onChange={(event) => updateDraftField("content", event.target.value)}
                 required
               />
-              <span className="editor-form__hint">Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, and avoid HTML tags like &lt;p&gt; or &lt;br&gt;.</span>
+              <span className="editor-form__hint">Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, avoid HTML tags like &lt;p&gt; or &lt;br&gt;, and use Add image to place images inside the article body.</span>
             </label>
 
-            <div className="editor-live-preview">
-              <div className="editor-live-preview__header">
-                <strong>Live preview</strong>
-                <span>Markdown renders exactly like the public post page.</span>
+            {showPreview ? (
+              <div className="editor-live-preview">
+                <div className="editor-live-preview__header">
+                  <strong>Live preview</strong>
+                  <span>Markdown renders exactly like the public post page.</span>
+                </div>
+                <div className="editor-live-preview__body blog-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownPreviewComponents}>{previewContent}</ReactMarkdown>
+                </div>
               </div>
-              <div className="editor-live-preview__body blog-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownPreviewComponents}>{previewContent}</ReactMarkdown>
+            ) : (
+              <div className="editor-live-preview editor-live-preview--compact">
+                <div className="editor-live-preview__header">
+                  <strong>Preview hidden</strong>
+                  <span>Open it only when you want to inspect formatting before posting.</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <label>
