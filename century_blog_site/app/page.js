@@ -50,13 +50,16 @@ function StoryHighlightCard({ post, meta }) {
       className={`mini-post-card ${media.kind !== "none" ? "mini-post-card--with-media" : ""}`}
     >
       {media.kind === "image" ? (
-        <img
-          src={media.url}
-          alt={post.title}
-          className="mini-post-card__media"
-          loading="lazy"
-          decoding="async"
-        />
+        <div className="mini-post-card__media-shell">
+          <Image
+            src={media.url}
+            alt={post.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            className="mini-post-card__media"
+            unoptimized={String(media.url || "").startsWith("data:")}
+          />
+        </div>
       ) : null}
       {media.kind === "video" ? (
         <video className="mini-post-card__media" muted playsInline preload="metadata" poster={media.posterUrl || undefined}>

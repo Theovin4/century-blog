@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatLongDate, getCategoryMeta, getDisplayMedia, pickFeaturedPost, sortPostsByRecency } from "@/lib/site";
@@ -51,11 +52,14 @@ export function FeaturedStoryCarousel({ posts }) {
   return (
     <article className={`feature-card ${featuredPost.coverStyle}`}>
       {featuredHasImage ? (
-        <img
+        <Image
           src={featuredMedia.url}
           alt={featuredPost.title}
+          fill
+          priority
+          sizes="(max-width: 980px) 100vw, 50vw"
           className="feature-card__image"
-          fetchPriority="high"
+          unoptimized={String(featuredMedia.url || "").startsWith("data:")}
         />
       ) : null}
       {featuredHasVideo ? (

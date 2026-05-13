@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import React from "react";
@@ -387,7 +388,16 @@ export default async function PostPage({ params }) {
                 <source src={articleMedia.url} type={articleMedia.type} />
               </video>
             ) : (
-              <img className="article-media" src={articleMedia.url} alt={post.imageAlt || post.title} />
+              <Image
+                className="article-media"
+                src={articleMedia.url}
+                alt={post.imageAlt || post.title}
+                width={1600}
+                height={1100}
+                sizes="(max-width: 900px) 100vw, 760px"
+                priority
+                unoptimized={String(articleMedia.url || "").startsWith("data:")}
+              />
             )}
             {post.imageCreditName || post.imageCreditUrl ? (
               <p className="article-media__credit">

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { formatLongDate, getCategoryMeta, getDisplayMedia } from "@/lib/site";
 
@@ -11,13 +12,16 @@ export function PostCard({ post }) {
     <article className="post-card">
       <div className={`post-card__cover ${post.coverStyle}`}>
         {hasImage ? (
-          <img
-            src={media.url}
-            alt={post.title}
-            className="post-card__media post-card__image"
-            loading="lazy"
-            decoding="async"
-          />
+          <div className="post-card__media-shell">
+            <Image
+              src={media.url}
+              alt={post.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="post-card__media post-card__image"
+              unoptimized={String(media.url || "").startsWith("data:")}
+            />
+          </div>
         ) : null}
         {hasVideo ? (
           <video

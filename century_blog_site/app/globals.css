@@ -459,6 +459,12 @@ button {
   overflow: hidden;
 }
 
+.post-card__media-shell,
+.mini-post-card__media-shell {
+  position: absolute;
+  inset: 0;
+}
+
 .dashboard-promo {
   margin-top: 3rem;
   border-radius: 32px;
