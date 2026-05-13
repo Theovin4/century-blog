@@ -12,12 +12,10 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getEngagementBySlug } from "@/lib/engagement-store";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
-  getArticleDisclaimer,
   getArticleSchemaType,
   getAuthorProfile,
   buildBreadcrumbJsonLd,
   buildPostKeywords,
-  extractMarkdownHeadings,
   extractMentionedCountries,
   formatLongDate,
   getCategoryMeta,
@@ -25,7 +23,6 @@ import {
   getOptimizedImageUrl,
   getProxiedImageUrl,
   getRenderableContent,
-  getSensitiveSourceNote,
   getSiteUrl,
   isImageMedia,
   normalizeMarkdownContent,
@@ -154,13 +151,10 @@ export default async function PostPage({ params }) {
   const articleUrl = `${siteUrl}/news/${post.slug}`;
   const imageUrls = isImageMedia(post.mediaUrl, post.mediaType) ? [toAbsoluteUrl(post.mediaUrl)] : undefined;
   const authorProfile = getAuthorProfile(post.author);
-  const articleDisclaimer = getArticleDisclaimer(post);
   const articleSchemaType = getArticleSchemaType(post);
   const updatedLabel = post.updatedAt && post.updatedAt !== post.publishedAt ? formatLongDate(post.updatedAt) : "";
   const sourceLinks = Array.isArray(post.sourceLinks) ? post.sourceLinks.filter((item) => item?.url) : [];
   const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl || sourceLinks.length);
-  const sensitiveSourceNote = getSensitiveSourceNote(post);
-  const contentHeadings = extractMarkdownHeadings(renderedContent).slice(0, 8);
   const internalLinkTargets = [
     {
       href: `/category/${post.category}`,
@@ -410,37 +404,10 @@ export default async function PostPage({ params }) {
         ) : null}
 
         <div className="article-body blog-content">
-          {contentHeadings.length >= 2 ? (
-            <aside className="source-box source-box--toc">
-              <span className="eyebrow">In This Article</span>
-              <ul className="source-box__list">
-                {contentHeadings.map((heading) => (
-                  <li key={heading.id} className={`source-box__list-item source-box__list-item--depth-${heading.depth}`}>
-                    <a href={`#${heading.id}`}>{heading.text}</a>
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          ) : null}
-          {internalLinkTargets.length ? (
-            <aside className="source-box source-box--internal">
-              <span className="eyebrow">Related Coverage</span>
-              <p>Explore connected reporting and category pages without leaving this story trail.</p>
-              <ul className="source-box__list">
-                {internalLinkTargets.map((item) => (
-                  <li key={item.href} className="source-box__list-item">
-                    <Link href={item.href}>
-                      {item.label}
-                    </Link>
-                    {item.description ? <span>{item.description}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            </aside>
-          ) : null}
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{renderedContent}</ReactMarkdown>
           {hasSourceAttribution ? (
-            <aside className="source-box">
-              <span className="eyebrow">Verified Source</span>
+            <aside className="source-box source-box--sources">
+              <span className="eyebrow">Sources</span>
               <p>
                 {post.sourceUrl ? (
                   <a href={post.sourceUrl} target="_blank" rel="noreferrer">
@@ -463,19 +430,6 @@ export default async function PostPage({ params }) {
               ) : null}
             </aside>
           ) : null}
-          {sensitiveSourceNote ? (
-            <aside className="source-box source-box--notice">
-              <span className="eyebrow">Verification Note</span>
-              <p>{sensitiveSourceNote}</p>
-            </aside>
-          ) : null}
-          {articleDisclaimer ? (
-            <aside className="source-box source-box--notice">
-              <span className="eyebrow">{articleDisclaimer.title}</span>
-              <p>{articleDisclaimer.body}</p>
-            </aside>
-          ) : null}
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{renderedContent}</ReactMarkdown>
           {internalLinkTargets.length ? (
             <aside className="source-box source-box--internal">
               <span className="eyebrow">Continue Reading</span>
@@ -483,34 +437,16 @@ export default async function PostPage({ params }) {
                 {internalLinkTargets.map((item) => (
                   <li key={`footer-${item.href}`} className="source-box__list-item">
                     <Link href={item.href}>{item.label}</Link>
+                    {item.description ? <span>{item.description}</span> : null}
                   </li>
                 ))}
               </ul>
             </aside>
           ) : null}
           <AdPlaceholder label="Article inline ad slot" variant="inline" />
-          <aside className="source-box source-box--author">
-            <span className="eyebrow">Author</span>
-            <h2>{authorProfile.name}</h2>
-            <p>{authorProfile.bio}</p>
-          </aside>
+          <p className="article-author-line">Author: {authorProfile.name}</p>
         </div>
       </article>
-
-      {relatedPosts.length ? (
-        <section className="section-card article-related">
-          <span className="eyebrow">Keep Reading</span>
-          <h2>Related stories readers may also enjoy</h2>
-          <div className="article-related__links">
-            {relatedPosts.map((relatedPost) => (
-              <Link key={relatedPost.slug} href={`/news/${relatedPost.slug}`} className="article-related__item">
-                <strong>{relatedPost.title}</strong>
-                <span>{relatedPost.excerpt}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
 
       <AdPlaceholder label="Sidebar ad slot" variant="sidebar" />
       <AdPlaceholder label="Footer ad slot" variant="footer" />
