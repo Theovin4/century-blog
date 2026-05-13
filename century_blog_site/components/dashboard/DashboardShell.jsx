@@ -309,6 +309,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
   const [notifications, setNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [logsLoaded, setLogsLoaded] = useState(false);
+  const [automationLoaded, setAutomationLoaded] = useState(false);
   const [overview, setOverview] = useState({
     pendingReviewCount: 0,
     publishedCount: 0,
@@ -428,66 +431,111 @@ export function DashboardShell({ initialPosts, currentUser }) {
   useEffect(() => {
     let active = true;
 
-    async function loadDashboardAutomation() {
+    async function loadDashboardCore() {
       try {
-        const requests = [
-          fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to load posts."),
+        const [notificationsData, overviewData] = await Promise.all([
           fetchWithFeedback("/api/admin/notifications", { cache: "no-store" }, "Unable to load notifications."),
           fetchWithFeedback("/api/admin/overview", { cache: "no-store" }, "Unable to load overview.")
-        ];
-
-        if (canManageAutomation) {
-          requests.push(
-            fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings."),
-            fetchWithFeedback("/api/automation/drafts", { cache: "no-store" }, "Unable to load auto drafts.")
-          );
-        }
-
-        if (canManageUsers) {
-          requests.push(
-            fetchWithFeedback("/api/admin/users", { cache: "no-store" }, "Unable to load team accounts."),
-            fetchWithFeedback("/api/admin/logs", { cache: "no-store" }, "Unable to load activity logs.")
-          );
-        }
-
-        const [
-          postsData,
-          notificationsData,
-          overviewData,
-          settingsData,
-          draftsData,
-          usersData,
-          logsData
-        ] = await Promise.all(requests);
+        ]);
 
         if (!active) {
           return;
         }
 
-        if (Array.isArray(postsData)) {
-          setPosts(postsData);
-        }
-
         setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
         setOverview(overviewData || {});
-        setAutomationSettings(settingsData?.settings || emptyAutomation);
-        setProviderSummary(settingsData?.providers || {});
-        setAutoDrafts(Array.isArray(draftsData) ? draftsData : []);
-        setUsers(Array.isArray(usersData) ? usersData : []);
-        setActivityLogs(Array.isArray(logsData) ? logsData : []);
       } catch (nextError) {
         if (active) {
-          setError(nextError.message || "Unable to load dashboard settings.");
+          setError(nextError.message || "Unable to load dashboard.");
         }
       }
     }
 
-    loadDashboardAutomation();
+    loadDashboardCore();
 
     return () => {
       active = false;
     };
-  }, [canManageAutomation, canManageUsers]);
+  }, []);
+
+  useEffect(() => {
+    if (!canManageAutomation) {
+      return undefined;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      try {
+        const settingsData = await fetchWithFeedback(
+          "/api/automation/settings",
+          { cache: "no-store" },
+          "Unable to load dashboard settings."
+        );
+
+        if (!active) {
+          return;
+        }
+
+        setAutomationSettings(settingsData?.settings || emptyAutomation);
+        setProviderSummary(settingsData?.providers || {});
+        setAutomationLoaded(true);
+
+        const draftsData = await fetchWithFeedback(
+          "/api/automation/drafts",
+          { cache: "no-store" },
+          "Unable to load auto drafts."
+        );
+
+        if (!active) {
+          return;
+        }
+
+        setAutoDrafts(Array.isArray(draftsData) ? draftsData : []);
+      } catch (nextError) {
+        if (active) {
+          setError((current) => current || nextError.message || "Unable to load automation details.");
+        }
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [canManageAutomation]);
+
+  useEffect(() => {
+    if (!canManageUsers) {
+      return undefined;
+    }
+
+    let active = true;
+    const timeout = window.setTimeout(async () => {
+      try {
+        const usersData = await fetchWithFeedback(
+          "/api/admin/users",
+          { cache: "no-store" },
+          "Unable to load team accounts."
+        );
+
+        if (!active) {
+          return;
+        }
+
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setUsersLoaded(true);
+      } catch (nextError) {
+        if (active) {
+          setError((current) => current || nextError.message || "Unable to load team accounts.");
+        }
+      }
+    }, 700);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [canManageUsers]);
 
   async function refreshPosts() {
     const data = await fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to refresh published posts.");
@@ -530,6 +578,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
     const data = await fetchWithFeedback("/api/admin/users", { cache: "no-store" }, "Unable to refresh team accounts.");
     setUsers(Array.isArray(data) ? data : []);
+    setUsersLoaded(true);
     return data;
   }
 
@@ -541,6 +590,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
     const data = await fetchWithFeedback(`/api/admin/logs${suffix}`, { cache: "no-store" }, "Unable to refresh activity logs.");
     setActivityLogs(Array.isArray(data) ? data : []);
+    setLogsLoaded(true);
     return data;
   }
 
@@ -1334,6 +1384,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             {activeAction === "run-automation" ? "Running now..." : "Run now"}
           </button>
         </div>
+        {!automationLoaded ? <p className="automation-panel__note">Loading automation details...</p> : null}
         {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
       </section>
       ) : null}
@@ -1954,7 +2005,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </form>
 
           <div className="dashboard-post-list">
-            {users.map((user) => (
+            {!usersLoaded ? <p className="empty-state">Loading team accounts...</p> : null}
+            {usersLoaded ? users.map((user) => (
               <article key={user.id} className="dashboard-post-card">
                 <div className="dashboard-post-card__labels">
                   <span className="pill">{String(user.role || "").replace(/_/g, " ")}</span>
@@ -1973,7 +2025,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                   </div>
                 ) : null}
               </article>
-            ))}
+            )) : null}
           </div>
         </section>
       ) : null}
@@ -1994,12 +2046,13 @@ export function DashboardShell({ initialPosts, currentUser }) {
             </label>
             <div className="editor-form__actions" style={{ alignSelf: "end" }}>
               <button type="button" className="button button-secondary" onClick={() => refreshLogs()}>
-                Refresh logs
+                {logsLoaded ? "Refresh logs" : "Load logs"}
               </button>
             </div>
           </div>
           <div className="dashboard-post-list">
-            {activityLogs.map((log) => (
+            {!logsLoaded ? <p className="empty-state">Activity logs load only when requested, so the dashboard opens faster.</p> : null}
+            {logsLoaded ? activityLogs.map((log) => (
               <article key={log.id} className="dashboard-post-card">
                 <div className="dashboard-post-card__labels">
                   <span className="pill">{log.status}</span>
@@ -2010,8 +2063,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
                   {new Date(log.createdAt).toLocaleString("en-NG")} {log.entityType ? `| ${log.entityType}` : ""} {log.entityId ? `| ${log.entityId}` : ""}
                 </p>
               </article>
-            ))}
-            {!activityLogs.length ? <p className="empty-state">No activity logs matched your search yet.</p> : null}
+            )) : null}
+            {logsLoaded && !activityLogs.length ? <p className="empty-state">No activity logs matched your search yet.</p> : null}
           </div>
         </section>
       ) : null}
