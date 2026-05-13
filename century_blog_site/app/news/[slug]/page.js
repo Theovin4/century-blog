@@ -161,6 +161,23 @@ export default async function PostPage({ params }) {
   const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl || sourceLinks.length);
   const sensitiveSourceNote = getSensitiveSourceNote(post);
   const contentHeadings = extractMarkdownHeadings(renderedContent).slice(0, 8);
+  const internalLinkTargets = [
+    {
+      href: `/category/${post.category}`,
+      label: `More in ${categoryMeta.label}`,
+      description: categoryMeta.description
+    },
+    {
+      href: "/blog",
+      label: "Browse the latest stories",
+      description: "See the newest published stories across Century Blog in one place."
+    },
+    ...relatedPosts.slice(0, 2).map((relatedPost) => ({
+      href: `/news/${relatedPost.slug}`,
+      label: relatedPost.title,
+      description: relatedPost.excerpt
+    }))
+  ].filter((item, index, items) => items.findIndex((candidate) => candidate.href === item.href) === index);
   const headingIds = new Set();
   const toHeadingId = (value) => {
     const baseId = slugify(value || "section") || "section";
@@ -405,6 +422,22 @@ export default async function PostPage({ params }) {
               </ul>
             </aside>
           ) : null}
+          {internalLinkTargets.length ? (
+            <aside className="source-box source-box--internal">
+              <span className="eyebrow">Related Coverage</span>
+              <p>Explore connected reporting and category pages without leaving this story trail.</p>
+              <ul className="source-box__list">
+                {internalLinkTargets.map((item) => (
+                  <li key={item.href} className="source-box__list-item">
+                    <Link href={item.href}>
+                      {item.label}
+                    </Link>
+                    {item.description ? <span>{item.description}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          ) : null}
           {hasSourceAttribution ? (
             <aside className="source-box">
               <span className="eyebrow">Verified Source</span>
@@ -443,6 +476,18 @@ export default async function PostPage({ params }) {
             </aside>
           ) : null}
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>{renderedContent}</ReactMarkdown>
+          {internalLinkTargets.length ? (
+            <aside className="source-box source-box--internal">
+              <span className="eyebrow">Continue Reading</span>
+              <ul className="source-box__list">
+                {internalLinkTargets.map((item) => (
+                  <li key={`footer-${item.href}`} className="source-box__list-item">
+                    <Link href={item.href}>{item.label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          ) : null}
           <AdPlaceholder label="Article inline ad slot" variant="inline" />
           <aside className="source-box source-box--author">
             <span className="eyebrow">Author</span>

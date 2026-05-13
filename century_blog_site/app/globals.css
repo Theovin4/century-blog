@@ -1921,9 +1921,39 @@ button {
   margin: 0;
 }
 
+.source-box__list {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0.9rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-box__list-item {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.source-box__list-item a {
+  color: #8de9ff;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.source-box__list-item span {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
 .source-box--notice {
   border-color: rgba(255, 207, 90, 0.18);
   background: rgba(65, 44, 7, 0.28);
+}
+
+.source-box--internal {
+  border-color: rgba(94, 242, 255, 0.16);
+  background: rgba(10, 26, 34, 0.34);
 }
 
 .source-box--author {
