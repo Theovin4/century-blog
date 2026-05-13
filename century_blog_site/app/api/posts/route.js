@@ -6,7 +6,7 @@ import {
   isCloudinaryConfigured,
   isPersistentStorageReady
 } from "@/lib/cloudinary";
-import { inferMediaType, isSensitivePost, isValidCategory } from "@/lib/site";
+import { inferMediaType, isValidCategory } from "@/lib/site";
 import {
   getCurrentUser,
   hasPermission,
@@ -100,20 +100,6 @@ function resolveWorkflowStatus(user, requestedStatus, scheduledFor = "") {
   return requested;
 }
 
-function validateSensitiveSources(postInput, workflowStatus) {
-  if (!["pending_review", "approved", "published", "scheduled"].includes(workflowStatus)) {
-    return "";
-  }
-
-  const hasSources = Boolean(postInput.sourceUrl || (postInput.sourceLinks || []).length);
-
-  if (isSensitivePost(postInput) && !hasSources) {
-    return "Source needed before publication.";
-  }
-
-  return "";
-}
-
 export async function GET() {
   const user = await getCurrentUser();
   const posts = user ? await getAllPosts() : await getPosts();
@@ -169,15 +155,6 @@ export async function POST(request) {
   }
 
   const workflowStatus = resolveWorkflowStatus(user, requestedWorkflowStatus, scheduledFor);
-  const validationError = validateSensitiveSources(
-    { title, excerpt, content, category, sourceUrl, sourceLinks },
-    workflowStatus
-  );
-
-  if (validationError) {
-    return NextResponse.json({ message: validationError }, { status: 400 });
-  }
-
   if (media && typeof media !== "string" && media.size > 0) {
     if (!isCloudinaryConfigured()) {
       return NextResponse.json({ message: getPersistentStorageErrorMessage() }, { status: 503 });

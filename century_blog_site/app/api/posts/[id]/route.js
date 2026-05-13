@@ -6,7 +6,7 @@ import {
   isCloudinaryConfigured,
   isPersistentStorageReady
 } from "@/lib/cloudinary";
-import { inferMediaType, isSensitivePost, isValidCategory } from "@/lib/site";
+import { inferMediaType, isValidCategory } from "@/lib/site";
 import { addNotification } from "@/lib/notifications-store";
 import {
   canEditPost,
@@ -153,16 +153,6 @@ export async function PATCH(request, { params }) {
 
   if (featured === true && !hasPermission(user, "articles:feature")) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-  }
-
-  const hasSources = Boolean(sourceUrl || sourceLinks.length || current.sourceUrl || (current.sourceLinks || []).length);
-
-  if (
-    ["pending_review", "approved", "published", "scheduled"].includes(workflowStatus) &&
-    isSensitivePost({ title, excerpt, content, category, sourceUrl, sourceLinks }) &&
-    !hasSources
-  ) {
-    return NextResponse.json({ message: "Source needed before publication." }, { status: 400 });
   }
 
   if (media && typeof media !== "string" && media.size > 0) {
