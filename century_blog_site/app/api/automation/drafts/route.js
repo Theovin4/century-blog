@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { isAdminAuthenticated } from "@/lib/auth";
 import { getAutoDrafts } from "@/lib/auto-drafts-store";
+import { getCurrentUser, hasPermission } from "@/lib/editorial";
 
 async function requireAdmin() {
-  const cookieStore = await cookies();
-  return isAdminAuthenticated(cookieStore.get("century_admin_session")?.value);
+  return getCurrentUser();
 }
 
 export async function GET() {
-  if (!(await requireAdmin())) {
+  const user = await requireAdmin();
+
+  if (!user) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "articles:review")) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const drafts = await getAutoDrafts();

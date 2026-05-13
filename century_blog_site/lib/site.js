@@ -62,6 +62,15 @@ export const postTypeMeta = {
 };
 
 export const postTypeOptions = Object.keys(postTypeMeta);
+export const workflowStatusMeta = {
+  draft: { label: "Draft" },
+  pending_review: { label: "Pending Review" },
+  approved: { label: "Approved" },
+  published: { label: "Published" },
+  rejected: { label: "Rejected" },
+  scheduled: { label: "Scheduled" }
+};
+export const workflowStatusOptions = Object.keys(workflowStatusMeta);
 
 export const socialLinks = [
   {
@@ -339,6 +348,10 @@ export function getActiveCategories(posts, availableCategories = categoryOptions
 
 export function getPostTypeMeta(type) {
   return postTypeMeta[type] || postTypeMeta.manual;
+}
+
+export function getWorkflowStatusMeta(status) {
+  return workflowStatusMeta[status] || workflowStatusMeta.draft;
 }
 
 export function isValidCategory(category) {

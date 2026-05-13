@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { isAdminAuthenticated } from "@/lib/auth";
 import { getAutomationProviderSummary } from "@/lib/auto-news";
 import { getAutomationSettings, updateAutomationSettings } from "@/lib/automation-store";
+import { getCurrentUser, hasPermission } from "@/lib/editorial";
 
 async function requireAdmin() {
-  const cookieStore = await cookies();
-  return isAdminAuthenticated(cookieStore.get("century_admin_session")?.value);
+  return getCurrentUser();
 }
 
 export async function GET() {
-  if (!(await requireAdmin())) {
+  const user = await requireAdmin();
+
+  if (!user) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "articles:settings")) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const [settings, providers] = await Promise.all([
@@ -23,8 +27,14 @@ export async function GET() {
 }
 
 export async function PATCH(request) {
-  if (!(await requireAdmin())) {
+  const user = await requireAdmin();
+
+  if (!user) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!hasPermission(user, "articles:settings")) {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));

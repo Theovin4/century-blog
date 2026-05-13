@@ -1,9 +1,8 @@
 import Image from "next/image";
-import { cookies } from "next/headers";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { LoginForm } from "@/components/dashboard/LoginForm";
-import { getPosts } from "@/lib/posts-store";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getAllPosts } from "@/lib/posts-store";
+import { getCurrentUser } from "@/lib/editorial";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +16,8 @@ export const metadata = {
 };
 
 export default async function DashboardPage() {
-  const cookieStore = await cookies();
-  const isAuthenticated = isAdminAuthenticated(cookieStore.get("century_admin_session")?.value);
-  const posts = await getPosts();
+  const currentUser = await getCurrentUser();
+  const posts = currentUser ? await getAllPosts() : [];
 
   return (
     <main className="dashboard-page">
@@ -48,7 +46,7 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {isAuthenticated ? <DashboardShell initialPosts={posts} /> : <LoginForm />}
+        {currentUser ? <DashboardShell initialPosts={posts} currentUser={currentUser} /> : <LoginForm />}
       </section>
     </main>
   );

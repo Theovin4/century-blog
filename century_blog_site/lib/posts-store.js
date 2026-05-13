@@ -35,6 +35,7 @@ function defaultRegionFocus(category, explicitRegionFocus = "") {
 
 function sanitizePost(post) {
   const originalMediaUrl = post.originalMediaUrl || post.mediaUrl || "";
+  const workflowStatus = post.workflowStatus || "published";
 
   return {
     ...post,
@@ -45,16 +46,37 @@ function sanitizePost(post) {
     type: post.type || "manual",
     sourceName: post.sourceName || "",
     sourceUrl: post.sourceUrl || "",
+    sourceLinks: Array.isArray(post.sourceLinks) ? post.sourceLinks : [],
     sourceCountry: post.sourceCountry || "",
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
-    sitePublishedAt: post.sitePublishedAt || post.publishedAt || post.updatedAt || "",
+    sitePublishedAt:
+      workflowStatus === "published"
+        ? post.sitePublishedAt || post.publishedAt || post.updatedAt || ""
+        : post.sitePublishedAt || "",
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
     trendingScore: Number(post.trendingScore || 0),
     mediaUrl: originalMediaUrl,
     originalMediaUrl,
     posterUrl: post.posterUrl || "",
-    legacyMediaUrl: post.legacyMediaUrl || ""
+    legacyMediaUrl: post.legacyMediaUrl || "",
+    workflowStatus,
+    reviewNotes: post.reviewNotes || "",
+    submittedAt: post.submittedAt || "",
+    submittedBy: post.submittedBy || "",
+    approvedAt: post.approvedAt || "",
+    approvedBy: post.approvedBy || "",
+    rejectedAt: post.rejectedAt || "",
+    rejectedBy: post.rejectedBy || "",
+    scheduledFor: post.scheduledFor || "",
+    createdBy: post.createdBy || "",
+    createdByName: post.createdByName || "",
+    lastEditedBy: post.lastEditedBy || "",
+    lastEditedByName: post.lastEditedByName || "",
+    seoTitle: post.seoTitle || "",
+    metaDescription: post.metaDescription || "",
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    imageAlt: post.imageAlt || ""
   };
 }
 
@@ -69,6 +91,7 @@ function normalizePost(post) {
   const mediaName = post.mediaName || "";
   const mediaType = post.mediaType || inferMediaType(rawMediaUrl || mediaName);
   const posterUrl = post.posterUrl || buildCloudinaryVideoPosterUrl(rawMediaUrl);
+  const workflowStatus = post.workflowStatus || "published";
 
   return {
     ...post,
@@ -79,9 +102,13 @@ function normalizePost(post) {
     type: post.type || "manual",
     sourceName: post.sourceName || "",
     sourceUrl: post.sourceUrl || "",
+    sourceLinks: Array.isArray(post.sourceLinks) ? post.sourceLinks : [],
     sourceCountry: post.sourceCountry || "",
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
-    sitePublishedAt: post.sitePublishedAt || (post.type === "auto" ? post.updatedAt || post.publishedAt || "" : post.publishedAt || post.updatedAt || ""),
+    sitePublishedAt:
+      workflowStatus === "published"
+        ? post.sitePublishedAt || (post.type === "auto" ? post.updatedAt || post.publishedAt || "" : post.publishedAt || post.updatedAt || "")
+        : post.sitePublishedAt || "",
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
     trendingScore: Number(post.trendingScore || 0),
@@ -90,7 +117,24 @@ function normalizePost(post) {
     legacyMediaUrl: post.legacyMediaUrl || post.blobUrl || "",
     mediaName,
     mediaType,
-    posterUrl
+    posterUrl,
+    workflowStatus,
+    reviewNotes: post.reviewNotes || "",
+    submittedAt: post.submittedAt || "",
+    submittedBy: post.submittedBy || "",
+    approvedAt: post.approvedAt || "",
+    approvedBy: post.approvedBy || "",
+    rejectedAt: post.rejectedAt || "",
+    rejectedBy: post.rejectedBy || "",
+    scheduledFor: post.scheduledFor || "",
+    createdBy: post.createdBy || "",
+    createdByName: post.createdByName || "",
+    lastEditedBy: post.lastEditedBy || "",
+    lastEditedByName: post.lastEditedByName || "",
+    seoTitle: post.seoTitle || "",
+    metaDescription: post.metaDescription || "",
+    tags: Array.isArray(post.tags) ? post.tags : [],
+    imageAlt: post.imageAlt || ""
   };
 }
 
@@ -266,6 +310,13 @@ export async function replaceAllPosts(posts) {
 
 export async function getPosts() {
   const posts = await readPostsSource();
+  return posts
+    .filter((post) => String(post.workflowStatus || "published") === "published")
+    .sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
+}
+
+export async function getAllPosts() {
+  const posts = await readPostsSource();
   return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
 
@@ -275,12 +326,12 @@ export async function getPostBySlug(slug) {
 }
 
 export async function getPostById(id) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   return posts.find((post) => String(post.id) === String(id)) || null;
 }
 
 export async function getPostsByType(type) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   return posts.filter((post) => (post.type || "manual") === type);
 }
 
@@ -312,7 +363,11 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
   const slug = buildUniqueSlug(posts, title, existing?.id || "");
   const publishedAt = input.publishedAt || existing?.publishedAt || new Date().toISOString();
   const updatedAt = new Date().toISOString();
-  const sitePublishedAt = existing?.sitePublishedAt || new Date().toISOString();
+  const workflowStatus = input.workflowStatus || existing?.workflowStatus || (input.type === "auto" ? "published" : "draft");
+  const sitePublishedAt =
+    workflowStatus === "published"
+      ? existing?.sitePublishedAt || new Date().toISOString()
+      : existing?.sitePublishedAt || "";
 
   let media = null;
 
@@ -338,6 +393,7 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
     type: input.type || existing?.type || "manual",
     sourceName: input.sourceName || existing?.sourceName || "",
     sourceUrl: input.sourceUrl || existing?.sourceUrl || "",
+    sourceLinks: Array.isArray(input.sourceLinks) ? input.sourceLinks : existing?.sourceLinks || [],
     sourceCountry: input.sourceCountry || existing?.sourceCountry || "",
     regionFocus: defaultRegionFocus(input.category || existing?.category, input.regionFocus || existing?.regionFocus),
     autoProvider: input.autoProvider || existing?.autoProvider || "",
@@ -358,12 +414,29 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
     updatedAt,
     readTime: estimateReadTime(input.content),
     coverStyle: getCoverStyle(input.category || existing?.category),
-    featured: typeof input.featured === "boolean" ? input.featured : base.featured
+    featured: typeof input.featured === "boolean" ? input.featured : base.featured,
+    workflowStatus,
+    reviewNotes: input.reviewNotes ?? existing?.reviewNotes ?? "",
+    submittedAt: input.submittedAt ?? existing?.submittedAt ?? "",
+    submittedBy: input.submittedBy ?? existing?.submittedBy ?? "",
+    approvedAt: input.approvedAt ?? existing?.approvedAt ?? "",
+    approvedBy: input.approvedBy ?? existing?.approvedBy ?? "",
+    rejectedAt: input.rejectedAt ?? existing?.rejectedAt ?? "",
+    rejectedBy: input.rejectedBy ?? existing?.rejectedBy ?? "",
+    scheduledFor: input.scheduledFor ?? existing?.scheduledFor ?? "",
+    createdBy: input.createdBy || existing?.createdBy || "",
+    createdByName: input.createdByName || existing?.createdByName || "",
+    lastEditedBy: input.lastEditedBy ?? existing?.lastEditedBy ?? "",
+    lastEditedByName: input.lastEditedByName ?? existing?.lastEditedByName ?? "",
+    seoTitle: normalizeStoredText(input.seoTitle || existing?.seoTitle || title).trim(),
+    metaDescription: normalizeStoredText(input.metaDescription || existing?.metaDescription || input.excerpt || existing?.excerpt || "").trim(),
+    tags: Array.isArray(input.tags) ? input.tags : existing?.tags || [],
+    imageAlt: normalizeStoredText(input.imageAlt || existing?.imageAlt || title).trim()
   });
 }
 
 export async function createPost(input, mediaFile = null) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const post = await buildPostRecord(posts, { ...input, type: "manual" }, { mediaFile });
   const updatedPosts = [post, ...posts];
   await writePostsSource(updatedPosts);
@@ -371,7 +444,7 @@ export async function createPost(input, mediaFile = null) {
 }
 
 export async function createPostFromRemoteMedia(input) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const post = await buildPostRecord(
     posts,
     { ...input, type: "manual" },
@@ -385,7 +458,7 @@ export async function createPostFromRemoteMedia(input) {
 }
 
 export async function createAutoPost(input) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const duplicate = findSimilarPost(input, posts);
 
   if (duplicate) {
@@ -400,7 +473,8 @@ export async function createAutoPost(input) {
     posts,
     {
       ...input,
-      type: "auto"
+      type: "auto",
+      workflowStatus: "published"
     },
     {
       remoteMediaUrl: input.mediaUrl || ""
@@ -418,7 +492,7 @@ export async function createAutoPost(input) {
 }
 
 export async function updatePost(id, input, mediaFile = null) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const existing = posts.find((post) => String(post.id) === String(id));
 
   if (!existing) {
@@ -434,6 +508,7 @@ export async function updatePost(id, input, mediaFile = null) {
     type: input.type || existing.type,
     sourceName: input.sourceName || existing.sourceName,
     sourceUrl: input.sourceUrl || existing.sourceUrl,
+    sourceLinks: input.sourceLinks || existing.sourceLinks,
     sourceCountry: input.sourceCountry || existing.sourceCountry,
     regionFocus: input.regionFocus || existing.regionFocus,
     autoProvider: input.autoProvider || existing.autoProvider,
@@ -443,7 +518,24 @@ export async function updatePost(id, input, mediaFile = null) {
     imageCreditName: input.imageCreditName || existing.imageCreditName,
     imageCreditUrl: input.imageCreditUrl || existing.imageCreditUrl,
     featured: typeof input.featured === "boolean" ? input.featured : existing.featured,
-    publishedAt: existing.publishedAt
+    publishedAt: existing.publishedAt,
+    workflowStatus: input.workflowStatus || existing.workflowStatus,
+    reviewNotes: input.reviewNotes ?? existing.reviewNotes,
+    submittedAt: input.submittedAt ?? existing.submittedAt,
+    submittedBy: input.submittedBy ?? existing.submittedBy,
+    approvedAt: input.approvedAt ?? existing.approvedAt,
+    approvedBy: input.approvedBy ?? existing.approvedBy,
+    rejectedAt: input.rejectedAt ?? existing.rejectedAt,
+    rejectedBy: input.rejectedBy ?? existing.rejectedBy,
+    scheduledFor: input.scheduledFor ?? existing.scheduledFor,
+    createdBy: input.createdBy || existing.createdBy,
+    createdByName: input.createdByName || existing.createdByName,
+    lastEditedBy: input.lastEditedBy ?? existing.lastEditedBy,
+    lastEditedByName: input.lastEditedByName ?? existing.lastEditedByName,
+    seoTitle: input.seoTitle || existing.seoTitle,
+    metaDescription: input.metaDescription || existing.metaDescription,
+    tags: input.tags || existing.tags,
+    imageAlt: input.imageAlt || existing.imageAlt
   };
 
   const updatedPost = await buildPostRecord(posts, nextInput, {
@@ -471,7 +563,7 @@ export async function updatePost(id, input, mediaFile = null) {
 }
 
 export async function deletePost(id) {
-  const posts = await getPosts();
+  const posts = await getAllPosts();
   const exists = posts.some((post) => String(post.id) === String(id));
 
   if (!exists) {

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { isAdminAuthenticated } from "@/lib/auth";
 import { runAutomatedNewsIngestion } from "@/lib/auto-news";
 import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
+import { getCurrentUser, hasPermission } from "@/lib/editorial";
 
 async function isAllowedByAdmin() {
-  const cookieStore = await cookies();
-  return isAdminAuthenticated(cookieStore.get("century_admin_session")?.value);
+  const user = await getCurrentUser();
+  return user && hasPermission(user, "articles:settings");
 }
 
 function isAllowedBySecret(request) {

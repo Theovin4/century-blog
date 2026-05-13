@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser, logActivity } from "@/lib/editorial";
 
-export async function POST() {
+export async function POST(request) {
+  const user = await getCurrentUser();
   const response = NextResponse.json({ ok: true });
 
   response.cookies.set({
@@ -13,6 +15,15 @@ export async function POST() {
     maxAge: 0,
     priority: "high"
   });
+
+  if (user) {
+    await logActivity(request, user, {
+      action: "auth.logout",
+      entityType: "session",
+      entityId: user.id,
+      status: "success"
+    });
+  }
 
   return response;
 }

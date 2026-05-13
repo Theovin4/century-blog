@@ -10,6 +10,7 @@ import {
   getDisplayMedia,
   getOptimizedImageUrl,
   getPostTypeMeta,
+  getWorkflowStatusMeta,
   getProxiedImageUrl,
   getRenderableContent,
   isAbsoluteUrl,
@@ -23,7 +24,18 @@ const emptyDraft = {
   excerpt: "",
   content: "",
   category: "nigeria",
-  author: ""
+  author: "",
+  seoTitle: "",
+  metaDescription: "",
+  tags: "",
+  imageAlt: "",
+  sourceName: "",
+  sourceUrl: "",
+  sourceCountry: "",
+  sourceLinks: "",
+  workflowStatus: "draft",
+  scheduledFor: "",
+  reviewNotes: ""
 };
 
 const emptyAutomation = {
@@ -140,7 +152,7 @@ function getLivePostPath(post) {
   return post?.slug ? `/news/${post.slug}` : "/";
 }
 
-export function DashboardShell({ initialPosts }) {
+export function DashboardShell({ initialPosts, currentUser }) {
   const router = useRouter();
   const contentRef = useRef(null);
   const [posts, setPosts] = useState(initialPosts);
@@ -158,6 +170,34 @@ export function DashboardShell({ initialPosts }) {
   const [activeAction, setActiveAction] = useState("");
   const [activePostId, setActivePostId] = useState("");
   const [postListFilter, setPostListFilter] = useState("all");
+  const [notifications, setNotifications] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [overview, setOverview] = useState({
+    pendingReviewCount: 0,
+    publishedCount: 0,
+    draftCount: 0,
+    recentActivity: [],
+    moderatorPerformance: []
+  });
+  const [userForm, setUserForm] = useState({
+    id: "",
+    name: "",
+    email: "",
+    username: "",
+    role: "moderator",
+    status: "active",
+    password: ""
+  });
+  const [logSearch, setLogSearch] = useState("");
+  const [submitMode, setSubmitMode] = useState(() => (currentUser?.role === "admin" || currentUser?.role === "super_admin" ? "publish" : "submit"));
+
+  const isSuperAdmin = currentUser?.role === "super_admin";
+  const isAdmin = currentUser?.role === "admin" || isSuperAdmin;
+  const canReview = isAdmin;
+  const canManageUsers = isSuperAdmin;
+  const canManageAutomation = isSuperAdmin;
+  const currentUserId = String(currentUser?.id || "");
 
   const activeDraftPost = useMemo(
     () => posts.find((post) => String(post.id) === String(draft.id)) || null,
@@ -193,12 +233,25 @@ export function DashboardShell({ initialPosts }) {
   }, [posts]);
 
   const visiblePosts = useMemo(() => {
+    const scopedPosts = isAdmin
+      ? orderedPosts
+      : orderedPosts.filter((post) => String(post.createdBy || "") === currentUserId);
+
     if (postListFilter === "all") {
-      return orderedPosts;
+      return scopedPosts;
     }
 
-    return orderedPosts.filter((post) => (post.type || "manual") === postListFilter);
-  }, [orderedPosts, postListFilter]);
+    if (postListFilter === "review") {
+      return scopedPosts.filter((post) => String(post.workflowStatus || "") === "pending_review");
+    }
+
+    return scopedPosts.filter((post) => (post.type || "manual") === postListFilter);
+  }, [currentUserId, isAdmin, orderedPosts, postListFilter]);
+
+  const pendingReviewPosts = useMemo(
+    () => posts.filter((post) => String(post.workflowStatus || "") === "pending_review"),
+    [posts]
+  );
 
   useEffect(() => {
     if (!toast) {
@@ -222,18 +275,51 @@ export function DashboardShell({ initialPosts }) {
 
     async function loadDashboardAutomation() {
       try {
-        const [settingsData, draftsData] = await Promise.all([
-          fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings."),
-          fetchWithFeedback("/api/automation/drafts", { cache: "no-store" }, "Unable to load auto drafts.")
-        ]);
+        const requests = [
+          fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to load posts."),
+          fetchWithFeedback("/api/admin/notifications", { cache: "no-store" }, "Unable to load notifications."),
+          fetchWithFeedback("/api/admin/overview", { cache: "no-store" }, "Unable to load overview.")
+        ];
+
+        if (canManageAutomation) {
+          requests.push(
+            fetchWithFeedback("/api/automation/settings", { cache: "no-store" }, "Unable to load dashboard settings."),
+            fetchWithFeedback("/api/automation/drafts", { cache: "no-store" }, "Unable to load auto drafts.")
+          );
+        }
+
+        if (canManageUsers) {
+          requests.push(
+            fetchWithFeedback("/api/admin/users", { cache: "no-store" }, "Unable to load team accounts."),
+            fetchWithFeedback("/api/admin/logs", { cache: "no-store" }, "Unable to load activity logs.")
+          );
+        }
+
+        const [
+          postsData,
+          notificationsData,
+          overviewData,
+          settingsData,
+          draftsData,
+          usersData,
+          logsData
+        ] = await Promise.all(requests);
 
         if (!active) {
           return;
         }
 
-        setAutomationSettings(settingsData.settings || emptyAutomation);
-        setProviderSummary(settingsData.providers || {});
+        if (Array.isArray(postsData)) {
+          setPosts(postsData);
+        }
+
+        setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
+        setOverview(overviewData || {});
+        setAutomationSettings(settingsData?.settings || emptyAutomation);
+        setProviderSummary(settingsData?.providers || {});
         setAutoDrafts(Array.isArray(draftsData) ? draftsData : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setActivityLogs(Array.isArray(logsData) ? logsData : []);
       } catch (nextError) {
         if (active) {
           setError(nextError.message || "Unable to load dashboard settings.");
@@ -246,7 +332,7 @@ export function DashboardShell({ initialPosts }) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [canManageAutomation, canManageUsers]);
 
   async function refreshPosts() {
     const data = await fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to refresh published posts.");
@@ -267,6 +353,39 @@ export function DashboardShell({ initialPosts }) {
     }
 
     setAutoDrafts(data);
+    return data;
+  }
+
+  async function refreshOverview() {
+    const data = await fetchWithFeedback("/api/admin/overview", { cache: "no-store" }, "Unable to refresh overview.");
+    setOverview(data || {});
+    return data;
+  }
+
+  async function refreshNotifications() {
+    const data = await fetchWithFeedback("/api/admin/notifications", { cache: "no-store" }, "Unable to refresh notifications.");
+    setNotifications(Array.isArray(data) ? data : []);
+    return data;
+  }
+
+  async function refreshUsers() {
+    if (!canManageUsers) {
+      return [];
+    }
+
+    const data = await fetchWithFeedback("/api/admin/users", { cache: "no-store" }, "Unable to refresh team accounts.");
+    setUsers(Array.isArray(data) ? data : []);
+    return data;
+  }
+
+  async function refreshLogs(query = logSearch) {
+    if (!canManageUsers) {
+      return [];
+    }
+
+    const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
+    const data = await fetchWithFeedback(`/api/admin/logs${suffix}`, { cache: "no-store" }, "Unable to refresh activity logs.");
+    setActivityLogs(Array.isArray(data) ? data : []);
     return data;
   }
 
@@ -301,6 +420,7 @@ export function DashboardShell({ initialPosts }) {
   function startCreateMode() {
     clearPreview();
     setDraft(emptyDraft);
+    setSubmitMode(isAdmin ? "publish" : "submit");
     resetMessages();
   }
 
@@ -312,8 +432,22 @@ export function DashboardShell({ initialPosts }) {
       excerpt: post.excerpt,
       content: post.content,
       category: post.category,
-      author: post.author || ""
+      author: post.author || "",
+      seoTitle: post.seoTitle || "",
+      metaDescription: post.metaDescription || "",
+      tags: Array.isArray(post.tags) ? post.tags.join(", ") : "",
+      imageAlt: post.imageAlt || "",
+      sourceName: post.sourceName || "",
+      sourceUrl: post.sourceUrl || "",
+      sourceCountry: post.sourceCountry || "",
+      sourceLinks: Array.isArray(post.sourceLinks)
+        ? post.sourceLinks.map((item) => `${item.label || ""}|${item.url || ""}`).join("\n")
+        : "",
+      workflowStatus: post.workflowStatus || "draft",
+      scheduledFor: post.scheduledFor || "",
+      reviewNotes: post.reviewNotes || ""
     });
+    setSubmitMode(post.workflowStatus === "published" ? "publish" : post.workflowStatus || "draft");
     resetMessages();
     setResultCard({
       title: "Editing selected post",
@@ -332,8 +466,22 @@ export function DashboardShell({ initialPosts }) {
       excerpt: draftPost.excerpt,
       content: draftPost.content,
       category: draftPost.category,
-      author: draftPost.author || ""
+      author: draftPost.author || "",
+      seoTitle: draftPost.seoTitle || "",
+      metaDescription: draftPost.metaDescription || "",
+      tags: Array.isArray(draftPost.tags) ? draftPost.tags.join(", ") : "",
+      imageAlt: draftPost.imageAlt || "",
+      sourceName: draftPost.sourceName || "",
+      sourceUrl: draftPost.sourceUrl || "",
+      sourceCountry: draftPost.sourceCountry || "",
+      sourceLinks: Array.isArray(draftPost.sourceLinks)
+        ? draftPost.sourceLinks.map((item) => `${item.label || ""}|${item.url || ""}`).join("\n")
+        : "",
+      workflowStatus: "draft",
+      scheduledFor: draftPost.scheduledFor || "",
+      reviewNotes: draftPost.reviewNotes || ""
     });
+    setSubmitMode("publish");
     resetMessages();
     setResultCard({
       title: "Reviewing queued auto draft",
@@ -420,13 +568,15 @@ export function DashboardShell({ initialPosts }) {
     event.preventDefault();
     resetMessages();
     setSubmitBusy(true);
-    beginAction(draft.id ? "save" : "publish", draft.id);
+    const mode = event.nativeEvent?.submitter?.dataset?.mode || submitMode;
+    beginAction(draft.id ? "save" : mode, draft.id);
 
     try {
       const formData = new FormData(event.currentTarget);
       const isEditing = Boolean(draft.id);
       const endpoint = isEditing ? `/api/posts/${draft.id}` : "/api/posts";
       const method = isEditing ? "PATCH" : "POST";
+      formData.set("workflowStatus", mode === "submit" ? "pending_review" : mode);
 
       const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
 
@@ -436,7 +586,14 @@ export function DashboardShell({ initialPosts }) {
         setPosts((current) => [data, ...current]);
       }
 
-      const successText = isEditing ? "Post updated successfully." : "Post published successfully.";
+      const successText =
+        data.workflowStatus === "pending_review"
+          ? "Post submitted for review successfully."
+          : data.workflowStatus === "draft"
+            ? "Draft saved successfully."
+            : isEditing
+              ? "Post updated successfully."
+              : "Post published successfully.";
       const successPost = data;
 
       setMessage(successText);
@@ -456,8 +613,14 @@ export function DashboardShell({ initialPosts }) {
 
       clearPreview();
       setDraft(emptyDraft);
+      setSubmitMode(isAdmin ? "publish" : "submit");
       event.currentTarget.reset();
       await refreshAutoDrafts().catch(() => undefined);
+      await Promise.all([
+        refreshOverview().catch(() => undefined),
+        refreshNotifications().catch(() => undefined),
+        refreshUsers().catch(() => undefined)
+      ]);
       router.refresh();
       router.prefetch?.("/");
     } catch (nextError) {
@@ -510,6 +673,7 @@ export function DashboardShell({ initialPosts }) {
         href: getLivePostPath(data),
         actionLabel: "Open featured story"
       });
+      await refreshOverview().catch(() => undefined);
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to set featured story.");
@@ -540,6 +704,11 @@ export function DashboardShell({ initialPosts }) {
       });
       setMessage("Post deleted successfully.");
       setToast({ text: "Post deleted successfully.", href: "/", actionLabel: "View homepage" });
+      await Promise.all([
+        refreshOverview().catch(() => undefined),
+        refreshUsers().catch(() => undefined),
+        refreshNotifications().catch(() => undefined)
+      ]);
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to delete post.");
@@ -571,6 +740,7 @@ export function DashboardShell({ initialPosts }) {
       setAutomationSettings(data.settings || emptyAutomation);
       setProviderSummary(data.providers || {});
       setToast({ text: data.settings?.autoPostingEnabled ? "Auto posting resumed." : "Auto posting paused." });
+      await refreshOverview().catch(() => undefined);
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to update automation settings.");
@@ -622,6 +792,7 @@ export function DashboardShell({ initialPosts }) {
         href: leadPost ? getLivePostPath(leadPost) : "/",
         actionLabel: leadPost ? "View newest post" : "View homepage"
       });
+      await refreshOverview().catch(() => undefined);
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to run automation.");
@@ -651,6 +822,7 @@ export function DashboardShell({ initialPosts }) {
         href: getLivePostPath(data),
         actionLabel: "View live post"
       });
+      await refreshOverview().catch(() => undefined);
       router.refresh();
     } catch (nextError) {
       setError(nextError.message || "Unable to publish auto draft.");
@@ -677,6 +849,84 @@ export function DashboardShell({ initialPosts }) {
     }
   }
 
+  async function handleUserSubmit(event) {
+    event.preventDefault();
+    setSettingsBusy(true);
+    setError("");
+    beginAction(userForm.id ? "update-user" : "create-user", userForm.id);
+
+    try {
+      const payload = {
+        name: userForm.name,
+        email: userForm.email,
+        username: userForm.username,
+        role: userForm.role,
+        status: userForm.status
+      };
+
+      if (userForm.password) {
+        payload.password = userForm.password;
+        payload.resetPassword = userForm.password;
+      }
+
+      if (userForm.id) {
+        await fetchWithFeedback(`/api/admin/users/${userForm.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }, "Unable to update account.");
+      } else {
+        await fetchWithFeedback("/api/admin/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        }, "Unable to create account.");
+      }
+
+      await Promise.all([refreshUsers(), refreshLogs(), refreshNotifications()]);
+      setUserForm({
+        id: "",
+        name: "",
+        email: "",
+        username: "",
+        role: "moderator",
+        status: "active",
+        password: ""
+      });
+      setToast({ text: userForm.id ? "Team account updated." : "Team account created." });
+    } catch (nextError) {
+      setError(nextError.message || "Unable to save user.");
+    } finally {
+      setSettingsBusy(false);
+      endAction();
+    }
+  }
+
+  function startUserEdit(user) {
+    setUserForm({
+      id: user.id,
+      name: user.name || "",
+      email: user.email || "",
+      username: user.username || "",
+      role: user.role || "moderator",
+      status: user.status || "active",
+      password: ""
+    });
+  }
+
+  async function markNotificationAsRead(id) {
+    try {
+      await fetchWithFeedback("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id })
+      }, "Unable to update notification.");
+      await refreshNotifications();
+    } catch {
+      // Keep notifications non-blocking.
+    }
+  }
+
   const activeDraftMedia = activeDraftPost ? getDisplayMedia(activeDraftPost, "card") : null;
   const previewUrl = preview?.url || activeDraftMedia?.url || "";
   const previewType = preview?.type || activeDraftMedia?.type || activeDraftPost?.mediaType || "";
@@ -699,7 +949,10 @@ export function DashboardShell({ initialPosts }) {
       ) : null}
 
       <div className="dashboard-toolbar">
-        <p>Logged in. Publish, edit, feature, and manage both manual and auto posts here in newest-first order.</p>
+        <p>
+          Signed in as <strong>{currentUser.name || currentUser.username}</strong>. Role:{" "}
+          <strong>{String(currentUser.role || "").replace(/_/g, " ")}</strong>.
+        </p>
         <div className="dashboard-toolbar__actions">
           <button type="button" className="button button-secondary" onClick={startCreateMode}>
             New post
@@ -710,6 +963,56 @@ export function DashboardShell({ initialPosts }) {
         </div>
       </div>
 
+      <section className="section-card automation-panel">
+        <div className="section-header">
+          <div>
+            <span className="eyebrow">Editorial Overview</span>
+            <h2>Dashboard analytics and review queue</h2>
+          </div>
+          <p>Track submissions, published output, recent moderation activity, and team performance without leaving the dashboard.</p>
+        </div>
+        <div className="automation-panel__grid">
+          <div className="automation-panel__card">
+            <strong>Pending review</strong>
+            <span>{overview.pendingReviewCount || 0}</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Published</strong>
+            <span>{overview.publishedCount || 0}</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Your drafts</strong>
+            <span>{overview.draftCount || 0}</span>
+          </div>
+          <div className="automation-panel__card">
+            <strong>Unread alerts</strong>
+            <span>{notifications.filter((item) => !item.read).length}</span>
+          </div>
+        </div>
+        {notifications.length ? (
+          <div className="dashboard-post-list">
+            {notifications.slice(0, 5).map((notification) => (
+              <article key={notification.id} className="dashboard-post-card">
+                <div className="dashboard-post-card__labels">
+                  <span className="pill">{notification.type}</span>
+                  {!notification.read ? <span className="pill pill-featured">New</span> : null}
+                </div>
+                <h3>{notification.title}</h3>
+                <p>{notification.message}</p>
+                <div className="dashboard-post-card__actions">
+                  {!notification.read ? (
+                    <button type="button" className="button button-secondary" onClick={() => markNotificationAsRead(notification.id)}>
+                      Mark as read
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {canManageAutomation ? (
       <section className="section-card automation-panel">
         <div className="section-header">
           <div>
@@ -782,7 +1085,9 @@ export function DashboardShell({ initialPosts }) {
         </div>
         {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
       </section>
+      ) : null}
 
+      {canReview ? (
       <section className="section-card automation-panel">
         <div className="section-header">
           <div>
@@ -829,6 +1134,40 @@ export function DashboardShell({ initialPosts }) {
           {!autoDrafts.length ? <p className="empty-state">No weak auto drafts are waiting for review right now.</p> : null}
         </div>
       </section>
+      ) : null}
+
+      {canReview ? (
+        <section className="section-card automation-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Approval Queue</span>
+              <h2>Pending editorial review</h2>
+            </div>
+            <p>Moderators can submit drafts here for approval. Admins can open the post in the editor, refine it, and publish when ready.</p>
+          </div>
+          <div className="dashboard-post-list">
+            {pendingReviewPosts.map((post) => (
+              <article key={post.id} className="dashboard-post-card">
+                <div className="dashboard-post-card__labels">
+                  <span className="pill">{getCategoryMeta(post.category).label}</span>
+                  <span className="pill pill-status-off">{getWorkflowStatusMeta(post.workflowStatus).label}</span>
+                </div>
+                <h3>{post.title}</h3>
+                <p>{post.excerpt}</p>
+                <p className="dashboard-post-card__meta">
+                  Submitted by {post.createdByName || post.author || "Unknown"} {post.submittedAt ? `| ${new Date(post.submittedAt).toLocaleString("en-NG")}` : ""}
+                </p>
+                <div className="dashboard-post-card__actions">
+                  <button type="button" className="button button-secondary" onClick={() => startEditMode(post)}>
+                    Open review
+                  </button>
+                </div>
+              </article>
+            ))}
+            {!pendingReviewPosts.length ? <p className="empty-state">No posts are waiting for approval right now.</p> : null}
+          </div>
+        </section>
+      ) : null}
 
       <div className="dashboard-grid">
         <form key={draft.id || "create-post"} className="editor-form" onSubmit={handleSubmit}>
@@ -956,6 +1295,137 @@ export function DashboardShell({ initialPosts }) {
             />
           </label>
 
+          <div className="editor-form__split">
+            <label>
+              <span>SEO title</span>
+              <input
+                name="seoTitle"
+                type="text"
+                placeholder="Optional SEO title"
+                value={draft.seoTitle}
+                onChange={(event) => updateDraftField("seoTitle", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Meta description</span>
+              <textarea
+                name="metaDescription"
+                rows="3"
+                placeholder="Optional meta description"
+                value={draft.metaDescription}
+                onChange={(event) => updateDraftField("metaDescription", event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="editor-form__split">
+            <label>
+              <span>Tags</span>
+              <input
+                name="tags"
+                type="text"
+                placeholder="politics, nigeria, economy"
+                value={draft.tags}
+                onChange={(event) => updateDraftField("tags", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Featured image alt text</span>
+              <input
+                name="imageAlt"
+                type="text"
+                placeholder="Describe the main image"
+                value={draft.imageAlt}
+                onChange={(event) => updateDraftField("imageAlt", event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="editor-form__split">
+            <label>
+              <span>Primary source name</span>
+              <input
+                name="sourceName"
+                type="text"
+                placeholder="Reuters, WHO, CBN, Ministry of Health"
+                value={draft.sourceName}
+                onChange={(event) => updateDraftField("sourceName", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Primary source link</span>
+              <input
+                name="sourceUrl"
+                type="url"
+                placeholder="https://..."
+                value={draft.sourceUrl}
+                onChange={(event) => updateDraftField("sourceUrl", event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="editor-form__split">
+            <label>
+              <span>Source country</span>
+              <input
+                name="sourceCountry"
+                type="text"
+                placeholder="Nigeria, United States, Global"
+                value={draft.sourceCountry}
+                onChange={(event) => updateDraftField("sourceCountry", event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Additional source links</span>
+              <textarea
+                name="sourceLinks"
+                rows="4"
+                placeholder="Label|https://example.com&#10;Official statement|https://example.com/source"
+                value={draft.sourceLinks}
+                onChange={(event) => updateDraftField("sourceLinks", event.target.value)}
+              />
+            </label>
+          </div>
+
+          {isAdmin ? (
+            <div className="editor-form__split">
+              <label>
+                <span>Workflow status</span>
+                <select
+                  name="workflowStatusPreset"
+                  value={submitMode}
+                  onChange={(event) => setSubmitMode(event.target.value)}
+                >
+                  <option value="draft">Save draft</option>
+                  <option value="submit">Submit for review</option>
+                  <option value="publish">Publish now</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </label>
+              <label>
+                <span>Schedule for</span>
+                <input
+                  name="scheduledFor"
+                  type="datetime-local"
+                  value={draft.scheduledFor}
+                  onChange={(event) => updateDraftField("scheduledFor", event.target.value)}
+                />
+              </label>
+            </div>
+          ) : null}
+
+          <label>
+            <span>Review notes</span>
+            <textarea
+              name="reviewNotes"
+              rows="3"
+              placeholder="Optional editorial notes for approvals or revisions"
+              value={draft.reviewNotes}
+              onChange={(event) => updateDraftField("reviewNotes", event.target.value)}
+            />
+          </label>
+
           <label>
             <span>{draft.id ? "Replace image or video" : "Upload image or video"}</span>
             <input name="media" type="file" accept="image/*,video/*" onChange={handleFileChange} />
@@ -985,9 +1455,24 @@ export function DashboardShell({ initialPosts }) {
           {error ? <p className="form-error">{error}</p> : null}
 
           <div className="editor-form__actions">
-            <button type="submit" className="button button-primary" disabled={submitBusy}>
-              {submitBusy ? (draft.id ? "Saving changes..." : "Publishing post...") : draft.id ? "Save changes" : "Publish post"}
+            <button type="submit" className="button button-primary" disabled={submitBusy} data-mode={submitMode}>
+              {submitBusy
+                ? "Saving..."
+                : submitMode === "draft"
+                  ? "Save draft"
+                  : submitMode === "submit"
+                    ? "Submit for review"
+                    : submitMode === "scheduled"
+                      ? "Save scheduled post"
+                      : draft.id
+                        ? "Save changes"
+                        : "Publish post"}
             </button>
+            {!isAdmin ? (
+              <button type="submit" className="button button-secondary" data-mode="draft">
+                Save as draft
+              </button>
+            ) : null}
             {draft.id ? (
               <button type="button" className="button button-secondary" onClick={startCreateMode}>
                 Cancel edit
@@ -998,8 +1483,12 @@ export function DashboardShell({ initialPosts }) {
 
         <aside className="post-list-panel">
           <div className="editor-form__header">
-            <h2>Published posts</h2>
-            <p>Edit, feature, or remove your latest content here. Auto-fetched posts stay fully editable and are clearly marked below.</p>
+            <h2>{isAdmin ? "Editorial posts" : "Your posts"}</h2>
+            <p>
+              {isAdmin
+                ? "Review, edit, feature, and manage published, drafted, and submitted stories here. Auto-fetched posts remain clearly labelled."
+                : "Create, update, and track your own drafts and submissions here."}
+            </p>
           </div>
 
           <div className="filter-bar__chips filter-bar__chips--secondary">
@@ -1024,6 +1513,15 @@ export function DashboardShell({ initialPosts }) {
             >
               Auto ({postTypeCounts.auto})
             </button>
+            {canReview ? (
+              <button
+                type="button"
+                className={`filter-chip ${postListFilter === "review" ? "is-active" : ""}`}
+                onClick={() => setPostListFilter("review")}
+              >
+                Pending review ({pendingReviewPosts.length})
+              </button>
+            ) : null}
           </div>
 
           <div className="dashboard-post-list">
@@ -1044,6 +1542,7 @@ export function DashboardShell({ initialPosts }) {
                 <div className="dashboard-post-card__labels">
                   <span className="pill">{getCategoryMeta(post.category).label}</span>
                   <span className={`pill pill-type pill-type--${post.type || "manual"}`}>{getPostTypeMeta(post.type || "manual").label}</span>
+                  <span className="pill">{getWorkflowStatusMeta(post.workflowStatus || "published").label}</span>
                   {!post.originalMediaUrl && !post.mediaUrl ? <span className="pill">Generated cover</span> : null}
                   {post.featured ? <span className="pill pill-featured">Featured story</span> : null}
                 </div>
@@ -1057,27 +1556,33 @@ export function DashboardShell({ initialPosts }) {
                       : "Century Blog post"}
                 </p>
                 <div className="dashboard-post-card__actions">
-                  <a className="button button-secondary" href={getLivePostPath(post)} target="_blank" rel="noreferrer">
-                    View live
-                  </a>
-                  <button
-                    type="button"
-                    className={`button ${post.featured ? "button-primary" : "button-secondary"}`}
-                    onClick={() => handleSetFeatured(post.id)}
-                    disabled={post.featured || settingsBusy}
-                  >
-                    {activeAction === "feature" && activePostId === String(post.id)
-                      ? "Setting featured..."
-                      : post.featured
-                        ? "Featured story"
-                        : "Set as featured"}
-                  </button>
+                  {post.workflowStatus === "published" ? (
+                    <a className="button button-secondary" href={getLivePostPath(post)} target="_blank" rel="noreferrer">
+                      View live
+                    </a>
+                  ) : null}
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      className={`button ${post.featured ? "button-primary" : "button-secondary"}`}
+                      onClick={() => handleSetFeatured(post.id)}
+                      disabled={post.featured || settingsBusy || post.workflowStatus !== "published"}
+                    >
+                      {activeAction === "feature" && activePostId === String(post.id)
+                        ? "Setting featured..."
+                        : post.featured
+                          ? "Featured story"
+                          : "Set as featured"}
+                    </button>
+                  ) : null}
                   <button type="button" className="button button-secondary" onClick={() => startEditMode(post)}>
                     Edit
                   </button>
-                  <button type="button" className="button button-secondary" onClick={() => handleDelete(post.id)} disabled={settingsBusy}>
-                    {activeAction === "delete" && activePostId === String(post.id) ? "Deleting..." : "Delete"}
-                  </button>
+                  {isAdmin ? (
+                    <button type="button" className="button button-secondary" onClick={() => handleDelete(post.id)} disabled={settingsBusy}>
+                      {activeAction === "delete" && activePostId === String(post.id) ? "Deleting..." : "Delete"}
+                    </button>
+                  ) : null}
                 </div>
               </article>
               );
@@ -1086,6 +1591,130 @@ export function DashboardShell({ initialPosts }) {
           </div>
         </aside>
       </div>
+
+      {canManageUsers ? (
+        <section className="section-card automation-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Moderator Management</span>
+              <h2>Team accounts and permissions</h2>
+            </div>
+            <p>Create, update, suspend, or soft-disable editorial accounts while keeping the super admin protected.</p>
+          </div>
+
+          <form className="editor-form" onSubmit={handleUserSubmit}>
+            <div className="editor-form__split">
+              <label>
+                <span>Name</span>
+                <input value={userForm.name} onChange={(event) => setUserForm((current) => ({ ...current, name: event.target.value }))} required />
+              </label>
+              <label>
+                <span>Email</span>
+                <input type="email" value={userForm.email} onChange={(event) => setUserForm((current) => ({ ...current, email: event.target.value }))} required />
+              </label>
+            </div>
+            <div className="editor-form__split">
+              <label>
+                <span>Username</span>
+                <input value={userForm.username} onChange={(event) => setUserForm((current) => ({ ...current, username: event.target.value }))} required />
+              </label>
+              <label>
+                <span>Password {userForm.id ? "(leave blank to keep current)" : ""}</span>
+                <input type="password" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} />
+              </label>
+            </div>
+            <div className="editor-form__split">
+              <label>
+                <span>Role</span>
+                <select value={userForm.role} onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}>
+                  <option value="admin">Admin</option>
+                  <option value="moderator">Moderator</option>
+                  <option value="editor">Editor</option>
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select value={userForm.status} onChange={(event) => setUserForm((current) => ({ ...current, status: event.target.value }))}>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                  <option value="deleted">Soft deleted</option>
+                </select>
+              </label>
+            </div>
+            <div className="editor-form__actions">
+              <button type="submit" className="button button-primary" disabled={settingsBusy}>
+                {userForm.id ? "Update account" : "Add moderator"}
+              </button>
+              {userForm.id ? (
+                <button type="button" className="button button-secondary" onClick={() => setUserForm({ id: "", name: "", email: "", username: "", role: "moderator", status: "active", password: "" })}>
+                  Cancel edit
+                </button>
+              ) : null}
+            </div>
+          </form>
+
+          <div className="dashboard-post-list">
+            {users.map((user) => (
+              <article key={user.id} className="dashboard-post-card">
+                <div className="dashboard-post-card__labels">
+                  <span className="pill">{String(user.role || "").replace(/_/g, " ")}</span>
+                  <span className="pill">{user.status}</span>
+                </div>
+                <h3>{user.name || user.username}</h3>
+                <p>{user.email}</p>
+                <p className="dashboard-post-card__meta">
+                  Last login: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString("en-NG") : "Never"} | Posts created: {user.postsCreated || 0} | Approved: {user.postsApproved || 0} | Rejected: {user.postsRejected || 0}
+                </p>
+                {user.id !== "env-super-admin" ? (
+                  <div className="dashboard-post-card__actions">
+                    <button type="button" className="button button-secondary" onClick={() => startUserEdit(user)}>
+                      Edit account
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {canManageUsers ? (
+        <section className="section-card automation-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Activity Log</span>
+              <h2>Moderator and admin activity</h2>
+            </div>
+            <p>Search recent logins, article updates, approvals, role changes, and other editorial actions.</p>
+          </div>
+          <div className="editor-form__split">
+            <label>
+              <span>Search logs</span>
+              <input value={logSearch} onChange={(event) => setLogSearch(event.target.value)} placeholder="search by action, post, or user" />
+            </label>
+            <div className="editor-form__actions" style={{ alignSelf: "end" }}>
+              <button type="button" className="button button-secondary" onClick={() => refreshLogs()}>
+                Refresh logs
+              </button>
+            </div>
+          </div>
+          <div className="dashboard-post-list">
+            {activityLogs.map((log) => (
+              <article key={log.id} className="dashboard-post-card">
+                <div className="dashboard-post-card__labels">
+                  <span className="pill">{log.status}</span>
+                </div>
+                <h3>{log.action}</h3>
+                <p>{log.userName} {log.userRole ? `(${log.userRole})` : ""}</p>
+                <p className="dashboard-post-card__meta">
+                  {new Date(log.createdAt).toLocaleString("en-NG")} {log.entityType ? `| ${log.entityType}` : ""} {log.entityId ? `| ${log.entityId}` : ""}
+                </p>
+              </article>
+            ))}
+            {!activityLogs.length ? <p className="empty-state">No activity logs matched your search yet.</p> : null}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

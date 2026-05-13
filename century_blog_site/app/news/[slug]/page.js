@@ -83,8 +83,8 @@ export async function generateMetadata({ params }) {
   const siteUrl = getSiteUrl();
   const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
   const metadata = {
-    title: post.title,
-    description: post.excerpt,
+    title: post.seoTitle || post.title,
+    description: post.metaDescription || post.excerpt,
     keywords: buildPostKeywords(post),
     authors: [{ name: post.author || "Century Blog Editorial Team" }],
     category: getCategoryMeta(post.category).label,
@@ -93,7 +93,7 @@ export async function generateMetadata({ params }) {
     },
     openGraph: {
       title: post.title,
-      description: post.excerpt,
+      description: post.metaDescription || post.excerpt,
       url: `${siteUrl}/news/${post.slug}`,
       type: "article",
       publishedTime: post.publishedAt,
@@ -105,13 +105,13 @@ export async function generateMetadata({ params }) {
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.excerpt
+      description: post.metaDescription || post.excerpt
     }
   };
 
   if (isImageMedia(post.mediaUrl, post.mediaType)) {
     const imageUrl = toAbsoluteUrl(post.mediaUrl);
-    metadata.openGraph.images = [{ url: imageUrl, alt: post.title }];
+    metadata.openGraph.images = [{ url: imageUrl, alt: post.imageAlt || post.title }];
     metadata.twitter.images = [imageUrl];
   }
 
@@ -157,7 +157,8 @@ export default async function PostPage({ params }) {
   const articleDisclaimer = getArticleDisclaimer(post);
   const articleSchemaType = getArticleSchemaType(post);
   const updatedLabel = post.updatedAt && post.updatedAt !== post.publishedAt ? formatLongDate(post.updatedAt) : "";
-  const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl);
+  const sourceLinks = Array.isArray(post.sourceLinks) ? post.sourceLinks.filter((item) => item?.url) : [];
+  const hasSourceAttribution = Boolean(post.sourceName || post.sourceUrl || sourceLinks.length);
   const sensitiveSourceNote = getSensitiveSourceNote(post);
   const contentHeadings = extractMarkdownHeadings(renderedContent).slice(0, 8);
   const headingIds = new Set();
@@ -289,6 +290,11 @@ export default async function PostPage({ params }) {
     url: `${siteUrl}/about`
   };
 
+  const citations = [
+    ...(post.sourceUrl ? [post.sourceUrl] : []),
+    ...sourceLinks.map((item) => item.url)
+  ];
+
   const jsonLd = [
     {
       "@context": "https://schema.org",
@@ -329,7 +335,7 @@ export default async function PostPage({ params }) {
         name: post.sourceName,
         url: post.sourceUrl || undefined
       } : undefined,
-      citation: post.sourceUrl ? [post.sourceUrl] : undefined
+      citation: citations.length ? citations : undefined
     },
     buildBreadcrumbJsonLd([
       { name: "Home", url: siteUrl },
@@ -370,7 +376,7 @@ export default async function PostPage({ params }) {
                 <source src={articleMedia.url} type={articleMedia.type} />
               </video>
             ) : (
-              <img className="article-media" src={articleMedia.url} alt={post.title} />
+              <img className="article-media" src={articleMedia.url} alt={post.imageAlt || post.title} />
             )}
             {post.imageCreditName || post.imageCreditUrl ? (
               <p className="article-media__credit">
@@ -411,6 +417,17 @@ export default async function PostPage({ params }) {
                   post.sourceName
                 )}
               </p>
+              {sourceLinks.length ? (
+                <ul className="source-box__list">
+                  {sourceLinks.map((item) => (
+                    <li key={`${item.url}-${item.label || "source"}`} className="source-box__list-item">
+                      <a href={item.url} target="_blank" rel="noreferrer">
+                        {item.label || item.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </aside>
           ) : null}
           {sensitiveSourceNote ? (

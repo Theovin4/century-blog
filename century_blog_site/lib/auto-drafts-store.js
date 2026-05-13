@@ -120,7 +120,9 @@ export async function publishAutoDraft(id) {
     imageCreditUrl: draft.imageCreditUrl,
     mediaUrl: draft.mediaUrl,
     mediaType: draft.mediaType,
-    publishedAt: draft.publishedAt
+    publishedAt: draft.publishedAt,
+    workflowStatus: "published",
+    approvedAt: new Date().toISOString()
   });
 
   await deleteAutoDraft(id);
