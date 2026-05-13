@@ -1719,6 +1719,38 @@ button {
   color: #d8f8ff;
 }
 
+.editor-advanced {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.editor-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #f8fafc;
+  list-style: none;
+}
+
+.editor-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.editor-advanced summary::after {
+  content: "Show";
+  margin-left: 0.65rem;
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.editor-advanced[open] summary::after {
+  content: "Hide";
+}
+
 .filter-bar__chips--categories {
   margin-top: 1.25rem;
 }

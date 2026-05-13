@@ -15,6 +15,7 @@ import {
   getRenderableContent,
   isAbsoluteUrl,
   isImageMedia,
+  isSensitivePost,
   isVideoMedia
 } from "@/lib/site";
 
@@ -63,6 +64,12 @@ const markdownTools = [
 const REQUEST_TIMEOUT_MS = 25000;
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
+const LAST_EDITOR_DEFAULTS_KEY = "century-blog-editor-defaults";
+const AUTO_TAG_STOPWORDS = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "because", "by", "for", "from",
+  "how", "in", "into", "is", "it", "its", "of", "on", "or", "that", "the",
+  "their", "this", "to", "what", "when", "where", "who", "why", "with", "will"
+]);
 
 const markdownPreviewComponents = {
   img({ src, alt = "" }) {
@@ -152,11 +159,127 @@ function getLivePostPath(post) {
   return post?.slug ? `/news/${post.slug}` : "/";
 }
 
+function toPlainText(value) {
+  return String(value || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[>*_~`-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateText(value, maxLength) {
+  const text = String(value || "").trim();
+
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function buildAutoTags({ title, excerpt, category }) {
+  const categoryLabel = getCategoryMeta(category || "nigeria").label.toLowerCase();
+  const words = `${title || ""} ${excerpt || ""}`
+    .toLowerCase()
+    .match(/[a-z0-9]+/g);
+
+  const tags = [];
+  const seen = new Set();
+
+  function pushTag(value) {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+
+    seen.add(normalized);
+    tags.push(normalized);
+  }
+
+  pushTag(categoryLabel);
+
+  for (const word of words || []) {
+    if (word.length < 4 || AUTO_TAG_STOPWORDS.has(word)) {
+      continue;
+    }
+
+    pushTag(word);
+
+    if (tags.length >= 5) {
+      break;
+    }
+  }
+
+  return tags.join(", ");
+}
+
+function getDefaultSourceCountry(category) {
+  return category === "world" ? "Global" : "Nigeria";
+}
+
+function readStoredEditorDefaults() {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LAST_EDITOR_DEFAULTS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveStoredEditorDefaults(defaults) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LAST_EDITOR_DEFAULTS_KEY, JSON.stringify(defaults));
+  } catch {
+    // Ignore local storage write failures so posting still works.
+  }
+}
+
+function buildResolvedDraft(draft, currentUser, editorDefaults) {
+  const fallbackAuthor =
+    editorDefaults.author ||
+    currentUser?.name ||
+    currentUser?.username ||
+    "Century Blog Editorial Team";
+  const plainExcerpt = toPlainText(draft.excerpt);
+  const plainContent = toPlainText(draft.content);
+  const metaBase = plainExcerpt || plainContent;
+
+  return {
+    ...draft,
+    category: draft.category || editorDefaults.category || "nigeria",
+    author: draft.author || fallbackAuthor,
+    seoTitle: draft.seoTitle || truncateText(draft.title, 65),
+    metaDescription: draft.metaDescription || truncateText(metaBase, 160),
+    tags: draft.tags || buildAutoTags(draft),
+    imageAlt:
+      draft.imageAlt ||
+      (draft.title
+        ? `${draft.title} featured image`
+        : `${getCategoryMeta(draft.category || editorDefaults.category || "nigeria").label} featured image`),
+    sourceName: draft.sourceName || editorDefaults.sourceName || "",
+    sourceCountry: draft.sourceCountry || editorDefaults.sourceCountry || getDefaultSourceCountry(draft.category || editorDefaults.category || "nigeria")
+  };
+}
+
 export function DashboardShell({ initialPosts, currentUser }) {
   const router = useRouter();
   const contentRef = useRef(null);
   const [posts, setPosts] = useState(initialPosts);
   const [draft, setDraft] = useState(emptyDraft);
+  const [editorDefaults, setEditorDefaults] = useState(() => readStoredEditorDefaults());
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState(null);
@@ -191,6 +314,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
   });
   const [logSearch, setLogSearch] = useState("");
   const [submitMode, setSubmitMode] = useState(() => (currentUser?.role === "admin" || currentUser?.role === "super_admin" ? "publish" : "submit"));
+  const [showAdvancedFields, setShowAdvancedFields] = useState(false);
 
   const isSuperAdmin = currentUser?.role === "super_admin";
   const isAdmin = currentUser?.role === "admin" || isSuperAdmin;
@@ -209,6 +333,22 @@ export function DashboardShell({ initialPosts, currentUser }) {
       ? getRenderableContent(draft.content)
       : "## Live Preview\n\nYour markdown preview will appear here as you write. Use **bold**, *italic*, headings, lists, quotes, and links.";
   }, [draft.content]);
+
+  const resolvedDraft = useMemo(
+    () => buildResolvedDraft(draft, currentUser, editorDefaults),
+    [currentUser, draft, editorDefaults]
+  );
+
+  const sourceWarningVisible = useMemo(() => {
+    return isSensitivePost({
+      title: resolvedDraft.title,
+      excerpt: resolvedDraft.excerpt,
+      content: resolvedDraft.content,
+      category: resolvedDraft.category,
+      sourceUrl: resolvedDraft.sourceUrl,
+      sourceLinks: resolvedDraft.sourceLinks
+    }) && !String(resolvedDraft.sourceUrl || "").trim() && !String(resolvedDraft.sourceLinks || "").trim();
+  }, [resolvedDraft]);
 
   const orderedPosts = useMemo(() => {
     return [...posts].sort((left, right) => {
@@ -419,7 +559,11 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
   function startCreateMode() {
     clearPreview();
-    setDraft(emptyDraft);
+    setDraft((current) => ({
+      ...emptyDraft,
+      category: editorDefaults.category || current.category || emptyDraft.category
+    }));
+    setShowAdvancedFields(false);
     setSubmitMode(isAdmin ? "publish" : "submit");
     resetMessages();
   }
@@ -448,6 +592,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       reviewNotes: post.reviewNotes || ""
     });
     setSubmitMode(post.workflowStatus === "published" ? "publish" : post.workflowStatus || "draft");
+    setShowAdvancedFields(true);
     resetMessages();
     setResultCard({
       title: "Editing selected post",
@@ -482,6 +627,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       reviewNotes: draftPost.reviewNotes || ""
     });
     setSubmitMode("publish");
+    setShowAdvancedFields(true);
     resetMessages();
     setResultCard({
       title: "Reviewing queued auto draft",
@@ -576,6 +722,14 @@ export function DashboardShell({ initialPosts, currentUser }) {
       const isEditing = Boolean(draft.id);
       const endpoint = isEditing ? `/api/posts/${draft.id}` : "/api/posts";
       const method = isEditing ? "PATCH" : "POST";
+      formData.set("category", resolvedDraft.category);
+      formData.set("author", resolvedDraft.author);
+      formData.set("seoTitle", resolvedDraft.seoTitle);
+      formData.set("metaDescription", resolvedDraft.metaDescription);
+      formData.set("tags", resolvedDraft.tags);
+      formData.set("imageAlt", resolvedDraft.imageAlt);
+      formData.set("sourceName", resolvedDraft.sourceName);
+      formData.set("sourceCountry", resolvedDraft.sourceCountry);
       formData.set("workflowStatus", mode === "submit" ? "pending_review" : mode);
 
       const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
@@ -612,7 +766,19 @@ export function DashboardShell({ initialPosts, currentUser }) {
       });
 
       clearPreview();
-      setDraft(emptyDraft);
+      const nextDefaults = {
+        author: resolvedDraft.author,
+        sourceName: resolvedDraft.sourceName,
+        sourceCountry: resolvedDraft.sourceCountry,
+        category: resolvedDraft.category
+      };
+      saveStoredEditorDefaults(nextDefaults);
+      setEditorDefaults(nextDefaults);
+      setDraft({
+        ...emptyDraft,
+        category: resolvedDraft.category
+      });
+      setShowAdvancedFields(false);
       setSubmitMode(isAdmin ? "publish" : "submit");
       event.currentTarget.reset();
       await refreshAutoDrafts().catch(() => undefined);
@@ -1272,7 +1438,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <span>Category</span>
             <select
               name="category"
-              value={draft.category}
+              value={resolvedDraft.category}
               onChange={(event) => updateDraftField("category", event.target.value)}
               required
             >
@@ -1284,147 +1450,165 @@ export function DashboardShell({ initialPosts, currentUser }) {
             </select>
           </label>
 
-          <label>
-            <span>Author</span>
-            <input
-              name="author"
-              type="text"
-              placeholder="Century Blog Editorial Team"
-              value={draft.author}
-              onChange={(event) => updateDraftField("author", event.target.value)}
-            />
-          </label>
-
-          <div className="editor-form__split">
-            <label>
-              <span>SEO title</span>
-              <input
-                name="seoTitle"
-                type="text"
-                placeholder="Optional SEO title"
-                value={draft.seoTitle}
-                onChange={(event) => updateDraftField("seoTitle", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Meta description</span>
-              <textarea
-                name="metaDescription"
-                rows="3"
-                placeholder="Optional meta description"
-                value={draft.metaDescription}
-                onChange={(event) => updateDraftField("metaDescription", event.target.value)}
-              />
-            </label>
+          <div className="dashboard-warning dashboard-warning--soft">
+            Only title, excerpt, and content are required for the fastest workflow. Century Blog now pre-fills SEO, author, image alt text, tags, and other editorial details automatically. Open advanced settings only when you want to override them.
           </div>
 
-          <div className="editor-form__split">
-            <label>
-              <span>Tags</span>
-              <input
-                name="tags"
-                type="text"
-                placeholder="politics, nigeria, economy"
-                value={draft.tags}
-                onChange={(event) => updateDraftField("tags", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Featured image alt text</span>
-              <input
-                name="imageAlt"
-                type="text"
-                placeholder="Describe the main image"
-                value={draft.imageAlt}
-                onChange={(event) => updateDraftField("imageAlt", event.target.value)}
-              />
-            </label>
-          </div>
+          <details
+            className="editor-advanced"
+            open={showAdvancedFields}
+            onToggle={(event) => setShowAdvancedFields(event.currentTarget.open)}
+          >
+            <summary>Advanced SEO, source, and publishing settings</summary>
 
-          <div className="editor-form__split">
-            <label>
-              <span>Primary source name</span>
-              <input
-                name="sourceName"
-                type="text"
-                placeholder="Reuters, WHO, CBN, Ministry of Health"
-                value={draft.sourceName}
-                onChange={(event) => updateDraftField("sourceName", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>Primary source link</span>
-              <input
-                name="sourceUrl"
-                type="url"
-                placeholder="https://..."
-                value={draft.sourceUrl}
-                onChange={(event) => updateDraftField("sourceUrl", event.target.value)}
-              />
-            </label>
-          </div>
+            {sourceWarningVisible ? (
+              <p className="dashboard-warning">
+                This looks like a sensitive story. Add at least one verified source link before you submit or publish it.
+              </p>
+            ) : null}
 
-          <div className="editor-form__split">
             <label>
-              <span>Source country</span>
+              <span>Author</span>
               <input
-                name="sourceCountry"
+                name="author"
                 type="text"
-                placeholder="Nigeria, United States, Global"
-                value={draft.sourceCountry}
-                onChange={(event) => updateDraftField("sourceCountry", event.target.value)}
+                placeholder="Century Blog Editorial Team"
+                value={resolvedDraft.author}
+                onChange={(event) => updateDraftField("author", event.target.value)}
               />
             </label>
-            <label>
-              <span>Additional source links</span>
-              <textarea
-                name="sourceLinks"
-                rows="4"
-                placeholder="Label|https://example.com&#10;Official statement|https://example.com/source"
-                value={draft.sourceLinks}
-                onChange={(event) => updateDraftField("sourceLinks", event.target.value)}
-              />
-            </label>
-          </div>
 
-          {isAdmin ? (
             <div className="editor-form__split">
               <label>
-                <span>Workflow status</span>
-                <select
-                  name="workflowStatusPreset"
-                  value={submitMode}
-                  onChange={(event) => setSubmitMode(event.target.value)}
-                >
-                  <option value="draft">Save draft</option>
-                  <option value="submit">Submit for review</option>
-                  <option value="publish">Publish now</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="rejected">Rejected</option>
-                </select>
+                <span>SEO title</span>
+                <input
+                  name="seoTitle"
+                  type="text"
+                  placeholder="Optional SEO title"
+                  value={resolvedDraft.seoTitle}
+                  onChange={(event) => updateDraftField("seoTitle", event.target.value)}
+                />
               </label>
               <label>
-                <span>Schedule for</span>
-                <input
-                  name="scheduledFor"
-                  type="datetime-local"
-                  value={draft.scheduledFor}
-                  onChange={(event) => updateDraftField("scheduledFor", event.target.value)}
+                <span>Meta description</span>
+                <textarea
+                  name="metaDescription"
+                  rows="3"
+                  placeholder="Optional meta description"
+                  value={resolvedDraft.metaDescription}
+                  onChange={(event) => updateDraftField("metaDescription", event.target.value)}
                 />
               </label>
             </div>
-          ) : null}
 
-          <label>
-            <span>Review notes</span>
-            <textarea
-              name="reviewNotes"
-              rows="3"
-              placeholder="Optional editorial notes for approvals or revisions"
-              value={draft.reviewNotes}
-              onChange={(event) => updateDraftField("reviewNotes", event.target.value)}
-            />
-          </label>
+            <div className="editor-form__split">
+              <label>
+                <span>Tags</span>
+                <input
+                  name="tags"
+                  type="text"
+                  placeholder="politics, nigeria, economy"
+                  value={resolvedDraft.tags}
+                  onChange={(event) => updateDraftField("tags", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Featured image alt text</span>
+                <input
+                  name="imageAlt"
+                  type="text"
+                  placeholder="Describe the main image"
+                  value={resolvedDraft.imageAlt}
+                  onChange={(event) => updateDraftField("imageAlt", event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="editor-form__split">
+              <label>
+                <span>Primary source name</span>
+                <input
+                  name="sourceName"
+                  type="text"
+                  placeholder="Reuters, WHO, CBN, Ministry of Health"
+                  value={resolvedDraft.sourceName}
+                  onChange={(event) => updateDraftField("sourceName", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Primary source link</span>
+                <input
+                  name="sourceUrl"
+                  type="url"
+                  placeholder="https://..."
+                  value={resolvedDraft.sourceUrl}
+                  onChange={(event) => updateDraftField("sourceUrl", event.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="editor-form__split">
+              <label>
+                <span>Source country</span>
+                <input
+                  name="sourceCountry"
+                  type="text"
+                  placeholder="Nigeria, United States, Global"
+                  value={resolvedDraft.sourceCountry}
+                  onChange={(event) => updateDraftField("sourceCountry", event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Additional source links</span>
+                <textarea
+                  name="sourceLinks"
+                  rows="4"
+                  placeholder="Label|https://example.com&#10;Official statement|https://example.com/source"
+                  value={resolvedDraft.sourceLinks}
+                  onChange={(event) => updateDraftField("sourceLinks", event.target.value)}
+                />
+              </label>
+            </div>
+
+            {isAdmin ? (
+              <div className="editor-form__split">
+                <label>
+                  <span>Workflow status</span>
+                  <select
+                    name="workflowStatusPreset"
+                    value={submitMode}
+                    onChange={(event) => setSubmitMode(event.target.value)}
+                  >
+                    <option value="draft">Save draft</option>
+                    <option value="submit">Submit for review</option>
+                    <option value="publish">Publish now</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Schedule for</span>
+                  <input
+                    name="scheduledFor"
+                    type="datetime-local"
+                    value={resolvedDraft.scheduledFor}
+                    onChange={(event) => updateDraftField("scheduledFor", event.target.value)}
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            <label>
+              <span>Review notes</span>
+              <textarea
+                name="reviewNotes"
+                rows="3"
+                placeholder="Optional editorial notes for approvals or revisions"
+                value={resolvedDraft.reviewNotes}
+                onChange={(event) => updateDraftField("reviewNotes", event.target.value)}
+              />
+            </label>
+          </details>
 
           <label>
             <span>{draft.id ? "Replace image or video" : "Upload image or video"}</span>
