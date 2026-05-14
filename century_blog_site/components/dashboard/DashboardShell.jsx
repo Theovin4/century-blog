@@ -21,6 +21,7 @@ import {
 
 const emptyDraft = {
   id: "",
+  autoDraftId: "",
   title: "",
   excerpt: "",
   content: "",
@@ -638,6 +639,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     clearPreview();
     setDraft({
       id: String(post.id),
+      autoDraftId: "",
       title: post.title,
       excerpt: post.excerpt,
       content: post.content,
@@ -674,6 +676,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     clearPreview();
     setDraft({
       id: "",
+      autoDraftId: String(draftPost.id || ""),
       title: draftPost.title,
       excerpt: draftPost.excerpt,
       content: draftPost.content,
@@ -878,6 +881,14 @@ export function DashboardShell({ initialPosts, currentUser }) {
               ? "Post updated successfully."
               : "Post published successfully.";
       const successPost = data;
+
+      if (draft.autoDraftId && data.workflowStatus === "published") {
+        await fetchWithFeedback(
+          `/api/automation/drafts/${draft.autoDraftId}`,
+          { method: "DELETE" },
+          "Unable to clear the reviewed auto draft."
+        ).catch(() => undefined);
+      }
 
       setMessage(successText);
       setToast({
