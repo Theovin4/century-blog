@@ -863,6 +863,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       formData.set("sourceName", resolvedDraft.sourceName);
       formData.set("sourceCountry", resolvedDraft.sourceCountry);
       formData.set("workflowStatus", resolveSubmitModeToWorkflowStatus(mode));
+      formData.set("autoDraftId", draft.autoDraftId || "");
 
       const data = await fetchWithFeedback(endpoint, { method, body: formData }, "Unable to save post.");
 

@@ -13,6 +13,7 @@ import {
   logActivity
 } from "@/lib/editorial";
 import { addNotification } from "@/lib/notifications-store";
+import { deleteMatchingAutoDrafts } from "@/lib/auto-drafts-store";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
@@ -137,6 +138,7 @@ export async function POST(request) {
   const tags = parseCsv(formData.get("tags"));
   const scheduledFor = String(formData.get("scheduledFor") || "").trim();
   const requestedWorkflowStatus = String(formData.get("workflowStatus") || "").trim();
+  const autoDraftId = String(formData.get("autoDraftId") || "").trim();
   const media = formData.get("media");
 
   if (!title || !excerpt || !content || !category) {
@@ -197,6 +199,12 @@ export async function POST(request) {
     );
 
     if (post.workflowStatus === "published") {
+      await deleteMatchingAutoDrafts({
+        id: autoDraftId,
+        sourceUrl: post.sourceUrl,
+        autoSourceId: post.autoSourceId,
+        title: post.title
+      }).catch(() => 0);
       revalidatePostSurfaces(post);
     } else {
       revalidatePath("/dashboard");

@@ -94,6 +94,41 @@ export async function deleteAutoDraft(id) {
   return true;
 }
 
+export async function deleteMatchingAutoDrafts({ id = "", sourceUrl = "", autoSourceId = "", title = "" } = {}) {
+  const drafts = await getAutoDrafts();
+  const normalizedId = String(id || "").trim();
+  const normalizedSourceUrl = String(sourceUrl || "").trim().toLowerCase();
+  const normalizedAutoSourceId = String(autoSourceId || "").trim().toLowerCase();
+  const normalizedTitle = normalizeStoredText(title || "").trim().toLowerCase();
+
+  const nextDrafts = drafts.filter((draft) => {
+    if (normalizedId && String(draft.id) === normalizedId) {
+      return false;
+    }
+
+    if (normalizedSourceUrl && String(draft.sourceUrl || "").trim().toLowerCase() === normalizedSourceUrl) {
+      return false;
+    }
+
+    if (normalizedAutoSourceId && String(draft.autoSourceId || "").trim().toLowerCase() === normalizedAutoSourceId) {
+      return false;
+    }
+
+    if (normalizedTitle && normalizeStoredText(draft.title || "").trim().toLowerCase() === normalizedTitle) {
+      return false;
+    }
+
+    return true;
+  });
+
+  if (nextDrafts.length === drafts.length) {
+    return 0;
+  }
+
+  await writeJsonStore(localFilePath, publicId, nextDrafts);
+  return drafts.length - nextDrafts.length;
+}
+
 export async function getAutoDraftById(id) {
   const drafts = await getAutoDrafts();
   return drafts.find((draft) => String(draft.id) === String(id)) || null;

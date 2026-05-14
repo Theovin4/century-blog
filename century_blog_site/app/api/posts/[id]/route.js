@@ -14,6 +14,7 @@ import {
   hasPermission,
   logActivity
 } from "@/lib/editorial";
+import { deleteMatchingAutoDrafts } from "@/lib/auto-drafts-store";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
@@ -122,6 +123,7 @@ export async function PATCH(request, { params }) {
     })
     .filter((item) => /^https?:\/\//i.test(item.url));
   const requestedWorkflowStatus = String(formData.get("workflowStatus") || current.workflowStatus || "").trim();
+  const autoDraftId = String(formData.get("autoDraftId") || "").trim();
   const reviewNotes = String(formData.get("reviewNotes") || current.reviewNotes || "").trim();
   const scheduledFor = String(formData.get("scheduledFor") || current.scheduledFor || "").trim();
   const featuredValue = formData.get("featured");
@@ -212,6 +214,14 @@ export async function PATCH(request, { params }) {
     );
 
     if (post.workflowStatus === "published" || current.workflowStatus === "published") {
+      if (post.workflowStatus === "published") {
+        await deleteMatchingAutoDrafts({
+          id: autoDraftId,
+          sourceUrl: post.sourceUrl,
+          autoSourceId: post.autoSourceId,
+          title: post.title
+        }).catch(() => 0);
+      }
       revalidatePostSurfaces(post, current.category);
     } else {
       revalidatePath("/dashboard");
