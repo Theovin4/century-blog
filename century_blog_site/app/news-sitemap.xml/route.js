@@ -11,7 +11,8 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
+export const revalidate = 900;
 
 function renderNewsUrl(siteUrl, post) {
   const publicationDate = new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt).toISOString();
@@ -22,20 +23,26 @@ function renderNewsUrl(siteUrl, post) {
 
 export async function GET() {
   const siteUrl = getSiteUrl();
-  const cutoff = Date.now() - (2 * 24 * 60 * 60 * 1000);
-  const posts = (await getPosts())
+  const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+  const posts = (await getPosts().catch(() => []))
     .filter((post) => post?.slug)
     .filter((post) => new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt).getTime() >= cutoff)
     .slice(0, 1000);
 
-  const xmlEntries = posts.map((post) => renderNewsUrl(siteUrl, post)).join("");
+  const fallbackPosts = posts.length
+    ? posts
+    : (await getPosts().catch(() => []))
+        .filter((post) => post?.slug)
+        .slice(0, 25);
+
+  const xmlEntries = fallbackPosts.map((post) => renderNewsUrl(siteUrl, post)).join("");
   const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${xmlEntries}</urlset>`;
 
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, max-age=0, must-revalidate",
-      "X-Robots-Tag": "noindex, follow"
+      "Cache-Control": "public, s-maxage=900, stale-while-revalidate=86400",
+      "X-Robots-Tag": "index, follow"
     }
   });
 }
