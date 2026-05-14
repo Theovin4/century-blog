@@ -51,7 +51,7 @@ function sanitizePost(post) {
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
     sitePublishedAt:
       workflowStatus === "published"
-        ? post.sitePublishedAt || post.publishedAt || post.updatedAt || ""
+        ? post.sitePublishedAt || post.publishedAt || post.createdAt || post.updatedAt || ""
         : post.sitePublishedAt || "",
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
@@ -107,7 +107,11 @@ function normalizePost(post) {
     regionFocus: defaultRegionFocus(post.category, post.regionFocus),
     sitePublishedAt:
       workflowStatus === "published"
-        ? post.sitePublishedAt || (post.type === "auto" ? post.updatedAt || post.publishedAt || "" : post.publishedAt || post.updatedAt || "")
+        ? post.sitePublishedAt || (
+          post.type === "auto"
+            ? post.publishedAt || post.createdAt || post.updatedAt || ""
+            : post.publishedAt || post.createdAt || post.updatedAt || ""
+        )
         : post.sitePublishedAt || "",
     autoProvider: post.autoProvider || "",
     autoSourceId: post.autoSourceId || "",
