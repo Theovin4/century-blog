@@ -11,11 +11,11 @@ const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || "gpt-5-mini";
 
-const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 36;
+const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
-const MIN_ARTICLE_WORDS = 700;
+const MIN_ARTICLE_WORDS = 600;
 const MAX_ARTICLE_WORDS = 1100;
-const MAX_REWRITE_ATTEMPTS = 2;
+const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
   "## Introduction",
   "## Context / Background",
@@ -752,7 +752,6 @@ function evaluateCandidateQuality(article, candidate) {
 
   if (trimToLength(candidate?.title || "", 140).length < 35) {
     reasons.push("weak-title");
-    blockingReasons.push("weak-title");
     score -= 1;
   }
 
@@ -763,7 +762,6 @@ function evaluateCandidateQuality(article, candidate) {
 
   if (article?.regionFocus === "nigeria" && !/nigeria|nigerian|lagos|abuja|naira/i.test(content)) {
     reasons.push("missing-nigeria-angle");
-    blockingReasons.push("missing-nigeria-angle");
     score -= 2;
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAutoDrafts } from "@/lib/auto-drafts-store";
+import { getPosts } from "@/lib/posts-store";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
 
 async function requireAdmin() {
@@ -17,6 +18,46 @@ export async function GET() {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const drafts = await getAutoDrafts();
-  return NextResponse.json(drafts);
+  const [drafts, publishedPosts] = await Promise.all([
+    getAutoDrafts(),
+    getPosts().catch(() => [])
+  ]);
+
+  const publishedSourceUrls = new Set(
+    publishedPosts
+      .map((post) => String(post.sourceUrl || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const publishedAutoSourceIds = new Set(
+    publishedPosts
+      .map((post) => String(post.autoSourceId || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const publishedTitles = new Set(
+    publishedPosts
+      .map((post) => String(post.title || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const visibleDrafts = drafts.filter((draft) => {
+    const sourceUrl = String(draft.sourceUrl || "").trim().toLowerCase();
+    const autoSourceId = String(draft.autoSourceId || "").trim().toLowerCase();
+    const title = String(draft.title || "").trim().toLowerCase();
+
+    if (sourceUrl && publishedSourceUrls.has(sourceUrl)) {
+      return false;
+    }
+
+    if (autoSourceId && publishedAutoSourceIds.has(autoSourceId)) {
+      return false;
+    }
+
+    if (title && publishedTitles.has(title)) {
+      return false;
+    }
+
+    return true;
+  });
+
+  return NextResponse.json(visibleDrafts);
 }
