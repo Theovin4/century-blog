@@ -1105,13 +1105,13 @@ button {
   }
 
   .brand-mark {
-    width: min(92px, 24vw);
+    width: clamp(66px, 20vw, 92px);
     padding: 0.2rem;
     border-radius: 18px;
   }
 
   .brand-mark__image {
-    max-width: 84px;
+    max-width: clamp(58px, 18vw, 84px);
     border-radius: 14px;
   }
 
@@ -1281,6 +1281,37 @@ button {
 .blog-content pre code {
   padding: 0;
   background: transparent;
+}
+
+@media (max-width: 420px) {
+  .brand-lockup {
+    gap: 0.7rem;
+  }
+
+  .brand-mark {
+    width: clamp(58px, 18vw, 74px);
+    padding: 0.15rem;
+    border-radius: 16px;
+  }
+
+  .brand-mark__image {
+    max-width: clamp(52px, 16vw, 68px);
+    border-radius: 12px;
+  }
+
+  .brand-copy {
+    gap: 0.2rem;
+  }
+
+  .brand-copy__tag {
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+  }
 }
 
 .blog-content__image {
