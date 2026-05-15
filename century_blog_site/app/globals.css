@@ -99,6 +99,7 @@ button {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
@@ -106,15 +107,17 @@ button {
   position: relative;
   display: grid;
   place-items: center;
-  width: 114px;
-  height: 114px;
+  flex: 0 0 auto;
+  width: clamp(148px, 18vw, 188px);
+  min-height: 0;
+  padding: 0.6rem 0.8rem;
   border-radius: 28px;
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 207, 90, 0.18), transparent 34%),
     radial-gradient(circle at 80% 75%, rgba(94, 242, 255, 0.14), transparent 36%),
     rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .brand-mark::before {
@@ -136,11 +139,12 @@ button {
   position: relative;
   z-index: 1;
   display: block;
-  width: 88px;
-  height: 88px;
+  width: 100%;
+  max-width: 168px;
+  height: auto;
   object-fit: contain;
-  mix-blend-mode: screen;
-  filter: saturate(1.08) contrast(1.04) drop-shadow(0 10px 22px rgba(94, 242, 255, 0.18));
+  mix-blend-mode: normal;
+  filter: saturate(1.04) contrast(1.02) drop-shadow(0 10px 22px rgba(0, 0, 0, 0.2));
 }
 
 .brand-copy {
@@ -1113,19 +1117,13 @@ button {
   }
 
   .brand-mark {
-    width: min(180px, 48vw);
-    height: auto;
-    min-height: 0;
+    width: min(180px, 50vw);
     padding: 0.5rem 0.7rem;
     border-radius: 24px;
-    overflow: visible;
   }
 
   .brand-mark__image {
-    width: 100%;
-    height: auto;
     max-width: 160px;
-    mix-blend-mode: normal;
     filter: saturate(1.02) contrast(1.02) drop-shadow(0 8px 18px rgba(0, 0, 0, 0.22));
   }
 
