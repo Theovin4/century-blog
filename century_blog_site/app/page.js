@@ -155,11 +155,7 @@ export default async function HomePage({ searchParams }) {
               <p className="brand-copy__tag">Nigeria-first reporting with fast updates on world news, business, technology, entertainment, lifestyle, education, health, and daily gist.</p>
             </div>
           </div>
-          <p className="hero-kicker">Independent digital publication for readers who want clear updates, better context, and a cleaner reading experience.</p>
           <h1>Breaking Nigeria news, global updates, and stories that matter</h1>
-          <p className="hero-text">
-            Follow breaking stories, smart explainers, and practical updates across Nigeria, business, technology, entertainment, lifestyle, education, health, and world news.
-          </p>
           <div className="hero-highlights" aria-label="Century Blog highlights">
             <span className="hero-highlight">Breaking Nigeria and world headlines</span>
             <span className="hero-highlight">Clear business, tech, health, and lifestyle coverage</span>
