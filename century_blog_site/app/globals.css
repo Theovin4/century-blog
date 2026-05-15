@@ -99,6 +99,7 @@ button {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  width: 100%;
   margin-bottom: 1rem;
 }
 
@@ -143,8 +144,10 @@ button {
 
 .brand-copy {
   display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 0.35rem;
-  max-width: 26rem;
+  max-width: min(40rem, 100%);
 }
 
 .eyebrow-brand::before {
@@ -1101,7 +1104,7 @@ button {
   }
 
   .brand-copy {
-    max-width: 22rem;
+    max-width: none;
   }
 
   .brand-copy__tag {
