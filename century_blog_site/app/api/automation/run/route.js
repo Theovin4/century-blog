@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { runAutomatedNewsIngestion } from "@/lib/auto-news";
 import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
+import { publishDueScheduledPosts } from "@/lib/posts-store";
 
 async function isAllowedByAdmin() {
   const user = await getCurrentUser();
@@ -31,8 +32,12 @@ async function handleRun(request, force = false) {
   }
 
   try {
+    const scheduledPublishedCount = await publishDueScheduledPosts();
     const result = await runAutomatedNewsIngestion({ force: force || isAdmin });
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      scheduledPublishedCount
+    });
   } catch (error) {
     return NextResponse.json({ message: error.message || "Automation run failed." }, { status: 500 });
   }

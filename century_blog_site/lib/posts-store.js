@@ -20,6 +20,7 @@ import {
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts.json");
 const publicId = "century-blog/data/posts";
+let scheduledPublishJob = null;
 
 async function readLocalSeedPosts() {
   return readJsonStore(localFilePath, null, []);
@@ -272,6 +273,62 @@ async function writePostsSource(posts) {
   await writeJsonStore(localFilePath, publicId, normalizeFeaturedPosts(posts).map(sanitizePost));
 }
 
+function toSafeTimestamp(value) {
+  const timestamp = new Date(value || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function shouldPublishScheduledPost(post, nowTimestamp) {
+  if (String(post?.workflowStatus || "") !== "scheduled") {
+    return false;
+  }
+
+  const scheduledTimestamp = toSafeTimestamp(post?.scheduledFor);
+  return scheduledTimestamp > 0 && scheduledTimestamp <= nowTimestamp;
+}
+
+export async function publishDueScheduledPosts(now = new Date()) {
+  if (scheduledPublishJob) {
+    return scheduledPublishJob;
+  }
+
+  scheduledPublishJob = (async () => {
+    const nowIso = now.toISOString();
+    const nowTimestamp = now.getTime();
+    const posts = await readPostsSource();
+    let publishedCount = 0;
+
+    const updatedPosts = posts.map((post) => {
+      if (!shouldPublishScheduledPost(post, nowTimestamp)) {
+        return post;
+      }
+
+      publishedCount += 1;
+      return normalizePost({
+        ...post,
+        workflowStatus: "published",
+        sitePublishedAt: post.sitePublishedAt || post.scheduledFor || nowIso,
+        publishedAt: post.publishedAt || post.scheduledFor || nowIso,
+        approvedAt: post.approvedAt || nowIso,
+        approvedBy: post.approvedBy || "system",
+        updatedAt: nowIso
+      });
+    });
+
+    if (publishedCount > 0) {
+      await writePostsSource(updatedPosts);
+    }
+
+    return publishedCount;
+  })();
+
+  try {
+    return await scheduledPublishJob;
+  } finally {
+    scheduledPublishJob = null;
+  }
+}
+
 function tokenizeTitle(value) {
   return slugify(value)
     .split("-")
@@ -313,6 +370,7 @@ export async function replaceAllPosts(posts) {
 }
 
 export async function getPosts() {
+  await publishDueScheduledPosts();
   const posts = await readPostsSource();
   return posts
     .filter((post) => String(post.workflowStatus || "published") === "published")
@@ -320,6 +378,7 @@ export async function getPosts() {
 }
 
 export async function getAllPosts() {
+  await publishDueScheduledPosts();
   const posts = await readPostsSource();
   return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
