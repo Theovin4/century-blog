@@ -98,25 +98,47 @@ button {
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.95rem;
+  margin-bottom: 1.05rem;
 }
 
 .brand-mark {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: clamp(112px, 12vw, 132px);
+  width: clamp(104px, 11vw, 120px);
+  padding: 0.35rem;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 26px rgba(0, 0, 0, 0.18);
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 28px;
+  background: radial-gradient(circle at top left, rgba(94, 242, 255, 0.1), transparent 55%);
+  opacity: 0.7;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .brand-mark__image {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
-  max-width: 132px;
+  max-width: 112px;
   height: auto;
   object-fit: contain;
-  filter: saturate(1.02) contrast(1.01);
+  border-radius: 18px;
+  filter: saturate(1.01) contrast(1.01) brightness(0.99);
 }
 
 .brand-copy {
@@ -1082,11 +1104,14 @@ button {
   }
 
   .brand-mark {
-    width: min(128px, 34vw);
+    width: min(116px, 31vw);
+    padding: 0.28rem;
+    border-radius: 20px;
   }
 
   .brand-mark__image {
-    max-width: 128px;
+    max-width: 108px;
+    border-radius: 15px;
   }
 
   .hero-copy h1,
