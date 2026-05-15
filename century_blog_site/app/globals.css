@@ -1098,20 +1098,27 @@ button {
   }
 
   .brand-lockup {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: nowrap;
   }
 
   .brand-mark {
-    width: min(108px, 29vw);
+    width: min(92px, 24vw);
     padding: 0.2rem;
     border-radius: 18px;
   }
 
   .brand-mark__image {
-    max-width: 100px;
+    max-width: 84px;
     border-radius: 14px;
+  }
+
+  .brand-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
   }
 
   .hero-copy h1,
