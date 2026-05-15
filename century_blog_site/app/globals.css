@@ -98,8 +98,8 @@ button {
 .brand-lockup {
   display: flex;
   align-items: center;
-  gap: 0.95rem;
-  margin-bottom: 1.05rem;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
 }
 
 .brand-mark {
@@ -108,23 +108,23 @@ button {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  width: clamp(104px, 11vw, 120px);
-  padding: 0.35rem;
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  width: clamp(96px, 10vw, 110px);
+  padding: 0.22rem;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(255, 255, 255, 0.045);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 26px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
 .brand-mark::after {
   content: "";
   position: absolute;
-  inset: -6px;
-  border-radius: 28px;
-  background: radial-gradient(circle at top left, rgba(94, 242, 255, 0.1), transparent 55%);
-  opacity: 0.7;
+  inset: -5px;
+  border-radius: 26px;
+  background: radial-gradient(circle at top left, rgba(94, 242, 255, 0.06), transparent 58%);
+  opacity: 0.5;
   z-index: 0;
   pointer-events: none;
 }
@@ -134,11 +134,11 @@ button {
   z-index: 1;
   display: block;
   width: 100%;
-  max-width: 112px;
+  max-width: 104px;
   height: auto;
   object-fit: contain;
-  border-radius: 18px;
-  filter: saturate(1.01) contrast(1.01) brightness(0.99);
+  border-radius: 16px;
+  filter: saturate(1) contrast(1.01) brightness(0.995);
 }
 
 .brand-copy {
@@ -1104,14 +1104,14 @@ button {
   }
 
   .brand-mark {
-    width: min(116px, 31vw);
-    padding: 0.28rem;
-    border-radius: 20px;
+    width: min(108px, 29vw);
+    padding: 0.2rem;
+    border-radius: 18px;
   }
 
   .brand-mark__image {
-    max-width: 108px;
-    border-radius: 15px;
+    max-width: 100px;
+    border-radius: 14px;
   }
 
   .hero-copy h1,
