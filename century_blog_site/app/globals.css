@@ -1091,6 +1091,25 @@ button {
   }
 }
 
+@media (max-width: 1200px) {
+  .brand-mark {
+    width: clamp(88px, 9vw, 104px);
+  }
+
+  .brand-mark__image {
+    max-width: 96px;
+  }
+
+  .brand-copy {
+    max-width: 22rem;
+  }
+
+  .brand-copy__tag {
+    font-size: 0.88rem;
+    line-height: 1.45;
+  }
+}
+
 @media (max-width: 640px) {
   .page-shell,
   .dashboard-page {

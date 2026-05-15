@@ -152,7 +152,7 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Nigeria-first reporting with fast updates on world news, business, technology, entertainment, lifestyle, education, health, and daily gist.</p>
+              <p className="brand-copy__tag">Nigeria-first reporting on world news, business, technology, entertainment, health, lifestyle, and daily gist.</p>
             </div>
           </div>
           <h1>Breaking Nigeria news, global updates, and stories that matter</h1>
