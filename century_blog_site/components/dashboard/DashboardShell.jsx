@@ -317,6 +317,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
     pendingReviewCount: 0,
     publishedCount: 0,
     draftCount: 0,
+    overdueScheduledCount: 0,
+    latestPublishedAt: "",
+    warnings: [],
     recentActivity: [],
     moderatorPerformance: []
   });
@@ -1284,10 +1287,10 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </div>
           <p>Track submissions, published output, recent moderation activity, and team performance without leaving the dashboard.</p>
         </div>
-        <div className="automation-panel__grid">
-          <div className="automation-panel__card">
-            <strong>Pending review</strong>
-            <span>{overview.pendingReviewCount || 0}</span>
+          <div className="automation-panel__grid">
+            <div className="automation-panel__card">
+              <strong>Pending review</strong>
+              <span>{overview.pendingReviewCount || 0}</span>
           </div>
           <div className="automation-panel__card">
             <strong>Published</strong>
@@ -1297,13 +1300,22 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <strong>Your drafts</strong>
             <span>{overview.draftCount || 0}</span>
           </div>
-          <div className="automation-panel__card">
-            <strong>Unread alerts</strong>
-            <span>{notifications.filter((item) => !item.read).length}</span>
+            <div className="automation-panel__card">
+              <strong>Unread alerts</strong>
+              <span>{notifications.filter((item) => !item.read).length}</span>
+            </div>
           </div>
-        </div>
-        {notifications.length ? (
-          <div className="dashboard-post-list">
+          {Array.isArray(overview.warnings) && overview.warnings.length ? (
+            <div className="dashboard-post-list">
+              {overview.warnings.map((warning, index) => (
+                <p key={`${warning}-${index}`} className="dashboard-warning">
+                  {warning}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {notifications.length ? (
+            <div className="dashboard-post-list">
             {notifications.slice(0, 5).map((notification) => (
               <article key={notification.id} className="dashboard-post-card">
                 <div className="dashboard-post-card__labels">

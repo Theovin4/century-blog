@@ -4,6 +4,11 @@ import { getCurrentUser, hasPermission } from "@/lib/editorial";
 import { getAllPosts } from "@/lib/posts-store";
 import { getAllUsers } from "@/lib/users-store";
 
+function toTimestamp(value) {
+  const timestamp = new Date(value || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 export async function GET() {
   const user = await getCurrentUser();
 
@@ -24,6 +29,26 @@ export async function GET() {
   const pendingReviewCount = posts.filter((post) => String(post.workflowStatus || "") === "pending_review").length;
   const publishedCount = posts.filter((post) => String(post.workflowStatus || "published") === "published").length;
   const draftCount = visiblePosts.filter((post) => String(post.workflowStatus || "") === "draft").length;
+  const overdueScheduledCount = posts.filter((post) => {
+    if (String(post.workflowStatus || "") !== "scheduled" || !post.scheduledFor) {
+      return false;
+    }
+
+    return toTimestamp(post.scheduledFor) > 0 && toTimestamp(post.scheduledFor) <= Date.now();
+  }).length;
+  const latestPublishedAt = posts
+    .filter((post) => String(post.workflowStatus || "published") === "published")
+    .reduce((max, post) => Math.max(max, toTimestamp(post.sitePublishedAt || post.publishedAt || post.updatedAt)), 0);
+  const warnings = [];
+
+  if (latestPublishedAt && latestPublishedAt < Date.now() - (72 * 60 * 60 * 1000)) {
+    warnings.push("Published feed looks stale. No new published post has surfaced in more than 72 hours.");
+  }
+
+  if (overdueScheduledCount > 0) {
+    warnings.push(`${overdueScheduledCount} scheduled post${overdueScheduledCount === 1 ? "" : "s"} passed the publish time and should be checked.`);
+  }
+
   const recentActivity = logs.slice(0, 12);
 
   const moderatorPerformance = users
@@ -46,6 +71,9 @@ export async function GET() {
     pendingReviewCount,
     publishedCount,
     draftCount,
+    overdueScheduledCount,
+    latestPublishedAt: latestPublishedAt ? new Date(latestPublishedAt).toISOString() : "",
+    warnings,
     recentActivity,
     moderatorPerformance
   });

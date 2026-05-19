@@ -27,6 +27,17 @@ export function isCloudinaryConfigured() {
   return Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
 }
 
+async function getCloudinaryRawResource(publicId) {
+  if (!isCloudinaryConfigured()) {
+    return null;
+  }
+
+  return cloudinary.api.resource(publicId, {
+    resource_type: "raw",
+    type: "upload"
+  });
+}
+
 export function requiresPersistentRemoteStorage() {
   return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
 }
@@ -169,8 +180,18 @@ export async function readCloudinaryJson(publicId) {
     return null;
   }
 
-  const directUrl = buildCloudinaryRawJsonUrl(publicId);
-  const response = await fetch(`${directUrl}?t=${Date.now()}`, { cache: "no-store" });
+  let directUrl = buildCloudinaryRawJsonUrl(publicId);
+
+  try {
+    const resource = await getCloudinaryRawResource(publicId);
+    if (resource?.secure_url) {
+      directUrl = resource.secure_url;
+    }
+  } catch {
+    // Fall back to the unversioned raw URL if metadata lookup fails.
+  }
+
+  const response = await fetch(`${directUrl}${directUrl.includes("?") ? "&" : "?"}t=${Date.now()}`, { cache: "no-store" });
 
   if (response.status === 404) {
     return null;
@@ -181,6 +202,32 @@ export async function readCloudinaryJson(publicId) {
   }
 
   return response.json();
+}
+
+export async function backupCloudinaryJson(publicId, backupFolder = "century-blog/backups") {
+  if (!isCloudinaryConfigured()) {
+    return null;
+  }
+
+  const resource = await getCloudinaryRawResource(publicId);
+  if (!resource?.secure_url) {
+    return null;
+  }
+
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const normalizedId = String(publicId || "").replace(/^\/+/, "").replace(/\.json$/i, "");
+  const targetId = `${backupFolder}/${normalizedId}-${stamp}.json`;
+
+  const result = await cloudinary.uploader.upload(resource.secure_url, {
+    resource_type: "raw",
+    public_id: targetId,
+    overwrite: false,
+    use_filename: false,
+    unique_filename: false,
+    format: "json"
+  });
+
+  return result.secure_url || "";
 }
 
 export async function writeCloudinaryJson(publicId, payload) {
