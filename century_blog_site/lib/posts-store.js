@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { revalidateTag, unstable_cache } from "next/cache";
 import {
+  ensureCloudinaryJsonBackup,
+  getLatestCloudinaryJsonBackup,
   buildCloudinaryVideoPosterUrl,
   optimizeCloudinaryMediaUrl,
   uploadMediaFile,
@@ -22,6 +24,7 @@ import {
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts.json");
 const publicId = "century-blog/data/posts";
 const POSTS_CACHE_TAG = "century-blog-posts";
+const POSTS_BACKUP_FOLDER = "century-blog/backups";
 let scheduledPublishJob = null;
 
 async function readLocalSeedPosts() {
@@ -287,6 +290,25 @@ async function readPostsSource() {
 async function writePostsSource(posts) {
   await writeJsonStore(localFilePath, publicId, normalizeFeaturedPosts(posts).map(sanitizePost));
   revalidateTag(POSTS_CACHE_TAG);
+}
+
+export async function ensurePostsBackup({ maxAgeHours = 24, force = false } = {}) {
+  return ensureCloudinaryJsonBackup(publicId, {
+    backupFolder: POSTS_BACKUP_FOLDER,
+    maxAgeHours,
+    force
+  });
+}
+
+export async function getPostsBackupStatus() {
+  const latestBackup = await getLatestCloudinaryJsonBackup(publicId, POSTS_BACKUP_FOLDER);
+
+  return {
+    latestBackupAt: latestBackup?.createdAt || "",
+    latestBackupUrl: latestBackup?.secureUrl || "",
+    latestBackupBytes: Number(latestBackup?.bytes || 0),
+    latestBackupPublicId: latestBackup?.publicId || ""
+  };
 }
 
 function toSafeTimestamp(value) {

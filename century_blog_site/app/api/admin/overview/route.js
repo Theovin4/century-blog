@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getActivityLogs } from "@/lib/activity-log-store";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
-import { getAllPosts } from "@/lib/posts-store";
+import { getAllPosts, getPostsBackupStatus } from "@/lib/posts-store";
 import { getAllUsers } from "@/lib/users-store";
 
 function toTimestamp(value) {
@@ -16,10 +16,16 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
 
-  const [posts, users, logs] = await Promise.all([
+  const [posts, users, logs, backupStatus] = await Promise.all([
     getAllPosts(),
     hasPermission(user, "moderators:manage") ? getAllUsers() : Promise.resolve([]),
-    hasPermission(user, "analytics:view") ? getActivityLogs() : Promise.resolve([])
+    hasPermission(user, "analytics:view") ? getActivityLogs() : Promise.resolve([]),
+    getPostsBackupStatus().catch(() => ({
+      latestBackupAt: "",
+      latestBackupUrl: "",
+      latestBackupBytes: 0,
+      latestBackupPublicId: ""
+    }))
   ]);
 
   const visiblePosts = hasPermission(user, "articles:edit:any")
@@ -49,6 +55,12 @@ export async function GET() {
     warnings.push(`${overdueScheduledCount} scheduled post${overdueScheduledCount === 1 ? "" : "s"} passed the publish time and should be checked.`);
   }
 
+  if (!backupStatus.latestBackupAt) {
+    warnings.push("Posts backup snapshot has not been confirmed yet. Run automation or save a post to create a fresh remote backup.");
+  } else if (toTimestamp(backupStatus.latestBackupAt) < Date.now() - (36 * 60 * 60 * 1000)) {
+    warnings.push("Posts backup snapshot looks stale. Run automation or save a post to refresh the backup coverage.");
+  }
+
   const recentActivity = logs.slice(0, 12);
 
   const moderatorPerformance = users
@@ -73,6 +85,7 @@ export async function GET() {
     draftCount,
     overdueScheduledCount,
     latestPublishedAt: latestPublishedAt ? new Date(latestPublishedAt).toISOString() : "",
+    backupStatus,
     warnings,
     recentActivity,
     moderatorPerformance

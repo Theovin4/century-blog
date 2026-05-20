@@ -47,6 +47,21 @@ async function getCloudinaryRawResource(publicId) {
   });
 }
 
+async function listCloudinaryRawResources(prefix, maxResults = 100) {
+  if (!isCloudinaryConfigured()) {
+    return [];
+  }
+
+  const response = await cloudinary.api.resources({
+    resource_type: "raw",
+    type: "upload",
+    prefix: String(prefix || "").trim().replace(/^\/+/, ""),
+    max_results: maxResults
+  });
+
+  return Array.isArray(response?.resources) ? response.resources : [];
+}
+
 export function requiresPersistentRemoteStorage() {
   return Boolean(process.env.VERCEL || process.env.NODE_ENV === "production");
 }
@@ -237,6 +252,72 @@ export async function backupCloudinaryJson(publicId, backupFolder = "century-blo
   });
 
   return result.secure_url || "";
+}
+
+export async function getLatestCloudinaryJsonBackup(publicId, backupFolder = "century-blog/backups") {
+  if (!isCloudinaryConfigured()) {
+    return null;
+  }
+
+  const normalizedId = String(publicId || "").replace(/^\/+/, "").replace(/\.json$/i, "");
+  const prefix = `${backupFolder}/${normalizedId}-`;
+  const resources = await listCloudinaryRawResources(prefix, 100);
+
+  if (!resources.length) {
+    return null;
+  }
+
+  const latest = [...resources].sort((left, right) => {
+    const rightTime = new Date(right?.created_at || 0).getTime();
+    const leftTime = new Date(left?.created_at || 0).getTime();
+    return rightTime - leftTime;
+  })[0];
+
+  if (!latest) {
+    return null;
+  }
+
+  return {
+    publicId: latest.public_id || "",
+    secureUrl: latest.secure_url || "",
+    bytes: Number(latest.bytes || 0),
+    createdAt: latest.created_at || ""
+  };
+}
+
+export async function ensureCloudinaryJsonBackup(
+  publicId,
+  { backupFolder = "century-blog/backups", maxAgeHours = 24, force = false } = {}
+) {
+  if (!isCloudinaryConfigured()) {
+    return {
+      created: false,
+      reason: "cloudinary-not-configured",
+      latestBackup: null
+    };
+  }
+
+  const latestBackup = await getLatestCloudinaryJsonBackup(publicId, backupFolder);
+  const latestTimestamp = latestBackup?.createdAt ? new Date(latestBackup.createdAt).getTime() : 0;
+  const maxAgeMs = Math.max(1, Number(maxAgeHours || 24)) * 60 * 60 * 1000;
+
+  if (!force && latestTimestamp && Date.now() - latestTimestamp < maxAgeMs) {
+    return {
+      created: false,
+      reason: "recent-backup-exists",
+      latestBackup
+    };
+  }
+
+  const secureUrl = await backupCloudinaryJson(publicId, backupFolder);
+  const refreshedLatestBackup = await getLatestCloudinaryJsonBackup(publicId, backupFolder);
+
+  return {
+    created: Boolean(secureUrl),
+    reason: secureUrl ? "backup-created" : "backup-create-returned-empty",
+    secureUrl,
+    latestBackup: refreshedLatestBackup || latestBackup
+  };
 }
 
 export async function writeCloudinaryJson(publicId, payload) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { runAutomatedNewsIngestion } from "@/lib/auto-news";
 import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
-import { publishDueScheduledPosts } from "@/lib/posts-store";
+import { ensurePostsBackup, publishDueScheduledPosts } from "@/lib/posts-store";
 
 async function isAllowedByAdmin() {
   const user = await getCurrentUser();
@@ -32,10 +32,12 @@ async function handleRun(request, force = false) {
   }
 
   try {
+    const backup = await ensurePostsBackup({ maxAgeHours: 24 });
     const scheduledPublishedCount = await publishDueScheduledPosts();
     const result = await runAutomatedNewsIngestion({ force: force || isAdmin });
     return NextResponse.json({
       ...result,
+      backup,
       scheduledPublishedCount
     });
   } catch (error) {
