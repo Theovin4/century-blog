@@ -1387,7 +1387,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
         ) : null}
         {!aiEnhanced ? (
           <p className="dashboard-warning dashboard-warning--soft">
-            The rewrite engine still works, but premium AI rewrite needs an <code>OPENAI_API_KEY</code> in Vercel.
+            The rewrite engine still works, but premium AI rewrite needs either <code>AI_REWRITE_PROVIDER=groq</code> with a <code>GROQ_API_KEY</code> or a valid <code>OPENAI_API_KEY</code> in Vercel.
           </p>
         ) : null}
         {!providerSummary.cronSecretEnabled ? (
