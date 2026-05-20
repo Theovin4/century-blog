@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { getPosts } from "@/lib/posts-store";
 import { getActiveCategories, getSiteUrl } from "@/lib/site";
 
-export const dynamic = "force-static";
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 function escapeXml(value) {
   return String(value || "")
@@ -82,7 +81,7 @@ export async function GET() {
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=900, stale-while-revalidate=86400",
+      "Cache-Control": "no-store, max-age=0",
       "X-Robots-Tag": "index, follow"
     }
   });

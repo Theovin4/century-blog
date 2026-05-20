@@ -11,8 +11,7 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-export const dynamic = "force-static";
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 function renderNewsUrl(siteUrl, post) {
   const publicationDate = new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt).toISOString();
@@ -41,7 +40,7 @@ export async function GET() {
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "public, s-maxage=900, stale-while-revalidate=86400",
+      "Cache-Control": "no-store, max-age=0",
       "X-Robots-Tag": "index, follow"
     }
   });
