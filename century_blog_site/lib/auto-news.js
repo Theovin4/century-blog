@@ -10,6 +10,9 @@ const PEXELS_API_KEY = process.env.PEXELS_API_KEY || "";
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || "gpt-5-mini";
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_REWRITE_MODEL = process.env.GROQ_REWRITE_MODEL || "openai/gpt-oss-120b";
+const AI_REWRITE_PROVIDER = String(process.env.AI_REWRITE_PROVIDER || "").trim().toLowerCase();
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
@@ -617,8 +620,122 @@ function extractJsonPayload(text) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+function getAiRewriteProvider() {
+  if (AI_REWRITE_PROVIDER === "groq" && GROQ_API_KEY) {
+    return "groq";
+  }
+
+  if (AI_REWRITE_PROVIDER === "openai" && OPENAI_API_KEY) {
+    return "openai";
+  }
+
+  if (OPENAI_API_KEY) {
+    return "openai";
+  }
+
+  if (GROQ_API_KEY) {
+    return "groq";
+  }
+
+  return "";
+}
+
 function isOpenAiRewriteEnabled() {
-  return Boolean(OPENAI_API_KEY);
+  return Boolean(getAiRewriteProvider());
+}
+
+function buildRewriteJsonSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
+    properties: {
+      title: { type: "string" },
+      metaDescription: { type: "string" },
+      excerpt: { type: "string" },
+      content: { type: "string" },
+      category: {
+        type: "string",
+        enum: ["nigeria", "world", "business", "tech", "entertainment", "health", "lifestyle", "education", "daily-gist"]
+      },
+      author: { type: "string" },
+      unsplashImages: {
+        type: "object",
+        additionalProperties: false,
+        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3"],
+        properties: {
+          featuredImage: {
+            type: "object",
+            additionalProperties: false,
+            required: ["searchQuery", "altText", "filename", "placement"],
+            properties: {
+              searchQuery: { type: "string" },
+              altText: { type: "string" },
+              filename: { type: "string" },
+              placement: { type: "string" }
+            }
+          },
+          supportingImage1: {
+            type: "object",
+            additionalProperties: false,
+            required: ["searchQuery", "altText", "filename", "placement"],
+            properties: {
+              searchQuery: { type: "string" },
+              altText: { type: "string" },
+              filename: { type: "string" },
+              placement: { type: "string" }
+            }
+          },
+          supportingImage2: {
+            type: "object",
+            additionalProperties: false,
+            required: ["searchQuery", "altText", "filename", "placement"],
+            properties: {
+              searchQuery: { type: "string" },
+              altText: { type: "string" },
+              filename: { type: "string" },
+              placement: { type: "string" }
+            }
+          },
+          supportingImage3: {
+            type: "object",
+            additionalProperties: false,
+            required: ["searchQuery", "altText", "filename", "placement"],
+            properties: {
+              searchQuery: { type: "string" },
+              altText: { type: "string" },
+              filename: { type: "string" },
+              placement: { type: "string" }
+            }
+          }
+        }
+      }
+    }
+  };
+}
+
+function getAiRewriteConfig() {
+  const provider = getAiRewriteProvider();
+
+  if (provider === "groq") {
+    return {
+      provider,
+      endpoint: "https://api.groq.com/openai/v1/responses",
+      apiKey: GROQ_API_KEY,
+      model: GROQ_REWRITE_MODEL
+    };
+  }
+
+  if (provider === "openai") {
+    return {
+      provider,
+      endpoint: "https://api.openai.com/v1/responses",
+      apiKey: OPENAI_API_KEY,
+      model: OPENAI_REWRITE_MODEL
+    };
+  }
+
+  return null;
 }
 
 function findRepeatedPhrase(content) {
@@ -784,6 +901,11 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
     return baseCandidate;
   }
 
+  const aiConfig = getAiRewriteConfig();
+  if (!aiConfig) {
+    return baseCandidate;
+  }
+
   const systemPrompt = [
     "GOAL: Generate a high-quality, 100% original, AdSense-approved blog post that delivers real value, strong user experience, and meets Google content quality standards. Content must be written for humans first, SEO second.",
     "ROLE: Act as an expert SEO content writer, journalist, and subject-matter analyst. Produce engaging, authoritative, and insight-driven content suitable for publication.",
@@ -841,30 +963,49 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
   });
 
   try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const requestBody =
+      aiConfig.provider === "groq"
+        ? {
+            model: aiConfig.model,
+            instructions: systemPrompt,
+            input: userPrompt,
+            reasoning: {
+              effort: "low"
+            },
+            text: {
+              format: {
+                type: "json_schema",
+                name: "century_blog_rewrite",
+                schema: buildRewriteJsonSchema()
+              }
+            }
+          }
+        : {
+            model: aiConfig.model,
+            store: false,
+            input: [
+              {
+                role: "system",
+                content: [{ type: "input_text", text: systemPrompt }]
+              },
+              {
+                role: "user",
+                content: [{ type: "input_text", text: userPrompt }]
+              }
+            ]
+          };
+
+    const response = await fetch(aiConfig.endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`
+        Authorization: `Bearer ${aiConfig.apiKey}`
       },
-      body: JSON.stringify({
-        model: OPENAI_REWRITE_MODEL,
-        store: false,
-        input: [
-          {
-            role: "system",
-            content: [{ type: "input_text", text: systemPrompt }]
-          },
-          {
-            role: "user",
-            content: [{ type: "input_text", text: userPrompt }]
-          }
-        ]
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI rewrite failed with status ${response.status}`);
+      throw new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
     }
 
     const payload = await response.json();
@@ -885,7 +1026,8 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
       author: trimToLength(parsed.author || baseCandidate.author, 80),
       _featuredImageQuery: featuredImageQuery
     };
-  } catch {
+  } catch (error) {
+    console.warn(`[auto-news] ${aiConfig.provider} rewrite failed:`, error?.message || error);
     return baseCandidate;
   }
 }
