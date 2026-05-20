@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -170,6 +170,10 @@ function resolveSubmitModeToWorkflowStatus(mode) {
   }
 
   return mode || "draft";
+}
+
+function isLiveWorkflowStatus(status) {
+  return String(status || "") === "published";
 }
 
 function toPlainText(value) {
@@ -876,14 +880,19 @@ export function DashboardShell({ initialPosts, currentUser }) {
         setPosts((current) => [data, ...current]);
       }
 
+      const isLivePost = isLiveWorkflowStatus(data.workflowStatus);
       const successText =
         data.workflowStatus === "pending_review"
           ? "Post submitted for review successfully."
           : data.workflowStatus === "draft"
             ? "Draft saved successfully."
-            : isEditing
-              ? "Post updated successfully."
-              : "Post published successfully.";
+            : data.workflowStatus === "scheduled"
+              ? "Scheduled post saved successfully."
+              : data.workflowStatus === "rejected"
+                ? "Post saved as rejected."
+                : isEditing
+                  ? "Post updated successfully."
+                  : "Post published successfully.";
       const successPost = data;
 
       if (draft.autoDraftId && data.workflowStatus === "published") {
@@ -897,16 +906,36 @@ export function DashboardShell({ initialPosts, currentUser }) {
       setMessage(successText);
       setToast({
         text: successText,
-        href: getLivePostPath(successPost),
-        actionLabel: "View live post"
+        href: isLivePost ? getLivePostPath(successPost) : undefined,
+        actionLabel: isLivePost ? "View live post" : undefined
       });
       setResultCard({
-        title: isEditing ? "Post updated and live" : "Post published and live",
-        text: isEditing
-          ? "Your update is saved. Open the post to confirm the final public result, or keep writing another piece right away."
-          : "Your new story is live on the website. You can open it now or continue with a fresh draft immediately.",
-        href: getLivePostPath(successPost),
-        actionLabel: "View live post"
+        title:
+          data.workflowStatus === "pending_review"
+            ? "Post sent for editorial review"
+            : data.workflowStatus === "draft"
+              ? "Draft saved"
+              : data.workflowStatus === "scheduled"
+                ? "Post scheduled successfully"
+                : isLivePost
+                  ? isEditing
+                    ? "Post updated and live"
+                    : "Post published and live"
+                  : "Post saved successfully",
+        text:
+          data.workflowStatus === "pending_review"
+            ? "The article is waiting in the approval queue. You can continue writing another piece right away."
+            : data.workflowStatus === "draft"
+              ? "Your draft is safe in the dashboard and ready for later editing."
+              : data.workflowStatus === "scheduled"
+                ? "The article is saved with its schedule and will stay hidden until its release time."
+                : isLivePost
+                  ? isEditing
+                    ? "Your update is saved. Open the post to confirm the final public result, or keep writing another piece right away."
+                    : "Your new story is live on the website. You can open it now or continue with a fresh draft immediately."
+                  : "The post was saved successfully.",
+        href: isLivePost ? getLivePostPath(successPost) : undefined,
+        actionLabel: isLivePost ? "View live post" : undefined
       });
 
       clearPreview();
@@ -926,14 +955,24 @@ export function DashboardShell({ initialPosts, currentUser }) {
       setShowPreview(false);
       setSubmitMode(isAdmin ? "publish" : "submit");
       event.currentTarget.reset();
-      await refreshAutoDrafts().catch(() => undefined);
-      await Promise.all([
+      const refreshTasks = [
         refreshOverview().catch(() => undefined),
-        refreshNotifications().catch(() => undefined),
-        refreshUsers().catch(() => undefined)
-      ]);
-      router.refresh();
-      router.prefetch?.("/");
+        refreshNotifications().catch(() => undefined)
+      ];
+
+      if (canReview) {
+        refreshTasks.push(refreshAutoDrafts().catch(() => undefined));
+      }
+
+      if (canManageUsers) {
+        refreshTasks.push(refreshUsers().catch(() => undefined));
+      }
+
+      await Promise.allSettled(refreshTasks);
+      startTransition(() => {
+        router.refresh();
+        router.prefetch?.("/");
+      });
     } catch (nextError) {
       if ((nextError.message || "").includes("Source needed before publication.")) {
         setShowAdvancedFields(true);
@@ -1873,7 +1912,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                         : "Publish post"}
             </button>
             {!isAdmin ? (
-              <button type="submit" className="button button-secondary" data-mode="draft">
+              <button type="submit" className="button button-secondary" data-mode="draft" disabled={submitBusy}>
                 Save as draft
               </button>
             ) : null}

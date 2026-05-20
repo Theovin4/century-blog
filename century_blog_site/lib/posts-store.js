@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
+import { revalidateTag, unstable_cache } from "next/cache";
 import {
   buildCloudinaryVideoPosterUrl,
   optimizeCloudinaryMediaUrl,
@@ -20,6 +21,7 @@ import {
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts.json");
 const publicId = "century-blog/data/posts";
+const POSTS_CACHE_TAG = "century-blog-posts";
 let scheduledPublishJob = null;
 
 async function readLocalSeedPosts() {
@@ -258,7 +260,7 @@ function normalizeFeaturedPosts(posts) {
   }));
 }
 
-async function readPostsSource() {
+async function loadPostsSource() {
   const seedPosts = (await readLocalSeedPosts()).map(normalizePost);
   const remotePosts = await readJsonStore(localFilePath, publicId, null);
 
@@ -269,8 +271,22 @@ async function readPostsSource() {
   return normalizeFeaturedPosts(dedupePosts(seedPosts));
 }
 
+const readCachedPostsSource = unstable_cache(
+  async () => loadPostsSource(),
+  ["century-blog-posts-source"],
+  {
+    tags: [POSTS_CACHE_TAG],
+    revalidate: 120
+  }
+);
+
+async function readPostsSource() {
+  return readCachedPostsSource();
+}
+
 async function writePostsSource(posts) {
   await writeJsonStore(localFilePath, publicId, normalizeFeaturedPosts(posts).map(sanitizePost));
+  revalidateTag(POSTS_CACHE_TAG);
 }
 
 function toSafeTimestamp(value) {

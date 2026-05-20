@@ -43,6 +43,7 @@ function revalidatePostSurfaces(post) {
   revalidatePath("/");
   revalidatePath("/dashboard");
   revalidatePath("/sitemap.xml");
+  revalidatePath("/news-sitemap.xml");
   revalidatePath("/blog");
 
   if (post?.category) {

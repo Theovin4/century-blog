@@ -44,6 +44,8 @@ function revalidatePostSurfaces(post, previousCategory = "") {
   revalidatePath("/");
   revalidatePath("/dashboard");
   revalidatePath("/sitemap.xml");
+  revalidatePath("/news-sitemap.xml");
+  revalidatePath("/blog");
   revalidatePath(`/news/${post.slug}`);
   revalidatePath(`/category/${post.category}`);
 
@@ -307,6 +309,8 @@ export async function DELETE(_request, { params }) {
   revalidatePath("/");
   revalidatePath("/dashboard");
   revalidatePath("/sitemap.xml");
+  revalidatePath("/news-sitemap.xml");
+  revalidatePath("/blog");
   revalidatePath(`/news/${current.slug}`);
   revalidatePath(`/category/${current.category}`);
 

@@ -28,7 +28,7 @@ export function PostCard({ post }) {
             className="post-card__media post-card__video"
             muted
             playsInline
-            preload="metadata"
+            preload="none"
             poster={media.posterUrl || undefined}
           >
             <source src={media.url} type={media.type} />

@@ -62,7 +62,7 @@ function StoryHighlightCard({ post, meta }) {
         </div>
       ) : null}
       {media.kind === "video" ? (
-        <video className="mini-post-card__media" muted playsInline preload="metadata" poster={media.posterUrl || undefined}>
+        <video className="mini-post-card__media" muted playsInline preload="none" poster={media.posterUrl || undefined}>
           <source src={media.url} type={media.type} />
         </video>
       ) : null}
