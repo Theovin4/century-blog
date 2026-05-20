@@ -27,12 +27,21 @@ export function isCloudinaryConfigured() {
   return Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
 }
 
+function normalizeRawResourcePublicId(publicId) {
+  const normalized = String(publicId || "").trim().replace(/^\/+/, "");
+  if (!normalized) {
+    return normalized;
+  }
+
+  return normalized.endsWith(".json") ? normalized : `${normalized}.json`;
+}
+
 async function getCloudinaryRawResource(publicId) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
 
-  return cloudinary.api.resource(publicId, {
+  return cloudinary.api.resource(normalizeRawResourcePublicId(publicId), {
     resource_type: "raw",
     type: "upload"
   });
