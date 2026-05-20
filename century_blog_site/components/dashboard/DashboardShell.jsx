@@ -1250,6 +1250,15 @@ export function DashboardShell({ initialPosts, currentUser }) {
   const previewName = preview?.name || activeDraftPost?.mediaName || "";
   const storageReady = providerSummary.storageReady !== false;
   const aiEnhanced = Boolean(providerSummary.openAiRewriteEnabled);
+  const rewriteProviderLabel =
+    providerSummary.rewriteProvider === "groq"
+      ? "Groq"
+      : providerSummary.rewriteProvider === "openai"
+        ? "OpenAI"
+        : "";
+  const rewriteVoiceLabel = aiEnhanced
+    ? [rewriteProviderLabel, providerSummary.rewriteModel].filter(Boolean).join(" ")
+    : "optional";
 
   return (
     <div className="dashboard-shell">
@@ -1377,7 +1386,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
           <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
           <span className="pill pill-status-ok">Rewrite engine ready</span>
           <span className={`pill ${providerSummary.cronSecretEnabled ? "pill-status-ok" : "pill-status-off"}`}>Cron auth {providerSummary.cronSecretEnabled ? "ready" : "missing"}</span>
-          <span className={`pill ${aiEnhanced ? "pill-status-ok" : "pill-status-off"}`}>AI voice {aiEnhanced ? providerSummary.openAiModel || "on" : "optional"}</span>
+          <span className={`pill ${aiEnhanced ? "pill-status-ok" : "pill-status-off"}`}>AI voice {rewriteVoiceLabel || "on"}</span>
           <span className={`pill ${storageReady ? "pill-status-ok" : "pill-status-off"}`}>Storage {storageReady ? "ready" : "missing"}</span>
         </div>
         {!storageReady ? (

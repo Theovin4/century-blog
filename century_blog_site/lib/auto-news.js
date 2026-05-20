@@ -1240,6 +1240,8 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
 }
 
 export function getAutomationProviderSummary() {
+  const aiConfig = getAiRewriteConfig();
+
   return {
     newsApiEnabled: Boolean(NEWS_API_KEY),
     gNewsEnabled: Boolean(GNEWS_API_KEY),
@@ -1248,6 +1250,8 @@ export function getAutomationProviderSummary() {
     openAiRewriteEnabled: isOpenAiRewriteEnabled(),
     cronSecretEnabled: Boolean(process.env.CRON_SECRET || process.env.AUTO_NEWS_CRON_SECRET),
     storageReady: isPersistentStorageReady(),
+    rewriteProvider: aiConfig?.provider || "",
+    rewriteModel: aiConfig?.model || "",
     openAiModel: OPENAI_REWRITE_MODEL
   };
 }
