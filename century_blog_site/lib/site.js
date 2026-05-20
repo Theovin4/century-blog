@@ -49,6 +49,7 @@ export const categoryMeta = {
 export const featuredCategoryOptions = ["nigeria", "world", "business", "tech", "entertainment", "lifestyle", "health"];
 export const categoryOptions = Object.keys(categoryMeta);
 export const editorCategoryOptions = categoryOptions;
+export const MAX_POST_CONTENT_LENGTH = 60000;
 
 export const postTypeMeta = {
   manual: {

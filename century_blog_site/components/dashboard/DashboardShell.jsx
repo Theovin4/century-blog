@@ -8,6 +8,7 @@ import {
   editorCategoryOptions,
   getCategoryMeta,
   getDisplayMedia,
+  MAX_POST_CONTENT_LENGTH,
   getOptimizedImageUrl,
   getPostTypeMeta,
   getWorkflowStatusMeta,
@@ -1670,7 +1671,12 @@ export function DashboardShell({ initialPosts, currentUser }) {
                 onChange={(event) => updateDraftField("content", event.target.value)}
                 required
               />
-              <span className="editor-form__hint">Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, avoid HTML tags like &lt;p&gt; or &lt;br&gt;, and use Add image to place images inside the article body.</span>
+              <span className="editor-form__hint">
+                Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, avoid HTML tags like &lt;p&gt; or &lt;br&gt;, and use Add image to place images inside the article body. Long-form posts are supported up to {MAX_POST_CONTENT_LENGTH.toLocaleString()} characters.
+              </span>
+              <span className="editor-form__hint">
+                Content length: {draft.content.length.toLocaleString()} / {MAX_POST_CONTENT_LENGTH.toLocaleString()} characters
+              </span>
             </label>
 
             {showPreview ? (

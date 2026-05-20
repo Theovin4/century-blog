@@ -6,7 +6,7 @@ import {
   isCloudinaryConfigured,
   isPersistentStorageReady
 } from "@/lib/cloudinary";
-import { inferMediaType, isValidCategory } from "@/lib/site";
+import { inferMediaType, isValidCategory, MAX_POST_CONTENT_LENGTH } from "@/lib/site";
 import { addNotification } from "@/lib/notifications-store";
 import {
   canEditPost,
@@ -139,8 +139,11 @@ export async function PATCH(request, { params }) {
     );
   }
 
-  if (title.length > 140 || excerpt.length > 280 || content.length > 20000) {
-    return NextResponse.json({ message: "Post content is too long." }, { status: 400 });
+  if (title.length > 140 || excerpt.length > 280 || content.length > MAX_POST_CONTENT_LENGTH) {
+    return NextResponse.json(
+      { message: `Post content is too long. Keep it under ${MAX_POST_CONTENT_LENGTH.toLocaleString()} characters.` },
+      { status: 400 }
+    );
   }
 
   if (!isValidCategory(category)) {
