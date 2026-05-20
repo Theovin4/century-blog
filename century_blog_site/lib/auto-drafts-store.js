@@ -29,6 +29,15 @@ function normalizeDraft(draft) {
     imageCreditUrl: draft?.imageCreditUrl || "",
     publishedAt: draft?.publishedAt || new Date().toISOString(),
     qualityReport: draft?.qualityReport || { passed: false, reasons: ["review-needed"], blockingReasons: ["review-needed"] },
+    rewriteMeta: {
+      attempted: Boolean(draft?.rewriteMeta?.attempted),
+      provider: draft?.rewriteMeta?.provider || "",
+      model: draft?.rewriteMeta?.model || "",
+      status: draft?.rewriteMeta?.status || "unknown",
+      succeeded: Boolean(draft?.rewriteMeta?.succeeded),
+      failedAttempts: Number(draft?.rewriteMeta?.failedAttempts || 0),
+      error: draft?.rewriteMeta?.error || ""
+    },
     createdAt: draft?.createdAt || new Date().toISOString(),
     updatedAt: draft?.updatedAt || draft?.createdAt || new Date().toISOString()
   };

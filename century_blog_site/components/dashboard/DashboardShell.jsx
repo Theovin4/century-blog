@@ -1260,6 +1260,23 @@ export function DashboardShell({ initialPosts, currentUser }) {
     ? [rewriteProviderLabel, providerSummary.rewriteModel].filter(Boolean).join(" ")
     : "optional";
 
+  function formatRewriteMeta(draftItem) {
+    const rewriteMeta = draftItem?.rewriteMeta || {};
+    const provider = rewriteMeta.provider ? rewriteMeta.provider.charAt(0).toUpperCase() + rewriteMeta.provider.slice(1) : "AI";
+    const model = rewriteMeta.model ? ` ${rewriteMeta.model}` : "";
+
+    if (rewriteMeta.succeeded) {
+      return `${provider}${model} rewrite passed`;
+    }
+
+    if (rewriteMeta.attempted) {
+      const errorLabel = rewriteMeta.error ? ` (${rewriteMeta.error})` : "";
+      return `${provider}${model} rewrite failed${errorLabel}`;
+    }
+
+    return "AI rewrite did not run";
+  }
+
   return (
     <div className="dashboard-shell">
       {toast ? (
@@ -1442,6 +1459,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
               <p>{draftItem.excerpt}</p>
               <p className="dashboard-post-card__meta">
                 {draftItem.sourceName ? `Source: ${draftItem.sourceName}` : "No source label"} | Issues: {(draftItem.qualityReport?.reasons || []).slice(0, 4).join(", ") || "needs review"}
+              </p>
+              <p className="dashboard-post-card__meta">
+                {formatRewriteMeta(draftItem)}
               </p>
               <div className="dashboard-post-card__actions">
                 <button type="button" className="button button-secondary" onClick={() => startDraftReviewMode(draftItem)}>

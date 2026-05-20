@@ -738,6 +738,45 @@ function getAiRewriteConfig() {
   return null;
 }
 
+function createAiRewriteMeta({
+  attempted = false,
+  provider = "",
+  model = "",
+  status = "idle",
+  succeeded = false,
+  failedAttempts = 0,
+  error = ""
+} = {}) {
+  return {
+    attempted,
+    provider,
+    model,
+    status,
+    succeeded,
+    failedAttempts,
+    error
+  };
+}
+
+function appendQualityReason(qualityReport, reason, { blocking = false } = {}) {
+  const nextReport = {
+    ...qualityReport,
+    reasons: Array.isArray(qualityReport?.reasons) ? [...qualityReport.reasons] : [],
+    blockingReasons: Array.isArray(qualityReport?.blockingReasons) ? [...qualityReport.blockingReasons] : []
+  };
+
+  if (reason && !nextReport.reasons.includes(reason)) {
+    nextReport.reasons.push(reason);
+  }
+
+  if (blocking && reason && !nextReport.blockingReasons.includes(reason)) {
+    nextReport.blockingReasons.push(reason);
+  }
+
+  nextReport.passed = nextReport.blockingReasons.length === 0 && Boolean(nextReport.passed);
+  return nextReport;
+}
+
 function findRepeatedPhrase(content) {
   const repeatedSentenceMap = new Map();
   const repeatedParagraphMap = new Map();
@@ -898,12 +937,24 @@ function evaluateCandidateQuality(article, candidate) {
 
 async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] } = {}) {
   if (!isOpenAiRewriteEnabled()) {
-    return baseCandidate;
+    return {
+      ...baseCandidate,
+      _aiRewriteMeta: createAiRewriteMeta({
+        attempted: false,
+        status: "disabled"
+      })
+    };
   }
 
   const aiConfig = getAiRewriteConfig();
   if (!aiConfig) {
-    return baseCandidate;
+    return {
+      ...baseCandidate,
+      _aiRewriteMeta: createAiRewriteMeta({
+        attempted: false,
+        status: "unconfigured"
+      })
+    };
   }
 
   const systemPrompt = [
@@ -1024,11 +1075,29 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
       content: sanitizeGeneratedArticleContent(String(parsed.content || baseCandidate.content).trim()),
       category,
       author: trimToLength(parsed.author || baseCandidate.author, 80),
-      _featuredImageQuery: featuredImageQuery
+      _featuredImageQuery: featuredImageQuery,
+      _aiRewriteMeta: createAiRewriteMeta({
+        attempted: true,
+        provider: aiConfig.provider,
+        model: aiConfig.model,
+        status: "success",
+        succeeded: true
+      })
     };
   } catch (error) {
     console.warn(`[auto-news] ${aiConfig.provider} rewrite failed:`, error?.message || error);
-    return baseCandidate;
+    return {
+      ...baseCandidate,
+      _aiRewriteMeta: createAiRewriteMeta({
+        attempted: true,
+        provider: aiConfig.provider,
+        model: aiConfig.model,
+        status: "failed",
+        succeeded: false,
+        failedAttempts: 1,
+        error: String(error?.message || error || "").slice(0, 240)
+      })
+    };
   }
 }
 
@@ -1050,15 +1119,35 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
   const initialCandidate = await generateAiCandidate(article, baseCandidate);
   let currentCandidate = initialCandidate;
   let qualityReport = evaluateCandidateQuality(article, initialCandidate);
+  const rewriteAttempts = [initialCandidate._aiRewriteMeta || createAiRewriteMeta()];
 
   for (let attempt = 0; attempt < MAX_REWRITE_ATTEMPTS && !qualityReport.passed; attempt += 1) {
     currentCandidate = await reviseCandidateWithAi(article, currentCandidate, qualityReport);
     qualityReport = evaluateCandidateQuality(article, currentCandidate);
+    rewriteAttempts.push(currentCandidate._aiRewriteMeta || createAiRewriteMeta());
+  }
+
+  const attemptedRuns = rewriteAttempts.filter((item) => item?.attempted);
+  const successfulRun = rewriteAttempts.find((item) => item?.succeeded);
+  const latestAttempt = rewriteAttempts[rewriteAttempts.length - 1] || createAiRewriteMeta();
+  const rewriteMeta = createAiRewriteMeta({
+    attempted: attemptedRuns.length > 0,
+    provider: successfulRun?.provider || latestAttempt.provider || "",
+    model: successfulRun?.model || latestAttempt.model || "",
+    status: successfulRun ? "success" : latestAttempt.status || "idle",
+    succeeded: Boolean(successfulRun),
+    failedAttempts: attemptedRuns.filter((item) => item && item.succeeded === false).length,
+    error: successfulRun ? "" : latestAttempt.error || ""
+  });
+
+  if (rewriteMeta.attempted && !rewriteMeta.succeeded) {
+    qualityReport = appendQualityReason(qualityReport, "rewrite-failed", { blocking: true });
   }
 
   return {
     ...currentCandidate,
-    qualityReport
+    qualityReport,
+    rewriteMeta
   };
 }
 
@@ -1097,7 +1186,8 @@ async function buildCandidate(article) {
     mediaUrl: image.mediaUrl,
     imageCreditName: image.imageCreditName,
     imageCreditUrl: image.imageCreditUrl,
-    qualityReport
+    qualityReport,
+    rewriteMeta: rewrittenCandidate.rewriteMeta || rewrittenCandidate._aiRewriteMeta || createAiRewriteMeta()
   };
 }
 
