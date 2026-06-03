@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, logActivity } from "@/lib/editorial";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
   const response = NextResponse.json({ ok: true });
 

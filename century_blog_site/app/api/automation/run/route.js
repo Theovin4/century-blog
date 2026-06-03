@@ -3,6 +3,7 @@ import { runAutomatedNewsIngestion } from "@/lib/auto-news";
 import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
 import { ensurePostsBackup, publishDueScheduledPosts } from "@/lib/posts-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 async function isAllowedByAdmin() {
   const user = await getCurrentUser();
@@ -25,6 +26,13 @@ async function handleRun(request, force = false) {
 
   if (!isAdmin && !isSecretAllowed) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isSecretAllowed) {
+    const originError = requireTrustedWriteOrigin(request);
+    if (originError) {
+      return originError;
+    }
   }
 
   if (!isPersistentStorageReady()) {

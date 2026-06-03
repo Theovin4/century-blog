@@ -15,6 +15,7 @@ import {
   logActivity
 } from "@/lib/editorial";
 import { deleteMatchingAutoDrafts } from "@/lib/auto-drafts-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
@@ -75,6 +76,11 @@ async function getPostByIdWithRetry(id, attempts = 4, delayMs = 450) {
 }
 
 export async function PATCH(request, { params }) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await requireAdmin();
 
   if (!user) {
@@ -287,6 +293,11 @@ export async function PATCH(request, { params }) {
 }
 
 export async function DELETE(_request, { params }) {
+  const originError = requireTrustedWriteOrigin(_request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await requireAdmin();
 
   if (!user) {

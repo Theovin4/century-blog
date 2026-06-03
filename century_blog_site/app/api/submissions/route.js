@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import { createSubmission } from "@/lib/submissions-store";
 import { getSubstackSubscribeUrl } from "@/lib/site";
 import { applyRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const ip = getRequestIp(request);
   const rateLimit = applyRateLimit({
     bucket: "submissions",

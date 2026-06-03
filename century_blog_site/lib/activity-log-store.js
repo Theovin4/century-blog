@@ -4,6 +4,7 @@ import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "activity-logs.json");
 const publicId = "century-blog/data/activity-logs";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 function normalizeLog(log) {
   return {
@@ -22,12 +23,12 @@ function normalizeLog(log) {
 }
 
 async function readLogsSource() {
-  const logs = await readJsonStore(localFilePath, publicId, []);
+  const logs = await readJsonStore(localFilePath, publicId, [], secureStoreOptions);
   return Array.isArray(logs) ? logs.map(normalizeLog) : [];
 }
 
 async function writeLogsSource(logs) {
-  await writeJsonStore(localFilePath, publicId, logs.map(normalizeLog).slice(0, 5000));
+  await writeJsonStore(localFilePath, publicId, logs.map(normalizeLog).slice(0, 5000), secureStoreOptions);
 }
 
 export async function addActivityLog(entry) {

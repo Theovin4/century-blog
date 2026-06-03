@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, getDashboardNotifications } from "@/lib/editorial";
 import { markNotificationRead } from "@/lib/notifications-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -13,6 +14,11 @@ export async function GET() {
 }
 
 export async function PATCH(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {

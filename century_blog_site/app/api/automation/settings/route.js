@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAutomationProviderSummary } from "@/lib/auto-news";
 import { getAutomationSettings, updateAutomationSettings } from "@/lib/automation-store";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 async function requireAdmin() {
   return getCurrentUser();
@@ -27,6 +28,11 @@ export async function GET() {
 }
 
 export async function PATCH(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await requireAdmin();
 
   if (!user) {

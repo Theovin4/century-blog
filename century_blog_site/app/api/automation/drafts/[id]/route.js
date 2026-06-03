@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { deleteAutoDraft } from "@/lib/auto-drafts-store";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 async function requireAdmin() {
   return getCurrentUser();
 }
 
 export async function DELETE(_request, { params }) {
+  const originError = requireTrustedWriteOrigin(_request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await requireAdmin();
 
   if (!user) {

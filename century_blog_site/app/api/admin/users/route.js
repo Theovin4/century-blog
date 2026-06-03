@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAllPosts } from "@/lib/posts-store";
 import { getCurrentUser, hasPermission, logActivity } from "@/lib/editorial";
 import { addNotification } from "@/lib/notifications-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 import { createUser, getAllUsers, sanitizeUserForClient } from "@/lib/users-store";
 
 function buildUserStats(user, posts) {
@@ -36,6 +37,11 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {

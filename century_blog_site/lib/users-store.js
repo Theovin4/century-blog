@@ -1,9 +1,11 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+import { validateStrongPassword } from "@/lib/request-security";
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "users.json");
 const publicId = "century-blog/data/users";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 export const roleOptions = ["super_admin", "admin", "moderator", "editor"];
 export const userStatusOptions = ["active", "suspended", "deleted"];
@@ -100,12 +102,12 @@ function envSuperAdmin() {
 }
 
 async function readUsersSource() {
-  const users = await readJsonStore(localFilePath, publicId, []);
+  const users = await readJsonStore(localFilePath, publicId, [], secureStoreOptions);
   return Array.isArray(users) ? users.map(normalizeUser).filter(Boolean) : [];
 }
 
 async function writeUsersSource(users) {
-  await writeJsonStore(localFilePath, publicId, users.map(serializeUser));
+  await writeJsonStore(localFilePath, publicId, users.map(serializeUser), secureStoreOptions);
 }
 
 export async function getStoredUsers() {
@@ -199,9 +201,15 @@ export async function createUser(input) {
   const users = await readUsersSource();
   const username = String(input.username || "").trim().toLowerCase();
   const email = String(input.email || "").trim().toLowerCase();
+  const password = String(input.password || "");
 
-  if (!username || !email || !input.password) {
+  if (!username || !email || !password) {
     throw new Error("Name, email, username, and password are required.");
+  }
+
+  const passwordError = validateStrongPassword(password);
+  if (passwordError) {
+    throw new Error(passwordError);
   }
 
   if (users.some((user) => user.username === username) || envSuperAdmin()?.username === username) {
@@ -220,7 +228,7 @@ export async function createUser(input) {
     username,
     role: input.role,
     status: "active",
-    passwordHash: await hashPassword(String(input.password)),
+    passwordHash: await hashPassword(password),
     createdAt: now,
     updatedAt: now
   });
@@ -265,6 +273,11 @@ export async function updateUser(id, patch) {
 export async function resetUserPassword(id, nextPassword) {
   if (!nextPassword) {
     throw new Error("A new password is required.");
+  }
+
+  const passwordError = validateStrongPassword(nextPassword);
+  if (passwordError) {
+    throw new Error(passwordError);
   }
 
   return updateUser(id, {

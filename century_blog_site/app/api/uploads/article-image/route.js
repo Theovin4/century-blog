@@ -6,11 +6,17 @@ import {
   uploadMediaFile
 } from "@/lib/cloudinary";
 import { getCurrentUser, hasPermission, logActivity } from "@/lib/editorial";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 import { slugify } from "@/lib/site";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {

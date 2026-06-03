@@ -14,6 +14,7 @@ import {
 } from "@/lib/editorial";
 import { addNotification } from "@/lib/notifications-store";
 import { deleteMatchingAutoDrafts } from "@/lib/auto-drafts-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
@@ -104,11 +105,23 @@ function resolveWorkflowStatus(user, requestedStatus, scheduledFor = "") {
 
 export async function GET() {
   const user = await getCurrentUser();
-  const posts = user ? await getAllPosts() : await getPosts();
+  const posts = user
+    ? (await getAllPosts()).filter((post) => (
+      hasPermission(user, "articles:edit:any") ||
+      hasPermission(user, "articles:review") ||
+      String(post.workflowStatus || "published") === "published" ||
+      String(post.createdBy || "") === String(user.id)
+    ))
+    : await getPosts();
   return NextResponse.json(posts);
 }
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {

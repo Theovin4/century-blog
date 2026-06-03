@@ -6,6 +6,7 @@ import { isValidCategory, normalizeMarkdownContent, normalizeStoredText } from "
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "automation-drafts.json");
 const publicId = "century-blog/data/automation-drafts";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 function normalizeDraft(draft) {
   return {
@@ -63,7 +64,7 @@ function buildDraftKey(draft) {
 }
 
 export async function getAutoDrafts() {
-  const drafts = await readJsonStore(localFilePath, publicId, []);
+  const drafts = await readJsonStore(localFilePath, publicId, [], secureStoreOptions);
   return sortDrafts((Array.isArray(drafts) ? drafts : []).map(normalizeDraft));
 }
 
@@ -87,7 +88,7 @@ export async function saveAutoDraft(input) {
     ? drafts.map((draft) => (draft.id === existing.id ? mergedDraft : draft))
     : [mergedDraft, ...drafts];
 
-  await writeJsonStore(localFilePath, publicId, nextDrafts);
+  await writeJsonStore(localFilePath, publicId, nextDrafts, secureStoreOptions);
   return mergedDraft;
 }
 
@@ -99,7 +100,7 @@ export async function deleteAutoDraft(id) {
     return false;
   }
 
-  await writeJsonStore(localFilePath, publicId, nextDrafts);
+  await writeJsonStore(localFilePath, publicId, nextDrafts, secureStoreOptions);
   return true;
 }
 
@@ -134,7 +135,7 @@ export async function deleteMatchingAutoDrafts({ id = "", sourceUrl = "", autoSo
     return 0;
   }
 
-  await writeJsonStore(localFilePath, publicId, nextDrafts);
+  await writeJsonStore(localFilePath, publicId, nextDrafts, secureStoreOptions);
   return drafts.length - nextDrafts.length;
 }
 

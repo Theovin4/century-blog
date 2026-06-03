@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser, hasPermission, logActivity } from "@/lib/editorial";
 import { addNotification } from "@/lib/notifications-store";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 import { getUserById, resetUserPassword, sanitizeUserForClient, updateUser } from "@/lib/users-store";
 
 export async function PATCH(request, { params }) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {

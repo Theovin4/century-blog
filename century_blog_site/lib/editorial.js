@@ -77,6 +77,10 @@ function buildSessionSignature(payload) {
   return crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
 }
 
+export function isSessionSecretConfiguredSecurely() {
+  return Boolean(SESSION_SECRET && SESSION_SECRET !== DEFAULT_SECRET);
+}
+
 export function createSessionToken(user) {
   const timestamp = Date.now().toString();
   const payload = `${user.id}:${user.role}:${user.username}:${timestamp}`;
@@ -106,7 +110,7 @@ export async function getAuthenticatedUser(token) {
     return null;
   }
 
-  if (process.env.NODE_ENV === "production" && SESSION_SECRET === DEFAULT_SECRET) {
+  if (process.env.NODE_ENV === "production" && !isSessionSecretConfiguredSecurely()) {
     return null;
   }
 

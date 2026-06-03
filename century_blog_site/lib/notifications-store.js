@@ -4,6 +4,7 @@ import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "notifications.json");
 const publicId = "century-blog/data/notifications";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 function normalizeNotification(notification) {
   return {
@@ -19,12 +20,12 @@ function normalizeNotification(notification) {
 }
 
 async function readNotificationsSource() {
-  const notifications = await readJsonStore(localFilePath, publicId, []);
+  const notifications = await readJsonStore(localFilePath, publicId, [], secureStoreOptions);
   return Array.isArray(notifications) ? notifications.map(normalizeNotification) : [];
 }
 
 async function writeNotificationsSource(notifications) {
-  await writeJsonStore(localFilePath, publicId, notifications.map(normalizeNotification).slice(0, 500));
+  await writeJsonStore(localFilePath, publicId, notifications.map(normalizeNotification).slice(0, 500), secureStoreOptions);
 }
 
 export async function addNotification(entry) {

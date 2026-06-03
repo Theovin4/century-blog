@@ -36,14 +36,18 @@ function normalizeRawResourcePublicId(publicId) {
   return normalized.endsWith(".json") ? normalized : `${normalized}.json`;
 }
 
-async function getCloudinaryRawResource(publicId) {
+function normalizeCloudinaryPublicIdWithoutExtension(publicId) {
+  return String(publicId || "").trim().replace(/^\/+/, "").replace(/\.json$/i, "");
+}
+
+async function getCloudinaryRawResource(publicId, { deliveryType = "upload" } = {}) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
 
   return cloudinary.api.resource(normalizeRawResourcePublicId(publicId), {
     resource_type: "raw",
-    type: "upload"
+    type: deliveryType
   });
 }
 
@@ -149,6 +153,19 @@ function buildCloudinaryRawJsonUrl(publicId) {
   return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/raw/upload/${normalized}.json`;
 }
 
+function buildProtectedCloudinaryJsonDownloadUrl(publicId, deliveryType) {
+  return cloudinary.utils.private_download_url(
+    normalizeCloudinaryPublicIdWithoutExtension(publicId),
+    "json",
+    {
+      resource_type: "raw",
+      type: deliveryType,
+      attachment: false,
+      expires_at: Math.floor(Date.now() / 1000) + 60
+    }
+  );
+}
+
 export async function uploadMediaFile(file, slug) {
   if (!file) {
     return {
@@ -199,20 +216,24 @@ export async function uploadRemoteMedia(sourceUrl, slug, mediaType = "") {
   return buildMediaResponse(result);
 }
 
-export async function readCloudinaryJson(publicId) {
+export async function readCloudinaryJson(publicId, { deliveryType = "upload" } = {}) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
 
-  let directUrl = buildCloudinaryRawJsonUrl(publicId);
+  let directUrl = deliveryType === "upload"
+    ? buildCloudinaryRawJsonUrl(publicId)
+    : buildProtectedCloudinaryJsonDownloadUrl(publicId, deliveryType);
 
   try {
-    const resource = await getCloudinaryRawResource(publicId);
+    const resource = await getCloudinaryRawResource(publicId, { deliveryType });
     if (resource?.secure_url) {
-      directUrl = resource.secure_url;
+      directUrl = deliveryType === "upload"
+        ? resource.secure_url
+        : buildProtectedCloudinaryJsonDownloadUrl(publicId, deliveryType);
     }
   } catch {
-    // Fall back to the unversioned raw URL if metadata lookup fails.
+    // Fall back to a signed or unversioned URL if metadata lookup fails.
   }
 
   const response = await fetch(`${directUrl}${directUrl.includes("?") ? "&" : "?"}t=${Date.now()}`, { cache: "no-store" });
@@ -228,21 +249,25 @@ export async function readCloudinaryJson(publicId) {
   return response.json();
 }
 
-export async function backupCloudinaryJson(publicId, backupFolder = "century-blog/backups") {
+export async function backupCloudinaryJson(publicId, backupFolder = "century-blog/backups", { deliveryType = "upload" } = {}) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
 
-  const resource = await getCloudinaryRawResource(publicId);
-  if (!resource?.secure_url) {
+  const resource = await getCloudinaryRawResource(publicId, { deliveryType }).catch(() => null);
+  if (!resource?.secure_url && deliveryType === "upload") {
     return null;
   }
+
+  const sourceUrl = deliveryType === "upload"
+    ? resource?.secure_url
+    : buildProtectedCloudinaryJsonDownloadUrl(publicId, deliveryType);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const normalizedId = String(publicId || "").replace(/^\/+/, "").replace(/\.json$/i, "");
   const targetId = `${backupFolder}/${normalizedId}-${stamp}.json`;
 
-  const result = await cloudinary.uploader.upload(resource.secure_url, {
+  const result = await cloudinary.uploader.upload(sourceUrl, {
     resource_type: "raw",
     public_id: targetId,
     overwrite: false,
@@ -320,7 +345,19 @@ export async function ensureCloudinaryJsonBackup(
   };
 }
 
-export async function writeCloudinaryJson(publicId, payload) {
+export async function deleteCloudinaryJson(publicId, { deliveryType = "upload" } = {}) {
+  if (!isCloudinaryConfigured()) {
+    throw new Error(getPersistentStorageErrorMessage());
+  }
+
+  return cloudinary.uploader.destroy(normalizeCloudinaryPublicIdWithoutExtension(publicId), {
+    resource_type: "raw",
+    type: deliveryType,
+    invalidate: true
+  });
+}
+
+export async function writeCloudinaryJson(publicId, payload, { deliveryType = "upload" } = {}) {
   if (!isCloudinaryConfigured()) {
     throw new Error(getPersistentStorageErrorMessage());
   }
@@ -332,6 +369,8 @@ export async function writeCloudinaryJson(publicId, payload) {
     const result = await cloudinary.uploader.upload(tempPath, {
       resource_type: "raw",
       public_id: publicId,
+      type: deliveryType,
+      access_mode: deliveryType === "authenticated" ? "authenticated" : undefined,
       overwrite: true,
       invalidate: true,
       use_filename: false,

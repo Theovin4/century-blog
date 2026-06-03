@@ -4,14 +4,15 @@ import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "submissions.json");
 const publicId = "century-blog/data/submissions";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 async function readSubmissionsSource() {
-  const payload = await readJsonStore(localFilePath, publicId, []);
+  const payload = await readJsonStore(localFilePath, publicId, [], secureStoreOptions);
   return Array.isArray(payload) ? payload : [];
 }
 
 async function writeSubmissionsSource(submissions) {
-  await writeJsonStore(localFilePath, publicId, submissions);
+  await writeJsonStore(localFilePath, publicId, submissions, secureStoreOptions);
 }
 
 export async function createSubmission(input) {

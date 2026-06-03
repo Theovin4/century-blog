@@ -2,8 +2,14 @@ import { NextResponse } from "next/server";
 import { addLikeToPost } from "@/lib/engagement-store";
 import { getPostBySlug } from "@/lib/posts-store";
 import { applyRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 export async function POST(request, { params }) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
   const { slug } = await params;
   const post = await getPostBySlug(slug);
 

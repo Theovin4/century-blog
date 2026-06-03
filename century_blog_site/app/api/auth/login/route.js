@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
 import { addNotification } from "@/lib/notifications-store";
 import { applyRateLimit, getRequestIp } from "@/lib/rate-limit";
-import { authenticateUser, createSessionToken, logActivity } from "@/lib/editorial";
+import { authenticateUser, createSessionToken, isSessionSecretConfiguredSecurely, logActivity } from "@/lib/editorial";
+import { requireTrustedWriteOrigin } from "@/lib/request-security";
 
 export async function POST(request) {
+  const originError = requireTrustedWriteOrigin(request);
+  if (originError) {
+    return originError;
+  }
+
+  if (process.env.NODE_ENV === "production" && !isSessionSecretConfiguredSecurely()) {
+    return NextResponse.json({ message: "Admin session secret is not configured securely." }, { status: 503 });
+  }
+
   const ip = getRequestIp(request);
+  const body = await request.json().catch(() => ({}));
+  const username = String(body?.username || "").trim();
+  const password = String(body?.password ?? "");
   const rateLimit = applyRateLimit({
     bucket: "admin-login",
     key: ip,
@@ -24,9 +37,24 @@ export async function POST(request) {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
-  const username = body?.username?.trim();
-  const password = body?.password?.trim();
+  const usernameRateLimit = applyRateLimit({
+    bucket: "admin-login-username",
+    key: username ? username.toLowerCase() : ip,
+    limit: 10,
+    windowMs: 10 * 60 * 1000
+  });
+
+  if (!usernameRateLimit.allowed) {
+    return NextResponse.json(
+      { message: "Too many login attempts. Please try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(usernameRateLimit.retryAfterMs / 1000))
+        }
+      }
+    );
+  }
 
   const user = await authenticateUser(username, password);
 

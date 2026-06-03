@@ -3,6 +3,7 @@ import { readJsonStore, writeJsonStore } from "@/lib/json-store";
 
 const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "automation-settings.json");
 const publicId = "century-blog/data/automation-settings";
+const secureStoreOptions = { deliveryType: "authenticated" };
 
 const defaultSettings = {
   autoPostingEnabled: true,
@@ -33,7 +34,7 @@ function normalizeSettings(settings) {
 }
 
 export async function getAutomationSettings() {
-  const settings = await readJsonStore(localFilePath, publicId, defaultSettings);
+  const settings = await readJsonStore(localFilePath, publicId, defaultSettings, secureStoreOptions);
   return normalizeSettings(settings);
 }
 
@@ -44,7 +45,7 @@ export async function updateAutomationSettings(patch) {
     ...(patch && typeof patch === "object" ? patch : {})
   });
 
-  await writeJsonStore(localFilePath, publicId, next);
+  await writeJsonStore(localFilePath, publicId, next, secureStoreOptions);
   return next;
 }
 

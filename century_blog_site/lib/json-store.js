@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   backupCloudinaryJson,
+  deleteCloudinaryJson,
   getPersistentStorageErrorMessage,
   isCloudinaryConfigured,
   isPersistentStorageReady,
@@ -129,9 +130,17 @@ function mergePayloads(primary, secondary) {
   return primary ?? secondary;
 }
 
-export async function readJsonStore(localFilePath, publicId, fallbackValue) {
+function normalizeStoreOptions(options) {
+  return {
+    deliveryType: String(options?.deliveryType || "upload").trim() || "upload",
+    migrateLegacyUpload: options?.migrateLegacyUpload !== false
+  };
+}
+
+export async function readJsonStore(localFilePath, publicId, fallbackValue, options) {
   const cacheKey = getCacheKey(localFilePath, publicId);
   const cached = getCachedPayload(cacheKey);
+  const storeOptions = normalizeStoreOptions(options);
 
   if (cached !== undefined) {
     return cached;
@@ -139,7 +148,23 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
 
   if (publicId && isCloudinaryConfigured()) {
     try {
-      const remote = await readCloudinaryJson(publicId);
+      let remote = await readCloudinaryJson(publicId, { deliveryType: storeOptions.deliveryType });
+
+      if (remote === null && storeOptions.deliveryType !== "upload" && storeOptions.migrateLegacyUpload) {
+        const legacyRemote = await readCloudinaryJson(publicId, { deliveryType: "upload" });
+
+        if (legacyRemote !== null) {
+          remote = legacyRemote;
+
+          try {
+            await writeCloudinaryJson(publicId, legacyRemote, { deliveryType: storeOptions.deliveryType });
+            await deleteCloudinaryJson(publicId, { deliveryType: "upload" });
+          } catch (migrationError) {
+            console.warn(`[json-store] Unable to migrate ${publicId} to ${storeOptions.deliveryType}:`, migrationError?.message || migrationError);
+          }
+        }
+      }
+
       if (remote !== null) {
         if (requiresPersistentRemoteStorage()) {
           setCachedPayload(cacheKey, remote);
@@ -188,9 +213,10 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue) {
   }
 }
 
-export async function writeJsonStore(localFilePath, publicId, payload) {
+export async function writeJsonStore(localFilePath, publicId, payload, options) {
   const cacheKey = getCacheKey(localFilePath, publicId);
   setCachedPayload(cacheKey, payload);
+  const storeOptions = normalizeStoreOptions(options);
 
   try {
     await fs.mkdir(path.dirname(localFilePath), { recursive: true });
@@ -209,13 +235,13 @@ export async function writeJsonStore(localFilePath, publicId, payload) {
     if (isCloudinaryConfigured()) {
       if (isPostsStore(publicId, localFilePath)) {
         try {
-          await backupCloudinaryJson(publicId);
+          await backupCloudinaryJson(publicId, "century-blog/backups", { deliveryType: storeOptions.deliveryType });
         } catch (error) {
           console.warn(`[json-store] Unable to create backup for ${publicId}:`, error?.message || error);
         }
       }
 
-      await writeCloudinaryJson(publicId, payload);
+      await writeCloudinaryJson(publicId, payload, { deliveryType: storeOptions.deliveryType });
     }
   }
 }
