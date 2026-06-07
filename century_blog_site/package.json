@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "migrate:cloudinary": "node scripts/migrate-media-to-cloudinary.cjs"
+    "migrate:cloudinary": "node scripts/migrate-media-to-cloudinary.cjs",
+    "content:audit": "node scripts/authority-content-audit.cjs audit",
+    "content:rewrite": "node scripts/authority-content-audit.cjs rewrite"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",
