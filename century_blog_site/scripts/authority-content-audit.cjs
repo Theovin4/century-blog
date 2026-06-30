@@ -13,7 +13,10 @@ const BACKUP_FOLDER = "century-blog/backups";
 
 loadEnvFile(path.join(ROOT_DIR, ".env.local"));
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://www.centuryblog.com.ng";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.GROK_API_KEY || "";
 const GROQ_MODEL = process.env.GROQ_REWRITE_MODEL || "openai/gpt-oss-120b";
 const XAI_API_KEY = process.env.XAI_API_KEY || process.env.GROK_API_KEY || "";
@@ -384,13 +387,13 @@ function classifyPost(post) {
   if (isLowValueTitle(post.title)) {
     status = "NOINDEX";
     reasons.push("low-trust-or-low-value-topic");
-  } else if (auto && (words < 1100 || titleFlags.length || hasTemplateBoilerplate(post.content) || containsTruncatedArtifact(post.content))) {
+  } else if (auto && (words < 1250 || titleFlags.length || hasTemplateBoilerplate(post.content) || containsTruncatedArtifact(post.content))) {
     status = "IMPROVE";
     reasons.push("auto-post-needs-authority-rewrite");
-  } else if (words < 800) {
+  } else if (words < 900) {
     status = "IMPROVE";
     reasons.push("too-thin-for-publication-authority");
-  } else if (words < 1000 && (titleFlags.length || isSensitivePost(post) || !hasSource)) {
+  } else if (words < 1100 && (titleFlags.length || isSensitivePost(post) || !hasSource)) {
     status = "IMPROVE";
     reasons.push("needs-depth-or-sourcing");
   } else if (hasTemplateBoilerplate(post.content)) {

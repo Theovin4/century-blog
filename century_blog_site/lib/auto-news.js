@@ -1,5 +1,5 @@
 import { isPersistentStorageReady } from "@/lib/cloudinary";
-import { createAutoPost } from "@/lib/posts-store";
+import { createAutoPost, getPosts } from "@/lib/posts-store";
 import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
 import { saveAutoDraft } from "@/lib/auto-drafts-store";
 import { categoryMeta, isValidCategory, normalizeMarkdownContent, slugify } from "@/lib/site";
@@ -18,8 +18,8 @@ const AI_REWRITE_PROVIDER = String(
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
-const MIN_ARTICLE_WORDS = 1200;
-const MAX_ARTICLE_WORDS = 1600;
+const MIN_ARTICLE_WORDS = 1250;
+const MAX_ARTICLE_WORDS = 1450;
 const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
   "## Why this story matters",
@@ -31,6 +31,15 @@ const REQUIRED_HEADINGS = [
   "## Final takeaway"
 ];
 const OPTIONAL_SOURCES_HEADING = "## Sources";
+const SECTION_MIN_WORDS = {
+  "## Why this story matters": 150,
+  "## Context and background": 170,
+  "## What happened": 180,
+  "## Why it matters now": 150,
+  "## Deeper analysis": 240,
+  "## What happens next": 130,
+  "## Final takeaway": 90
+};
 const GENERIC_FILLER_PATTERNS = [
   /in today's digital world/i,
   /it is important to note that/i,
@@ -57,6 +66,13 @@ const SOURCE_TRUNCATION_PATTERNS = [
   /\[\+\d+\s+chars\]/i,
   /\.\.\.\s+rather than treating the update as background noise/i,
   /\.\.\.\s+in fast-moving news cycles/i
+];
+const WEAK_TITLE_PATTERNS = [
+  /\bwhat it means\b/i,
+  /\beverything you need to know\b/i,
+  /\bfull story\b/i,
+  /^\s*why\b/i,
+  /\bexplained\b/i
 ];
 const NIGERIA_FALLBACK_QUERY = "Nigeria OR Lagos OR Abuja OR naira OR Super Eagles";
 const GLOBAL_FALLBACK_QUERY = "world news OR global economy OR technology OR politics";
@@ -180,6 +196,11 @@ function isGroqStructuredFailure(status, errorText = "") {
   return normalized.includes("json_validate_failed") || normalized.includes("failed to validate json");
 }
 
+function usesWeakTitlePattern(value) {
+  const text = String(value || "").trim();
+  return WEAK_TITLE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 function isSensitiveAutoCandidate(article, category = "") {
   const haystack = `${article?.title || ""} ${article?.description || ""} ${article?.content || ""}`.toLowerCase();
   const normalizedCategory = String(category || "").trim().toLowerCase();
@@ -278,6 +299,51 @@ function scoreSourceArticle(article) {
   }
 
   return { score, reasons };
+}
+
+function tokenSet(value = "") {
+  return new Set(slugify(value).split("-").filter((item) => item.length >= 4));
+}
+
+function titleSimilarity(left = "", right = "") {
+  const leftTokens = tokenSet(left);
+  const rightTokens = tokenSet(right);
+
+  if (!leftTokens.size || !rightTokens.size) {
+    return 0;
+  }
+
+  let overlap = 0;
+
+  for (const token of leftTokens) {
+    if (rightTokens.has(token)) {
+      overlap += 1;
+    }
+  }
+
+  return overlap / Math.max(leftTokens.size, rightTokens.size);
+}
+
+function buildRelatedLinks(article, posts = [], max = 3) {
+  const currentTitle = String(article?.title || "").trim();
+
+  return posts
+    .filter((post) => String(post?.workflowStatus || "published") === "published")
+    .filter((post) => String(post?.title || "").trim() && String(post?.title || "").trim() !== currentTitle)
+    .map((post) => ({
+      title: post.title,
+      href: `/news/${post.slug}`,
+      score:
+        (post.category === mapTopicToCategory(article) ? 0.6 : 0) +
+        titleSimilarity(post.title, currentTitle) +
+        ((post.type || "manual") === "manual" ? 0.15 : 0)
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, max)
+    .map((item) => ({
+      title: item.title,
+      href: item.href
+    }));
 }
 
 function deriveImageSearchQuery(article, candidate) {
@@ -691,12 +757,12 @@ function getAiRewriteProvider() {
     return "openai";
   }
 
-  if (OPENAI_API_KEY) {
-    return "openai";
-  }
-
   if (GROQ_API_KEY) {
     return "groq";
+  }
+
+  if (OPENAI_API_KEY) {
+    return "openai";
   }
 
   return "";
@@ -925,7 +991,20 @@ function evaluateCandidateQuality(article, candidate) {
 
   if (wordCount > MAX_ARTICLE_WORDS) {
     reasons.push("too-long");
-    score -= 1;
+    blockingReasons.push("too-long");
+    score -= 2;
+  }
+
+  if (usesWeakTitlePattern(title)) {
+    reasons.push("weak-title-pattern");
+    blockingReasons.push("weak-title-pattern");
+    score -= 2;
+  }
+
+  if (usesWeakTitlePattern(seoTitle)) {
+    reasons.push("weak-seo-title-pattern");
+    blockingReasons.push("weak-seo-title-pattern");
+    score -= 2;
   }
 
   if (hasInstructionLeakage(title)) {
@@ -979,28 +1058,53 @@ function evaluateCandidateQuality(article, candidate) {
   }
 
   const whyThisStoryMatters = getSectionContent(content, "## Why this story matters");
+  const contextAndBackground = getSectionContent(content, "## Context and background");
   const whatHappened = getSectionContent(content, "## What happened");
+  const whyItMattersNow = getSectionContent(content, "## Why it matters now");
   const deeperAnalysis = getSectionContent(content, "## Deeper analysis");
+  const whatHappensNext = getSectionContent(content, "## What happens next");
   const finalTakeaway = getSectionContent(content, "## Final takeaway");
 
-  if (countWords(whyThisStoryMatters) < 90) {
+  if (countWords(whyThisStoryMatters) < SECTION_MIN_WORDS["## Why this story matters"]) {
     reasons.push("weak-opening-section");
-    score -= 1;
+    blockingReasons.push("weak-opening-section");
+    score -= 2;
   }
 
-  if (countWords(whatHappened) < 110) {
+  if (countWords(contextAndBackground) < SECTION_MIN_WORDS["## Context and background"]) {
+    reasons.push("thin-context-section");
+    blockingReasons.push("thin-context-section");
+    score -= 2;
+  }
+
+  if (countWords(whatHappened) < SECTION_MIN_WORDS["## What happened"]) {
     reasons.push("thin-what-happened");
-    score -= 1;
+    blockingReasons.push("thin-what-happened");
+    score -= 2;
   }
 
-  if (countWords(deeperAnalysis) < 140) {
+  if (countWords(whyItMattersNow) < SECTION_MIN_WORDS["## Why it matters now"]) {
+    reasons.push("thin-why-it-matters-now");
+    blockingReasons.push("thin-why-it-matters-now");
+    score -= 2;
+  }
+
+  if (countWords(deeperAnalysis) < SECTION_MIN_WORDS["## Deeper analysis"]) {
     reasons.push("thin-analysis");
-    score -= 1.5;
+    blockingReasons.push("thin-analysis");
+    score -= 2;
   }
 
-  if (countWords(finalTakeaway) < 60) {
+  if (countWords(whatHappensNext) < SECTION_MIN_WORDS["## What happens next"]) {
+    reasons.push("thin-what-happens-next");
+    blockingReasons.push("thin-what-happens-next");
+    score -= 2;
+  }
+
+  if (countWords(finalTakeaway) < SECTION_MIN_WORDS["## Final takeaway"]) {
     reasons.push("thin-final-takeaway");
-    score -= 1;
+    blockingReasons.push("thin-final-takeaway");
+    score -= 2;
   }
 
   const nigeriaMentioned = /nigeria|nigerian|lagos|abuja|naira|africa|african/i.test(content);
@@ -1058,7 +1162,7 @@ function evaluateCandidateQuality(article, candidate) {
   }
 
   return {
-    passed: blockingReasons.length === 0 && Math.max(0, score) >= 6,
+    passed: blockingReasons.length === 0 && Math.max(0, score) >= 8,
     score: Math.max(0, score),
     reasons,
     blockingReasons,
@@ -1066,7 +1170,7 @@ function evaluateCandidateQuality(article, candidate) {
   };
 }
 
-async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] } = {}) {
+async function generateAiCandidate(article, baseCandidate, { revisionNotes = [], relatedLinks = [] } = {}) {
   if (!isOpenAiRewriteEnabled()) {
     return {
       ...baseCandidate,
@@ -1101,12 +1205,15 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
     "The article must be 1250 to 1450 words, written in clear British English, professional, clear, engaging, natural, and never robotic.",
     "Write the article body in Markdown only.",
     "Use this exact article structure: ## Why this story matters, ## Context and background, ## What happened, ## Why it matters now, ## Deeper analysis, ## What happens next, ## Final takeaway.",
+    "Treat the section structure as mandatory, not optional. Each section must contain meaningful original reporting or analysis, not one short paragraph.",
+    "Aim for these section budgets: Why this story matters 150-210 words, Context and background 170-240 words, What happened 180-240 words, Why it matters now 150-220 words, Deeper analysis 240-320 words, What happens next 130-190 words, Final takeaway 90-130 words.",
     "When a real source URL is provided, add a final ## Sources section with at least one Markdown bullet link using the provided source name and source URL.",
     "Use short paragraphs of 2 to 4 lines max with exactly one blank line between paragraphs.",
     "Use ## for main headings and ### for subheadings where helpful.",
     "Use bold as **text**, italics as *text*, bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
     "Naturally include the primary keyword in the title, seoTitle, meta description, and opening paragraph. Use secondary keywords naturally without keyword stuffing.",
     "Sound like a real expert. Be specific, practical, helpful, and human. Avoid fake statistics, unverifiable claims, AI cliches, fluff, filler, plagiarism, and thin content.",
+    "Do not use weak explainer title patterns such as 'what it means', 'why ...', 'everything you need to know', 'full story', or 'explained' in the title or SEO title.",
     "Do not invent social-share counts, workshop announcements, adaptation plans, ratings, critic comparisons, business figures, public reactions, expert commentary, or named examples unless those details are explicitly supported by the provided source material.",
     "If a detail is not confirmed by the source, keep the wording cautious and general instead of filling gaps with confident specifics.",
     "Maintain reader interest throughout with relatable examples and local Nigerian relevance where appropriate.",
@@ -1136,6 +1243,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
     sourceCountry: article.sourceCountry,
     sensitiveTopic: isSensitiveAutoCandidate(article, baseCandidate.category),
     requiresSourcesSection: Boolean(article.sourceUrl),
+    relatedCenturyBlogLinks: relatedLinks,
     categoryWritingRule: getCategoryWritingRule(baseCandidate.category),
     nigeriaRelevance: getNigeriaRelevance(article, baseCandidate.category),
     sourceSummary: buildSourceSummary(article),
@@ -1305,12 +1413,13 @@ async function reviseCandidateWithAi(article, candidate, qualityReport) {
       "Repair the article so it fully passes the content requirements before publication.",
       `Current quality issues: ${qualityReport.reasons.join(", ")}.`,
       "Keep the authority structure exact, expand the current draft instead of restarting, and improve originality, usefulness, sourcing visibility, and local relevance without sounding robotic."
-    ]
+    ],
+    relatedLinks: candidate?._relatedCenturyBlogLinks || []
   });
 }
 
-async function rewriteCandidateWithAi(article, baseCandidate) {
-  const initialCandidate = await generateAiCandidate(article, baseCandidate);
+async function rewriteCandidateWithAi(article, baseCandidate, relatedLinks = []) {
+  const initialCandidate = await generateAiCandidate(article, baseCandidate, { relatedLinks });
   let currentCandidate = initialCandidate;
   let qualityReport = evaluateCandidateQuality(article, initialCandidate);
   const rewriteAttempts = [initialCandidate._aiRewriteMeta || createAiRewriteMeta()];
@@ -1347,6 +1456,7 @@ async function rewriteCandidateWithAi(article, baseCandidate) {
 
 async function buildCandidate(article) {
   const category = mapTopicToCategory(article);
+  const relatedLinks = buildRelatedLinks(article, article._existingPosts || []);
 
   const baseCandidate = {
     title: article.title,
@@ -1369,10 +1479,11 @@ async function buildCandidate(article) {
     imageCreditUrl: article.mediaUrl ? article.sourceUrl : "",
     mediaType: article.mediaType || "image/jpeg",
     publishedAt: article.publishedAt,
-    imageAlt: article.title
+    imageAlt: article.title,
+    _relatedCenturyBlogLinks: relatedLinks
   };
 
-  const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate);
+  const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate, relatedLinks);
   const imageQuery = rewrittenCandidate._featuredImageQuery || deriveImageSearchQuery(article, rewrittenCandidate);
   const image = await resolveImage(article, imageQuery);
   const qualityReport = rewrittenCandidate.qualityReport || evaluateCandidateQuality(article, rewrittenCandidate);
@@ -1417,8 +1528,15 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
     withSourceFallback(filteredGlobalArticles, globalArticles),
     activeSettings
   );
-
-  const candidates = await Promise.all(selectedArticles.map(buildCandidate));
+  const existingPosts = await getPosts();
+  const candidates = await Promise.all(
+    selectedArticles.map((article) =>
+      buildCandidate({
+        ...article,
+        _existingPosts: existingPosts
+      })
+    )
+  );
 
   return {
     candidates,
