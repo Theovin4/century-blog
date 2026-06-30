@@ -4,6 +4,7 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { buildEditorialChecklist, EDITORIAL_GUARDRAILS } from "@/lib/editorial-checklist";
 import {
   editorCategoryOptions,
   getCategoryMeta,
@@ -977,11 +978,13 @@ export function DashboardShell({ initialPosts, currentUser }) {
         router.prefetch?.("/");
       });
     } catch (nextError) {
-      if ((nextError.message || "").includes("Source needed before publication.")) {
+      const nextMessage = nextError.message || "Unable to save post.";
+
+      if (nextMessage.includes("Source needed before publication.")) {
         setShowAdvancedFields(true);
-        setError("This story needs at least one verified source link before it can be submitted or published. Open Advanced settings and add the source.");
+        setError("Source links are strongly recommended for this story. Open Advanced settings, add them if available, and try again.");
       } else {
-        setError(nextError.message || "Unable to save post.");
+        setError(nextMessage);
       }
     } finally {
       setSubmitBusy(false);
@@ -1301,6 +1304,14 @@ export function DashboardShell({ initialPosts, currentUser }) {
   const rewriteVoiceLabel = aiEnhanced
     ? [rewriteProviderLabel, providerSummary.rewriteModel].filter(Boolean).join(" ")
     : "optional";
+  const editorialChecklist = useMemo(
+    () => buildEditorialChecklist({
+      draft: resolvedDraft,
+      activePost: activeDraftPost,
+      hasMedia: Boolean(previewUrl)
+    }),
+    [activeDraftPost, previewUrl, resolvedDraft]
+  );
 
   function formatRewriteMeta(draftItem) {
     const rewriteMeta = draftItem?.rewriteMeta || {};
@@ -1721,6 +1732,52 @@ export function DashboardShell({ initialPosts, currentUser }) {
             Only title, excerpt, and content are required for the fastest workflow. Century Blog now pre-fills SEO, author, image alt text, tags, and other editorial details automatically. Open advanced settings only when you want to override them.
           </div>
 
+          <section className="editorial-checklist-panel" aria-labelledby="editorial-checklist-title">
+            <div className="editorial-checklist-panel__header">
+              <div>
+                <span className="eyebrow">Editorial Checklist</span>
+                <h3 id="editorial-checklist-title">Pre-publication quality signals</h3>
+              </div>
+              <p>This is a warning-only newsroom checklist. Use it to catch thin copy, missing links, weak metadata, or trust gaps before publishing.</p>
+            </div>
+
+            <div className="editorial-checklist-panel__stats">
+              <span>Words: {editorialChecklist.wordCount.toLocaleString()}</span>
+              <span>Internal links: {editorialChecklist.internalLinkCount}</span>
+              <span>External links: {editorialChecklist.externalLinkCount}</span>
+              <span>Authoritative sources: {editorialChecklist.authoritativeLinkCount}</span>
+            </div>
+
+            {editorialChecklist.needsAuthorityLength ? (
+              <p className="editor-form__hint">
+                This draft reads like an evergreen or authority-style article, so the 1,500-word depth target matters more here than it would for a short news update.
+              </p>
+            ) : null}
+
+            <div className="editorial-checklist-grid">
+              {editorialChecklist.items.map((item) => (
+                <article key={item.key} className={`editorial-checklist-item editorial-checklist-item--${item.status}`}>
+                  <div className="editorial-checklist-item__top">
+                    <strong>{item.label}</strong>
+                    <span className={`editorial-checklist-pill editorial-checklist-pill--${item.status}`}>
+                      {item.status === "pass" ? "Pass" : item.status === "warn" ? "Warning" : "Review"}
+                    </span>
+                  </div>
+                  <p>{item.note}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="editorial-guardrails">
+              <strong>Publishing guardrails</strong>
+              <ul>
+                {EDITORIAL_GUARDRAILS.map((guardrail) => (
+                  <li key={guardrail}>{guardrail}</li>
+                ))}
+              </ul>
+            </div>
+          </section>
+
           <details
             className="editor-advanced"
             open={showAdvancedFields}
@@ -1730,7 +1787,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
             {sourceWarningVisible ? (
               <p className="dashboard-warning">
-                This looks like a sensitive story. Add at least one verified source link before you submit or publish it.
+                This looks like a sensitive story. Add verified source links where available so the published article carries stronger trust and sourcing.
               </p>
             ) : null}
 

@@ -1792,6 +1792,130 @@ button {
   color: #d8f8ff;
 }
 
+.editorial-checklist-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.editorial-checklist-panel__header {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.editorial-checklist-panel__header h3 {
+  margin: 0;
+}
+
+.editorial-checklist-panel__header p,
+.editorial-checklist-item p,
+.editorial-guardrails li {
+  color: rgba(240, 244, 255, 0.76);
+}
+
+.editorial-checklist-panel__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.editorial-checklist-panel__stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #f8fafc;
+  font-size: 0.92rem;
+}
+
+.editorial-checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+}
+
+.editorial-checklist-item {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.95rem;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.editorial-checklist-item--pass {
+  border-color: rgba(75, 230, 168, 0.24);
+}
+
+.editorial-checklist-item--warn {
+  border-color: rgba(255, 177, 66, 0.24);
+}
+
+.editorial-checklist-item--info {
+  border-color: rgba(94, 242, 255, 0.16);
+}
+
+.editorial-checklist-item__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.editorial-checklist-item__top strong {
+  line-height: 1.45;
+}
+
+.editorial-checklist-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.8rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.editorial-checklist-pill--pass {
+  background: rgba(75, 230, 168, 0.14);
+  color: #9dffd2;
+}
+
+.editorial-checklist-pill--warn {
+  background: rgba(255, 177, 66, 0.14);
+  color: #ffd9a3;
+}
+
+.editorial-checklist-pill--info {
+  background: rgba(94, 242, 255, 0.14);
+  color: #b8fbff;
+}
+
+.editorial-guardrails {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  background: rgba(12, 20, 34, 0.42);
+  border: 1px solid rgba(94, 242, 255, 0.12);
+}
+
+.editorial-guardrails ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
 .editor-advanced {
   display: grid;
   gap: 1rem;

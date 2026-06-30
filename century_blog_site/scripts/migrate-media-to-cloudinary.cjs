@@ -4,7 +4,12 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { v2: cloudinary } = require("cloudinary");
 
-const baseUrl = (process.env.MIGRATION_SOURCE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app").replace(/\/$/, "");
+const baseUrl = (
+  process.env.MIGRATION_SOURCE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://www.centuryblog.com.ng"
+).replace(/\/$/, "");
 const dataDir = path.join(process.cwd(), "data");
 
 cloudinary.config({
