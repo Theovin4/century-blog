@@ -109,6 +109,10 @@ function sentenceCase(value) {
 function mapTopicToCategory(article) {
   const haystack = `${article.title} ${article.description} ${article.sourceName} ${article.section}`.toLowerCase();
 
+  if (/football|soccer|champions league|premier league|serie a|la liga|bundesliga|ucl|nba|nfl|afl|hockey|tennis|golf|boxing|ufc|athlete|transfer|match|tournament|world cup|super bowl|olympic|sports?/.test(haystack)) {
+    return "sports";
+  }
+
   if (/tech|startup|ai|software|cyber|digital|gadget/.test(haystack)) {
     return "tech";
   }
@@ -258,6 +262,7 @@ function getNigeriaRelevance(article, category) {
 function getCategoryWritingRule(category) {
   const rules = {
     business: "Focus on money, market impact, pricing, jobs, business confidence, and the practical takeaway for workers or entrepreneurs.",
+    sports: "Focus on the competitive stakes, performance context, fan relevance, and why the result or development matters beyond the headline.",
     tech: "Explain the product, use case, adoption barrier, and why the development matters beyond the announcement itself.",
     health: "Be cautious, clear, and non-sensational. Focus on verified guidance, practical safety information, and what readers should or should not do.",
     nigeria: "Ground the article in local context, everyday implications, and why the issue matters now for people in Nigeria.",
@@ -871,7 +876,7 @@ function buildRewriteJsonSchema() {
       content: { type: "string" },
       category: {
         type: "string",
-        enum: ["nigeria", "world", "business", "tech", "entertainment", "health", "lifestyle", "education", "daily-gist"]
+        enum: ["nigeria", "world", "business", "sports", "tech", "entertainment", "health", "lifestyle", "education", "daily-gist"]
       },
       author: { type: "string" },
       unsplashImages: {

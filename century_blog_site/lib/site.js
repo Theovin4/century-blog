@@ -14,15 +14,20 @@ export const categoryMeta = {
     accent: "linear-gradient(135deg, #f7971e, #ffd200)",
     description: "Markets, money, jobs, entrepreneurship, and business developments that matter."
   },
+  sports: {
+    label: "Sports",
+    accent: "linear-gradient(135deg, #22c55e, #0ea5e9)",
+    description: "Football, global tournaments, athletes, transfer updates, and major sports stories worth following."
+  },
   tech: {
     label: "Technology",
     accent: "linear-gradient(135deg, #00c6ff, #0072ff)",
     description: "Technology trends, digital products, startups, AI, and innovation updates with practical context."
   },
   entertainment: {
-    label: "Entertainment & Sports",
+    label: "Entertainment",
     accent: "linear-gradient(135deg, #ff6a88, #ff99ac)",
-    description: "Celebrities, music, film, sports, creators, and internet culture worth watching."
+    description: "Celebrities, music, film, creators, and internet culture worth watching."
   },
   health: {
     label: "Health",
@@ -46,7 +51,7 @@ export const categoryMeta = {
   }
 };
 
-export const featuredCategoryOptions = ["nigeria", "world", "business", "tech", "entertainment", "lifestyle", "health"];
+export const featuredCategoryOptions = ["nigeria", "world", "business", "sports", "tech", "entertainment", "lifestyle", "health"];
 export const categoryOptions = Object.keys(categoryMeta);
 export const editorCategoryOptions = categoryOptions;
 export const MAX_POST_CONTENT_LENGTH = 60000;
@@ -323,7 +328,7 @@ export function getAuthorProfile(author) {
 export function getArticleSchemaType(post) {
   const category = String(post?.category || "");
   const hasSource = Boolean(post?.sourceName || post?.sourceUrl);
-  const isNewsCategory = ["nigeria", "world", "business", "health", "education", "daily-gist"].includes(category);
+  const isNewsCategory = ["nigeria", "world", "business", "sports", "health", "education", "daily-gist"].includes(category);
 
   return hasSource || post?.type === "auto" || isNewsCategory ? "NewsArticle" : "BlogPosting";
 }
@@ -437,6 +442,7 @@ export function getCoverStyle(category) {
     nigeria: "cover-violet",
     world: "cover-cyan",
     business: "cover-gold",
+    sports: "cover-cyan",
     tech: "cover-cyan",
     entertainment: "cover-warm",
     health: "cover-cyan",
@@ -528,6 +534,7 @@ function getFallbackCoverPalette(category) {
     nigeria: { start: "#0b1020", end: "#155eef", glow: "#12c2e9" },
     world: { start: "#12071f", end: "#4a00e0", glow: "#8e2de2" },
     business: { start: "#2b1901", end: "#f59e0b", glow: "#ffd200" },
+    sports: { start: "#052e16", end: "#0ea5e9", glow: "#22c55e" },
     tech: { start: "#062033", end: "#0072ff", glow: "#00c6ff" },
     entertainment: { start: "#3b0f1a", end: "#ff6a88", glow: "#ff99ac" },
     health: { start: "#06292d", end: "#009efd", glow: "#2af598" },

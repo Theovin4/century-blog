@@ -29,7 +29,7 @@ export default async function BlogPage({ searchParams }) {
           </div>
           <p>
             Explore recent news, features, and practical stories published across Nigeria, world,
-            business, technology, entertainment, health, lifestyle, education, and daily gist.
+            business, sports, technology, entertainment, health, lifestyle, education, and daily gist.
           </p>
         </div>
 

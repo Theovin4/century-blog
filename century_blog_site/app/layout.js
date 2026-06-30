@@ -13,7 +13,7 @@ export const metadata = {
     template: "%s | Century Blog"
   },
   description:
-    "Century Blog delivers breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, education, and daily gist.",
+    "Century Blog delivers breaking Nigerian news, global stories, and real-time updates across business, sports, technology, health, entertainment, lifestyle, education, and daily gist.",
   applicationName: "Century Blog",
   keywords: [
     "Century Blog",
@@ -21,6 +21,7 @@ export const metadata = {
     "breaking Nigerian news",
     "global stories",
     "business news Nigeria",
+    "sports news Nigeria",
     "technology news Nigeria",
     "health news Nigeria",
     "entertainment news Nigeria"
@@ -36,7 +37,7 @@ export const metadata = {
   openGraph: {
     title: "Century Blog",
     description:
-      "Breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, and daily gist.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, sports, technology, health, entertainment, lifestyle, and daily gist.",
     url: siteUrl,
     siteName: "Century Blog",
     locale: "en_NG",
@@ -54,7 +55,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "Century Blog",
     description:
-      "Breaking Nigerian news, global stories, and real-time updates across business, technology, health, entertainment, lifestyle, and daily gist.",
+      "Breaking Nigerian news, global stories, and real-time updates across business, sports, technology, health, entertainment, lifestyle, and daily gist.",
     images: [`${siteUrl}/century-blog-logo.png`]
   },
   icons: {

@@ -17,6 +17,18 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://www.centuryblog.com.ng";
+const VALID_CATEGORIES = new Set([
+  "nigeria",
+  "world",
+  "business",
+  "sports",
+  "tech",
+  "entertainment",
+  "health",
+  "lifestyle",
+  "education",
+  "daily-gist"
+]);
 const GROQ_API_KEY = process.env.GROQ_API_KEY || process.env.GROK_API_KEY || "";
 const GROQ_MODEL = process.env.GROQ_REWRITE_MODEL || "openai/gpt-oss-120b";
 const XAI_API_KEY = process.env.XAI_API_KEY || process.env.GROK_API_KEY || "";
@@ -68,6 +80,35 @@ function assertEnv(name) {
   if (!process.env[name]) {
     throw new Error(`Missing required env var: ${name}`);
   }
+}
+
+function isValidCategory(category) {
+  return VALID_CATEGORIES.has(String(category || "").trim());
+}
+
+function defaultRegionFocus(category, explicit = "") {
+  if (explicit) {
+    return explicit;
+  }
+
+  return category === "world" ? "global" : "nigeria";
+}
+
+function getCoverStyle(category) {
+  const styles = {
+    nigeria: "cover-violet",
+    world: "cover-cyan",
+    business: "cover-gold",
+    sports: "cover-cyan",
+    tech: "cover-cyan",
+    entertainment: "cover-warm",
+    health: "cover-cyan",
+    lifestyle: "cover-warm",
+    education: "cover-gold",
+    "daily-gist": "cover-violet"
+  };
+
+  return styles[category] || styles["daily-gist"];
 }
 
 function parseArgs(argv) {
@@ -768,8 +809,32 @@ function isGroqStructuredFailure(status, errorText = "") {
   return normalized.includes("json_validate_failed") || normalized.includes("failed to validate json");
 }
 
+function buildRewriteInput(post, { sourceLinks = [], relatedLinks = [], revisionNotes = [], article = "" } = {}) {
+  const sections = [
+    "Publication: Century Blog",
+    `Slug: ${post.slug}`,
+    `Category: ${post.category}`,
+    `Current title: ${post.title}`,
+    post.excerpt ? `Current excerpt: ${trimLength(post.excerpt, 220)}` : "",
+    post.author ? `Author: ${post.author}` : "",
+    post.sitePublishedAt || post.publishedAt || post.updatedAt
+      ? `Published: ${post.sitePublishedAt || post.publishedAt || post.updatedAt}`
+      : "",
+    post.sourceName ? `Primary source: ${post.sourceName}` : "",
+    post.sourceUrl ? `Primary source URL: ${post.sourceUrl}` : "",
+    sourceLinks.length ? `Source links:\n- ${sourceLinks.join("\n- ")}` : "",
+    relatedLinks.length ? `Allowed internal links:\n- ${relatedLinks.join("\n- ")}` : "",
+    revisionNotes.length ? `Fix these previous issues: ${revisionNotes.join("; ")}` : "",
+    "Rewrite the article below into a stronger authority-style newsroom piece while preserving supported facts.",
+    "Current article:",
+    article
+  ];
+
+  return sections.filter(Boolean).join("\n\n");
+}
+
 async function rewriteWithGroq(post, allPosts) {
-  const relatedLinks = buildRelatedLinks(post, allPosts, 3);
+  const relatedLinks = buildRelatedLinks(post, allPosts, 2);
   const sourceLinks = Array.isArray(post.sourceLinks)
     ? post.sourceLinks.filter((item) => item?.url).map((item) => `${item.label || "Source"}: ${item.url}`)
     : [];
@@ -779,10 +844,8 @@ async function rewriteWithGroq(post, allPosts) {
     "Return only valid JSON with title, seoTitle, metaDescription, excerpt, imageAlt, and content.",
     "Use clear British English, a human newsroom tone, and preserve factual accuracy.",
     "Do not invent quotes, statistics, interviews, or unverifiable details.",
-    "Do not introduce any percentage, revenue number, price, count, historic figure, or numeric comparison unless it is clearly supported by the provided source material.",
-    "Do not invent workshops, rights deals, classroom adoption, social-media share counts, audience numbers, critic comparisons, industry reactions, or named examples unless they are clearly supported by the provided source material.",
-    "If a detail is not confirmed by the source, leave it out or describe it cautiously in general terms.",
-    "Do not claim readers, publishers, teachers, producers, officials, or markets reacted in a specific way unless that reaction is explicitly supported by the source.",
+    "Only use specific numbers, examples, reactions, or claims that are supported by the provided material.",
+    "If a detail is not confirmed, leave it out or describe it cautiously.",
     "Where facts are uncertain, use cautious phrasing such as 'according to reports' or 'the development suggests'.",
     "The article must be between 2000 and 3200 words and written in Markdown.",
     "Anything below 2000 words is a failed output.",
@@ -849,6 +912,7 @@ async function rewriteWithGroq(post, allPosts) {
 
   for (const candidate of candidates) {
     let forcePromptOnlyFormat = false;
+    let maxOutputTokens = candidate.provider === "groq" ? 4200 : 6800;
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const systemPrompt = revisionNotes.length
@@ -859,32 +923,10 @@ async function rewriteWithGroq(post, allPosts) {
         groqSupportsStructuredRewrite(candidate.model) &&
         !forcePromptOnlyFormat;
 
-      const userPrompt = JSON.stringify({
-        publication: "Century Blog",
-        slug: post.slug,
-        currentTitle: post.title,
-        currentExcerpt: post.excerpt,
-        currentCategory: post.category,
-        currentAuthor: post.author || "Century Blog Editorial Team",
-        publishedAt: post.sitePublishedAt || post.publishedAt || post.updatedAt || "",
-        sourceName: post.sourceName || "",
-        sourceUrl: post.sourceUrl || "",
+      const userPrompt = buildRewriteInput(post, {
         sourceLinks,
-        heroImageAltCurrent: post.imageAlt || "",
-        relatedCenturyBlogLinks: relatedLinks,
+        relatedLinks,
         revisionNotes,
-        instructions: {
-          strengthenAuthority: true,
-          preserveFacts: true,
-          avoidAIStyle: true,
-          explainRealImpact: true,
-          useInternalLinks: true,
-          useOnlySourceBackedSpecifics: true,
-          banInventedMetricsAndNamedExamples: true,
-          minimumWords: 2000,
-          preferredWords: "2200-3000",
-          expansionMode: revisionNotes.length > 0
-        },
         article: workingArticle
       });
 
@@ -902,7 +944,7 @@ async function rewriteWithGroq(post, allPosts) {
                   schema: buildRewriteSchema()
                 }
               },
-              max_output_tokens: 6800,
+              max_output_tokens: maxOutputTokens,
               temperature: 0.35
             }
           : candidate.provider === "groq"
@@ -910,7 +952,7 @@ async function rewriteWithGroq(post, allPosts) {
                 model: candidate.model,
                 instructions: `${systemPrompt} Return no markdown fences and no extra commentary. Use exactly this plain-text format: TITLE: <title>\\nSEO_TITLE: <seo title>\\nMETA_DESCRIPTION: <meta description>\\nEXCERPT: <excerpt>\\nIMAGE_ALT: <hero image alt text>\\nCONTENT:\\n<full markdown article>.`,
                 input: userPrompt,
-                max_output_tokens: 6800,
+                max_output_tokens: maxOutputTokens,
                 temperature: 0.35
               }
             : {
@@ -942,6 +984,18 @@ async function rewriteWithGroq(post, allPosts) {
         if (useStructuredFormat && isGroqStructuredFailure(response.status, errorText) && attempt < 5) {
           forcePromptOnlyFormat = true;
           console.log(`Structured Groq JSON validation failed for ${post.slug}. Retrying with prompt-only format on attempt ${attempt + 1}...`);
+          continue;
+        }
+
+        if (
+          candidate.provider === "groq" &&
+          response.status === 413 &&
+          /request too large|requested \d+/i.test(errorText) &&
+          maxOutputTokens > 3000 &&
+          attempt < 5
+        ) {
+          maxOutputTokens = Math.max(3400, maxOutputTokens - 400);
+          console.log(`Groq token budget too large for ${post.slug}. Retrying with max_output_tokens=${maxOutputTokens} on attempt ${attempt + 1}...`);
           continue;
         }
 
@@ -1216,6 +1270,7 @@ async function runApplyMode(posts, args) {
     }
 
     const content = entry.content ? normalizeMarkdownContent(entry.content) : post.content;
+    const nextCategory = isValidCategory(entry.category) ? String(entry.category).trim() : post.category;
     const sourceLinks = Array.isArray(entry.sourceLinks)
       ? entry.sourceLinks.filter((item) => item?.url)
       : entry.sourceUrl
@@ -1241,6 +1296,9 @@ async function runApplyMode(posts, args) {
       metaDescription,
       excerpt,
       imageAlt,
+      category: nextCategory,
+      regionFocus: defaultRegionFocus(nextCategory, entry.regionFocus || post.regionFocus || ""),
+      coverStyle: getCoverStyle(nextCategory),
       sourceName: entry.sourceName || post.sourceName || "",
       sourceUrl: entry.sourceUrl || post.sourceUrl || "",
       sourceLinks,

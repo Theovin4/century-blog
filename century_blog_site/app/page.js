@@ -28,13 +28,14 @@ export const dynamic = "force-dynamic";
 export const metadata = buildPageMetadata({
   title: "Century Blog",
   description:
-    "Century Blog covers Nigeria news, world updates, business, technology, entertainment, health, lifestyle, education, and daily gist in a clear reader-first format.",
+    "Century Blog covers Nigeria news, world updates, business, sports, technology, entertainment, health, lifestyle, education, and daily gist in a clear reader-first format.",
   path: "/",
   keywords: [
     "Century Blog",
     "Nigeria news",
     "world news",
     "business news",
+    "sports news",
     "technology news",
     "entertainment news",
     "lifestyle stories"
@@ -117,7 +118,7 @@ export default async function HomePage({ searchParams }) {
       "@type": "Blog",
       name: "Century Blog",
       description:
-        "Century Blog is a Nigeria-first digital publication covering breaking Nigerian news, world updates, business, technology, health, entertainment, lifestyle, education, and daily gist.",
+        "Century Blog is a Nigeria-first digital publication covering breaking Nigerian news, world updates, business, sports, technology, health, entertainment, lifestyle, education, and daily gist.",
       url: siteUrl,
       inLanguage: "en-NG",
       blogPost: prioritizedPosts.slice(0, 8).map((post) => ({
@@ -152,7 +153,7 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Nigeria-first reporting on world news, business, technology, entertainment, health, lifestyle, and daily gist.</p>
+              <p className="brand-copy__tag">Nigeria-first reporting on world news, business, sports, technology, entertainment, health, lifestyle, and daily gist.</p>
             </div>
           </div>
           <h1>Breaking Nigeria news, global updates, and stories that matter</h1>
@@ -180,7 +181,7 @@ export default async function HomePage({ searchParams }) {
             <span className="eyebrow">Browse Sections</span>
             <h2>Follow the topics you care about most</h2>
           </div>
-          <p>Jump straight into the sections readers explore most, from Nigeria headlines and business updates to technology, health, lifestyle, and daily gist.</p>
+          <p>Jump straight into the sections readers explore most, from Nigeria headlines and business updates to sports, technology, health, lifestyle, and daily gist.</p>
         </div>
         <PostFilters query={query} category="" action="/" categories={activeCategories} />
       </section>
@@ -245,7 +246,7 @@ export default async function HomePage({ searchParams }) {
           <span className="eyebrow">Newsletter</span>
           <h2>Get fresh posts and updates in your inbox</h2>
           <p className="hero-text">
-            Subscribe for breaking headlines, useful explainers, and selected updates across Nigeria, world news, business, technology, entertainment, lifestyle, health, and education.
+            Subscribe for breaking headlines, useful explainers, and selected updates across Nigeria, world news, business, sports, technology, entertainment, lifestyle, health, and education.
           </p>
         </div>
         <NewsletterForm />

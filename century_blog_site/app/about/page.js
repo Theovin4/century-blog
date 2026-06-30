@@ -25,7 +25,7 @@ export default function AboutPage() {
           desktop.
         </p>
         <p>
-          We cover news, business, technology, health, lifestyle, education, entertainment, and
+          We cover news, business, sports, technology, health, lifestyle, education, entertainment, and
           wider world developments with an emphasis on clarity, context, and clean presentation.
         </p>
         <p>
