@@ -338,6 +338,10 @@ function buildTitleFlags(title = "") {
     flags.push("why-title");
   }
 
+  if (value.includes("explained")) {
+    flags.push("explained-title");
+  }
+
   return flags;
 }
 
@@ -404,13 +408,13 @@ function classifyPost(post) {
   if (isLowValueTitle(post.title)) {
     status = "NOINDEX";
     reasons.push("low-trust-or-low-value-topic");
-  } else if (auto && (words < 1250 || titleFlags.length || hasTemplateBoilerplate(post.content) || containsTruncatedArtifact(post.content))) {
+  } else if (auto && (words < 2000 || titleFlags.length || hasTemplateBoilerplate(post.content) || containsTruncatedArtifact(post.content))) {
     status = "IMPROVE";
     reasons.push("auto-post-needs-authority-rewrite");
-  } else if (words < 900) {
+  } else if (words < 1400) {
     status = "IMPROVE";
     reasons.push("too-thin-for-publication-authority");
-  } else if (words < 1100 && (titleFlags.length || isSensitivePost(post) || !hasSource)) {
+  } else if (words < 1800 && (titleFlags.length || isSensitivePost(post) || !hasSource)) {
     status = "IMPROVE";
     reasons.push("needs-depth-or-sourcing");
   } else if (hasTemplateBoilerplate(post.content)) {
@@ -640,13 +644,19 @@ function validateAuthorityRewriteOutput(post, rewritten) {
   const excerpt = trimLength(rewritten.excerpt || post.excerpt, 260);
   const imageAlt = trimLength(rewritten.imageAlt || post.imageAlt || title, 180);
   const requiredHeadings = [
+    "## Introduction",
+    "## Executive summary",
+    "## Table of contents",
     "## Why this story matters",
     "## Context and background",
     "## What happened",
-    "## Why it matters now",
-    "## Deeper analysis",
-    "## What happens next",
-    "## Final takeaway"
+    "## Key facts readers should know",
+    "## Why this matters for Nigeria",
+    "## Wider African and global context",
+    "## Expert insight and practical implications",
+    "## What readers should watch next",
+    "## Frequently asked questions",
+    "## Conclusion"
   ];
 
   for (const heading of requiredHeadings) {
@@ -655,11 +665,11 @@ function validateAuthorityRewriteOutput(post, rewritten) {
     }
   }
 
-  if (words < 1200) {
+  if (words < 2000) {
     throw new Error(`Rewrite validation failed for ${post.slug}: article too short at ${words} words`);
   }
 
-  if (words > 1600) {
+  if (words > 3400) {
     throw new Error(`Rewrite validation failed for ${post.slug}: article too long at ${words} words`);
   }
 
@@ -774,10 +784,11 @@ async function rewriteWithGroq(post, allPosts) {
     "If a detail is not confirmed by the source, leave it out or describe it cautiously in general terms.",
     "Do not claim readers, publishers, teachers, producers, officials, or markets reacted in a specific way unless that reaction is explicitly supported by the source.",
     "Where facts are uncertain, use cautious phrasing such as 'according to reports' or 'the development suggests'.",
-    "The article must be between 1250 and 1450 words and written in Markdown.",
-    "Anything below 1250 words is a failed output.",
-    "Use this H2 structure exactly: ## Why this story matters, ## Context and background, ## What happened, ## Why it matters now, ## Deeper analysis, ## What happens next, ## Final takeaway.",
-    "Aim for these section budgets: Why this story matters 160-210 words, Context and background 190-240 words, What happened 200-250 words, Why it matters now 190-240 words, Deeper analysis 250-320 words, What happens next 150-200 words, Final takeaway 100-140 words.",
+    "The article must be between 2000 and 3200 words and written in Markdown.",
+    "Anything below 2000 words is a failed output.",
+    "Use this H2 structure exactly: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
+    "Inside ## Executive summary include 3 to 6 bullet points. Inside ## Frequently asked questions include 8 to 12 concise FAQs using ### question headings.",
+    "Aim for substantive sections with real value, useful explanation, practical implications, Nigerian relevance where appropriate, and expert-style analysis rather than shallow summary.",
     "Do not use weak explainer title patterns such as 'what it means', 'why ...', 'everything you need to know', or 'full story' in the title or SEO title.",
     "Add a short ## Sources section only when real source links are provided.",
     "Keep paragraphs short and readable.",
@@ -870,8 +881,8 @@ async function rewriteWithGroq(post, allPosts) {
           useInternalLinks: true,
           useOnlySourceBackedSpecifics: true,
           banInventedMetricsAndNamedExamples: true,
-          minimumWords: 1250,
-          preferredWords: "1300-1425",
+          minimumWords: 2000,
+          preferredWords: "2200-3000",
           expansionMode: revisionNotes.length > 0
         },
         article: workingArticle
@@ -891,7 +902,7 @@ async function rewriteWithGroq(post, allPosts) {
                   schema: buildRewriteSchema()
                 }
               },
-              max_output_tokens: 4200,
+              max_output_tokens: 6800,
               temperature: 0.35
             }
           : candidate.provider === "groq"
@@ -899,7 +910,7 @@ async function rewriteWithGroq(post, allPosts) {
                 model: candidate.model,
                 instructions: `${systemPrompt} Return no markdown fences and no extra commentary. Use exactly this plain-text format: TITLE: <title>\\nSEO_TITLE: <seo title>\\nMETA_DESCRIPTION: <meta description>\\nEXCERPT: <excerpt>\\nIMAGE_ALT: <hero image alt text>\\nCONTENT:\\n<full markdown article>.`,
                 input: userPrompt,
-                max_output_tokens: 4200,
+                max_output_tokens: 6800,
                 temperature: 0.35
               }
             : {

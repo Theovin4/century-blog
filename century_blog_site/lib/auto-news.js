@@ -18,27 +18,39 @@ const AI_REWRITE_PROVIDER = String(
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
-const MIN_ARTICLE_WORDS = 1250;
-const MAX_ARTICLE_WORDS = 1450;
+const MIN_ARTICLE_WORDS = 2000;
+const MAX_ARTICLE_WORDS = 3400;
 const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
+  "## Introduction",
+  "## Executive summary",
+  "## Table of contents",
   "## Why this story matters",
   "## Context and background",
   "## What happened",
-  "## Why it matters now",
-  "## Deeper analysis",
-  "## What happens next",
-  "## Final takeaway"
+  "## Key facts readers should know",
+  "## Why this matters for Nigeria",
+  "## Wider African and global context",
+  "## Expert insight and practical implications",
+  "## What readers should watch next",
+  "## Frequently asked questions",
+  "## Conclusion"
 ];
 const OPTIONAL_SOURCES_HEADING = "## Sources";
 const SECTION_MIN_WORDS = {
+  "## Introduction": 100,
+  "## Executive summary": 30,
+  "## Table of contents": 20,
   "## Why this story matters": 150,
-  "## Context and background": 170,
+  "## Context and background": 180,
   "## What happened": 180,
-  "## Why it matters now": 150,
-  "## Deeper analysis": 240,
-  "## What happens next": 130,
-  "## Final takeaway": 90
+  "## Key facts readers should know": 120,
+  "## Why this matters for Nigeria": 170,
+  "## Wider African and global context": 170,
+  "## Expert insight and practical implications": 240,
+  "## What readers should watch next": 140,
+  "## Frequently asked questions": 260,
+  "## Conclusion": 100
 };
 const GENERIC_FILLER_PATTERNS = [
   /in today's digital world/i,
@@ -399,11 +411,12 @@ function buildArticleContent(article) {
   const description = stripHtml(article.description || article.content || article.title);
   const context = stripHtml(article.content || article.description || article.title);
   const nigeriaImpactLine = article.regionFocus === "nigeria"
-    ? "For readers in Nigeria, the immediate question is how the development could affect public life, daily choices, institutional trust, or the direction of policy and conversation."
-    : "For readers in Nigeria, the useful angle is how an international development like this could affect prices, jobs, travel, technology access, diplomacy, culture, or public debate.";
-  const whatNextLine = article.regionFocus === "nigeria"
-    ? "That usually means watching how officials respond, how quickly facts become clearer, and whether the issue begins to influence everyday decisions for households, workers, students, businesses, or communities."
-    : "That usually means watching whether the story stays external or starts to shape local decisions through markets, migration, consumer costs, energy, security, or wider regional implications.";
+    ? "For readers in Nigeria, the immediate question is how the development could affect daily life, public trust, household finances, education, security, or policy choices."
+    : "For readers in Nigeria, the useful angle is whether an international development like this could influence prices, jobs, technology access, travel, diplomacy, or wider public debate.";
+  const africaImpactLine =
+    article.regionFocus === "nigeria"
+      ? "The African angle matters too, because developments inside Nigeria often shape regional politics, markets, migration decisions, and investor confidence."
+      : "The African angle matters because global events often influence trade, investment, migration, security calculations, and consumer costs across the continent.";
   const sourceSection = article.sourceUrl
     ? [
         "",
@@ -412,49 +425,122 @@ function buildArticleContent(article) {
         `- [${sourceName}](${article.sourceUrl})`
       ]
     : [];
+  const tocItems = [
+    "Why this story matters",
+    "Context and background",
+    "What happened",
+    "Key facts readers should know",
+    "Why this matters for Nigeria",
+    "Wider African and global context",
+    "Expert insight and practical implications",
+    "What readers should watch next",
+    "Frequently asked questions",
+    "Conclusion"
+  ];
 
   return [
+    "## Introduction",
+    "",
+    `${title} is a story readers should pay attention to now because the immediate headline is only part of the picture. The deeper issue is what this development could change for institutions, markets, families, public debate, or long-term decision-making. ${nigeriaImpactLine}`,
+    "",
+    "## Executive summary",
+    "",
+    `- ${description}.`,
+    `- ${nigeriaImpactLine}`,
+    `- ${africaImpactLine}`,
+    "- Readers should focus on verified facts, practical consequences, and what developments to watch next.",
+    "",
+    "## Table of contents",
+    "",
+    ...tocItems.map((item) => `- ${item}`),
+    "",
     "## Why this story matters",
     "",
-    `${title} matters because it is not only a headline about a single event. It is part of a wider chain of consequences that readers are likely to feel through public discussion, market behaviour, social reaction, institutional response, or practical day-to-day decision-making.`,
+    `${title} matters because it is not only a headline about a single event. It sits inside a bigger chain of consequences that readers are likely to feel through public discussion, market behaviour, institutional response, or practical day-to-day decision-making.`,
     "",
     `${description} ${nigeriaImpactLine}`,
     "",
     "## Context and background",
     "",
-    `${context} The first version of a breaking story often carries the biggest emotional force, but it rarely carries the full explanation. The background usually reveals whether the development is part of a longer pattern, a one-off disruption, or a sign of deeper pressure building underneath the surface.`,
+    `${context} The first version of a fast-moving story often carries the biggest emotional force, but it rarely carries the full explanation. The background usually reveals whether the development is part of a longer pattern, a one-off disruption, or a sign of deeper pressure building underneath the surface.`,
     "",
-    `That context is especially useful when the issue touches politics, business, education, health, technology, or security, because those are the stories where timing alone does not explain why readers should care. Background turns a fast update into something people can actually understand.`,
+    "That context is especially useful when the issue touches politics, business, education, health, technology, or security, because those are the stories where timing alone does not explain why readers should care. Background turns a fast update into something people can actually understand.",
     "",
     "## What happened",
     "",
-    `According to reporting from ${sourceName}, the core development is that ${description.charAt(0).toLowerCase()}${description.slice(1)}. That basic summary is useful, but it only answers the first question. Readers also need clarity on what changed, who moved first, what evidence is already public, and what still depends on confirmation or follow-up reporting.`,
+    `According to reporting from ${sourceName}, the core development is that ${description.charAt(0).toLowerCase()}${description.slice(1)}. That summary is useful, but it only answers the first question. Readers also need clarity on what changed, who moved first, what evidence is already public, and what still depends on confirmation or follow-up reporting.`,
     "",
-    `In stories like this, the difference between noise and useful reporting often comes down to sequence. What happened first, what reaction followed, and what remains unresolved are usually the details that shape how seriously the public takes the story.`,
+    "In stories like this, the difference between noise and useful reporting often comes down to sequence. What happened first, what reaction followed, and what remains unresolved are usually the details that shape how seriously the public takes the story.",
     "",
-    `That is why a clear timeline matters. A single update can sound dramatic at first, but its real meaning becomes sharper when readers can see whether the development is escalating, stabilising, or already prompting formal response from the people involved.`,
+    "That is why a clear timeline matters. A single update can sound dramatic at first, but its real meaning becomes sharper when readers can see whether the development is escalating, stabilising, or already prompting formal response from the people involved.",
     "",
-    "## Why it matters now",
+    "## Key facts readers should know",
     "",
-    `This matters now because timing changes impact. A business development can shape pricing and confidence. A political or legal development can shift public trust. A health story can influence caution and behaviour. A technology or education story can alter opportunity, access, and expectation very quickly once people believe the change is real.`,
+    "- The headline alone does not explain the full impact.",
+    "- Verified reporting matters more than viral interpretation.",
+    "- Readers should separate confirmed developments from commentary or speculation.",
     "",
-    `${whatNextLine}`,
+    "## Why this matters for Nigeria",
     "",
-    "## Deeper analysis",
+    nigeriaImpactLine,
     "",
-    `The deeper issue is usually not the headline alone, but the pressure around it. Readers should ask whether the development points to a structural problem, a temporary disruption, or a turning point. That question matters because stories with real staying power tend to reveal weakness or change in systems, not just drama in a single moment.`,
+    "Even when a story appears foreign or sector-specific, the Nigerian angle can show up through prices, policy thinking, trade exposure, technology access, education pathways, investment sentiment, or public mood.",
     "",
-    `For Nigerian readers, analysis becomes useful when it moves from summary to consequence. Does this affect costs, jobs, schools, health decisions, investor confidence, civic trust, or social behaviour? Does it point to a wider regional pattern? Does it expose a gap between public messaging and lived reality? Those are the questions that give the story weight.`,
+    "## Wider African and global context",
     "",
-    `This is also the point where credibility matters most. Readers are better served by cautious interpretation than exaggerated certainty. Where details are still developing, it is more honest to note what is known, what is disputed, and what must still be confirmed by official statements or clearer evidence.`,
+    africaImpactLine,
     "",
-    "## What happens next",
+    "Global comparison can also help readers judge whether the issue reflects a local disruption, a regional pattern, or a broader international trend with wider consequences.",
     "",
-    `The next stage of the story will likely be shaped by verification, response, and fallout. Readers should watch for updated statements, confirmed figures, policy moves, institutional reaction, market response, or public pressure depending on the category of the story. Those follow-up signals usually tell us whether the development is fading or becoming more serious.`,
+    "## Expert insight and practical implications",
     "",
-    `The strongest follow-up reporting will not just repeat the original headline. It will show what changed after the attention arrived. That is where readers usually find the most useful insight.`,
+    "The deeper issue is usually not the headline alone, but the pressure around it. Readers should ask whether the development points to a structural problem, a temporary disruption, or a turning point. That question matters because stories with real staying power tend to reveal weakness or change in systems, not just drama in a single moment.",
     "",
-    "## Final takeaway",
+    "For Nigerian readers, analysis becomes useful when it moves from summary to consequence. Does this affect costs, jobs, schools, health decisions, investor confidence, civic trust, or social behaviour? Does it point to a wider regional pattern? Does it expose a gap between public messaging and lived reality? Those are the questions that give the story weight.",
+    "",
+    "This is also the point where credibility matters most. Readers are better served by cautious interpretation than exaggerated certainty. Where details are still developing, it is more honest to note what is known, what is disputed, and what must still be confirmed by official statements or clearer evidence.",
+    "",
+    "## What readers should watch next",
+    "",
+    "The next stage of the story will likely be shaped by verification, response, and fallout. Readers should watch for updated statements, confirmed figures, policy moves, institutional reaction, market response, or public pressure depending on the category of the story.",
+    "",
+    "The strongest follow-up reporting will not just repeat the original headline. It will show what changed after the attention arrived, which institutions responded, and whether the first wave of public interpretation was actually correct.",
+    "",
+    "## Frequently asked questions",
+    "",
+    "### What is the main issue at the centre of this story?",
+    "",
+    `${description}`,
+    "",
+    "### Why should readers in Nigeria pay attention?",
+    "",
+    nigeriaImpactLine,
+    "",
+    "### Does this story have wider African relevance?",
+    "",
+    africaImpactLine,
+    "",
+    "### Are all the details fully confirmed yet?",
+    "",
+    "Not always. Fast-moving stories often begin with partial information, so readers should watch for verified updates and official clarification.",
+    "",
+    "### What is the most important fact readers should keep in mind?",
+    "",
+    "The headline matters, but the practical consequence usually matters more than the first burst of attention.",
+    "",
+    "### Could this development affect prices, jobs, or public policy?",
+    "",
+    "It could, depending on the sector involved. That is why follow-up reporting and official responses are important.",
+    "",
+    "### Why do source links matter in stories like this?",
+    "",
+    "They help readers separate verified reporting from recycled claims, speculation, or misleading summaries.",
+    "",
+    "### What should readers watch next?",
+    "",
+    "Readers should watch for policy changes, institutional response, clearer data, and whether the early reaction is supported by later evidence.",
+    "",
+    "## Conclusion",
     "",
     `${title} is worth following closely because the real value of the story lies in what it changes for readers, institutions, or wider public life. The headline may pull attention first, but the consequence is what gives it lasting meaning.`,
     ...sourceSection
@@ -791,7 +877,7 @@ function buildRewriteJsonSchema() {
       unsplashImages: {
         type: "object",
         additionalProperties: false,
-        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3"],
+        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3", "supportingImage4"],
         properties: {
           featuredImage: {
             type: "object",
@@ -827,6 +913,17 @@ function buildRewriteJsonSchema() {
             }
           },
           supportingImage3: {
+            type: "object",
+            additionalProperties: false,
+            required: ["searchQuery", "altText", "filename", "placement"],
+            properties: {
+              searchQuery: { type: "string" },
+              altText: { type: "string" },
+              filename: { type: "string" },
+              placement: { type: "string" }
+            }
+          },
+          supportingImage4: {
             type: "object",
             additionalProperties: false,
             required: ["searchQuery", "altText", "filename", "placement"],
@@ -957,6 +1054,25 @@ function hasVisibleSourceSection(content) {
   );
 }
 
+function countMarkdownBullets(content) {
+  return String(content || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^-\s+/.test(line)).length;
+}
+
+function countInternalLinks(content) {
+  const matches = String(content || "").match(/\[[^\]]+]\((\/[^)\s]*)\)/g) || [];
+  return matches.length;
+}
+
+function countFaqQuestions(content) {
+  return String(content || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^###\s+/.test(line)).length;
+}
+
 function extractNumericClaims(value) {
   return new Set(
     String(value || "")
@@ -1074,13 +1190,38 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 3;
   }
 
+  const introduction = getSectionContent(content, "## Introduction");
+  const executiveSummary = getSectionContent(content, "## Executive summary");
+  const tableOfContents = getSectionContent(content, "## Table of contents");
   const whyThisStoryMatters = getSectionContent(content, "## Why this story matters");
   const contextAndBackground = getSectionContent(content, "## Context and background");
   const whatHappened = getSectionContent(content, "## What happened");
-  const whyItMattersNow = getSectionContent(content, "## Why it matters now");
-  const deeperAnalysis = getSectionContent(content, "## Deeper analysis");
-  const whatHappensNext = getSectionContent(content, "## What happens next");
-  const finalTakeaway = getSectionContent(content, "## Final takeaway");
+  const keyFacts = getSectionContent(content, "## Key facts readers should know");
+  const nigeriaSection = getSectionContent(content, "## Why this matters for Nigeria");
+  const widerContext = getSectionContent(content, "## Wider African and global context");
+  const expertInsight = getSectionContent(content, "## Expert insight and practical implications");
+  const whatReadersShouldWatchNext = getSectionContent(content, "## What readers should watch next");
+  const faqSection = getSectionContent(content, "## Frequently asked questions");
+  const conclusion = getSectionContent(content, "## Conclusion");
+
+  if (countWords(introduction) < SECTION_MIN_WORDS["## Introduction"]) {
+    reasons.push("thin-introduction");
+    blockingReasons.push("thin-introduction");
+    score -= 2;
+  }
+
+  const executiveSummaryBullets = countMarkdownBullets(executiveSummary);
+  if (executiveSummaryBullets < 3 || executiveSummaryBullets > 6) {
+    reasons.push("weak-executive-summary");
+    blockingReasons.push("weak-executive-summary");
+    score -= 2;
+  }
+
+  if (countMarkdownBullets(tableOfContents) < 8) {
+    reasons.push("weak-table-of-contents");
+    blockingReasons.push("weak-table-of-contents");
+    score -= 1.5;
+  }
 
   if (countWords(whyThisStoryMatters) < SECTION_MIN_WORDS["## Why this story matters"]) {
     reasons.push("weak-opening-section");
@@ -1100,27 +1241,51 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 2;
   }
 
-  if (countWords(whyItMattersNow) < SECTION_MIN_WORDS["## Why it matters now"]) {
-    reasons.push("thin-why-it-matters-now");
-    blockingReasons.push("thin-why-it-matters-now");
+  if (countWords(keyFacts) < SECTION_MIN_WORDS["## Key facts readers should know"]) {
+    reasons.push("thin-key-facts");
+    blockingReasons.push("thin-key-facts");
     score -= 2;
   }
 
-  if (countWords(deeperAnalysis) < SECTION_MIN_WORDS["## Deeper analysis"]) {
-    reasons.push("thin-analysis");
-    blockingReasons.push("thin-analysis");
+  if (countWords(nigeriaSection) < SECTION_MIN_WORDS["## Why this matters for Nigeria"]) {
+    reasons.push("thin-nigeria-section");
+    blockingReasons.push("thin-nigeria-section");
     score -= 2;
   }
 
-  if (countWords(whatHappensNext) < SECTION_MIN_WORDS["## What happens next"]) {
-    reasons.push("thin-what-happens-next");
-    blockingReasons.push("thin-what-happens-next");
+  if (countWords(widerContext) < SECTION_MIN_WORDS["## Wider African and global context"]) {
+    reasons.push("thin-wider-context");
+    blockingReasons.push("thin-wider-context");
     score -= 2;
   }
 
-  if (countWords(finalTakeaway) < SECTION_MIN_WORDS["## Final takeaway"]) {
-    reasons.push("thin-final-takeaway");
-    blockingReasons.push("thin-final-takeaway");
+  if (countWords(expertInsight) < SECTION_MIN_WORDS["## Expert insight and practical implications"]) {
+    reasons.push("thin-expert-insight");
+    blockingReasons.push("thin-expert-insight");
+    score -= 2;
+  }
+
+  if (countWords(whatReadersShouldWatchNext) < SECTION_MIN_WORDS["## What readers should watch next"]) {
+    reasons.push("thin-watch-next");
+    blockingReasons.push("thin-watch-next");
+    score -= 2;
+  }
+
+  if (countWords(faqSection) < SECTION_MIN_WORDS["## Frequently asked questions"]) {
+    reasons.push("thin-faq-section");
+    blockingReasons.push("thin-faq-section");
+    score -= 2;
+  }
+
+  if (countFaqQuestions(faqSection) < 8) {
+    reasons.push("faq-too-short");
+    blockingReasons.push("faq-too-short");
+    score -= 2;
+  }
+
+  if (countWords(conclusion) < SECTION_MIN_WORDS["## Conclusion"]) {
+    reasons.push("thin-conclusion");
+    blockingReasons.push("thin-conclusion");
     score -= 2;
   }
 
@@ -1161,6 +1326,12 @@ function evaluateCandidateQuality(article, candidate) {
   if (article?.regionFocus === "nigeria" && !/nigeria|nigerian|lagos|abuja|naira/i.test(content)) {
     reasons.push("missing-nigeria-angle");
     score -= 2;
+  }
+
+  if (countInternalLinks(content) < Math.min(3, (candidate?._relatedCenturyBlogLinks || []).length || 3)) {
+    reasons.push("missing-internal-links");
+    blockingReasons.push("missing-internal-links");
+    score -= 1.5;
   }
 
   if (article?.sourceUrl && !hasVisibleSourceSection(content)) {
@@ -1225,38 +1396,35 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
   }
 
   const systemPrompt = [
-    "GOAL: Generate a high-quality, 100% original, AdSense-approved blog post that delivers real value, strong user experience, and meets Google content quality standards. Content must be written for humans first, SEO second.",
-    "ROLE: Act as an expert SEO content writer, journalist, and subject-matter analyst. Produce engaging, authoritative, and insight-driven content suitable for publication.",
-    "You must follow the user's latest master prompt in substance while returning only valid JSON for the app.",
+    "Century Blog is a premium digital publication covering Nigeria and the world through trustworthy, deeply researched journalism and practical explainers.",
+    "Write as a senior journalist, investigations editor, SEO lead, and fact-checking team working together. Never mention AI.",
     "Return only valid JSON with these keys: title, seoTitle, metaDescription, excerpt, content, category, author, unsplashImages.",
-    "STRICT CONTENT RULES: Content must be 100% original. Do not copy or closely paraphrase existing articles. Provide unique insights, meaningful explanations, real-world relevance, and what-this-means value. Add Nigerian or local context where appropriate. Avoid generic or shallow explanations.",
-    "The title must be SEO-optimised, human, and specific without clickbait.",
-    "The seoTitle must be keyword-rich, clear, and suitable for search results.",
-    "The metaDescription must be 150 to 160 characters, compelling, and keyword-aware.",
-    "The excerpt must be concise, compelling, and suitable for homepage cards.",
-    "The article must be 1250 to 1450 words, written in clear British English, professional, clear, engaging, natural, and never robotic.",
-    "Write the article body in Markdown only.",
-    "Use this exact article structure: ## Why this story matters, ## Context and background, ## What happened, ## Why it matters now, ## Deeper analysis, ## What happens next, ## Final takeaway.",
-    "Treat the section structure as mandatory, not optional. Each section must contain meaningful original reporting or analysis, not one short paragraph.",
-    "Aim for these section budgets: Why this story matters 150-210 words, Context and background 170-240 words, What happened 180-240 words, Why it matters now 150-220 words, Deeper analysis 240-320 words, What happens next 130-190 words, Final takeaway 90-130 words.",
-    "When a real source URL is provided, add a final ## Sources section with at least one Markdown bullet link using the provided source name and source URL.",
-    "Use short paragraphs of 2 to 4 lines max with exactly one blank line between paragraphs.",
-    "Use ## for main headings and ### for subheadings where helpful.",
-    "Use bold as **text**, italics as *text*, bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
-    "Naturally include the primary keyword in the title, seoTitle, meta description, and opening paragraph. Use secondary keywords naturally without keyword stuffing.",
-    "Sound like a real expert. Be specific, practical, helpful, and human. Avoid fake statistics, unverifiable claims, AI cliches, fluff, filler, plagiarism, and thin content.",
-    "Do not use weak explainer title patterns such as 'what it means', 'why ...', 'everything you need to know', 'full story', or 'explained' in the title or SEO title.",
-    "Do not introduce any percentage, revenue number, volume figure, price, date comparison, count, or other numeric claim unless it is clearly supported by the provided source material.",
-    "Do not invent social-share counts, workshop announcements, adaptation plans, ratings, critic comparisons, business figures, public reactions, expert commentary, or named examples unless those details are explicitly supported by the provided source material.",
-    "If a detail is not confirmed by the source, keep the wording cautious and general instead of filling gaps with confident specifics.",
-    "Maintain reader interest throughout with relatable examples and local Nigerian relevance where appropriate.",
-    "Reduce news-summary tone. The article must clearly explain context, what happened, why it matters, what this means for readers, and what readers should watch next.",
-    "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist. Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
-    "The unsplashImages value must be a JSON object with featuredImage, supportingImage1, supportingImage2, and supportingImage3. Each item must include searchQuery, altText, filename, and placement.",
-    "Use short specific image search queries only, prefer realistic editorial imagery, avoid generic terms, and use broader African context when Nigerian visuals are unlikely.",
-    "If revision notes are present, expand and repair the current draft instead of restarting from the raw source summary.",
-    "Never leak instructions, prompt wording, or editorial notes into the title, seoTitle, metaDescription, or excerpt.",
-    "Although the user's public output format is Title, Meta Description, Full Article, and [UNSPLASH_IMAGES], you must map that faithfully into the required JSON fields for the application."
+    "Map the editorial SEO package into the app fields: title, seoTitle, metaDescription, excerpt, category, author, and markdown content.",
+    "Content must be 100% original, written for humans first, SEO second, neutral in tone, fact-led, balanced, and useful.",
+    "Use clear British English. Avoid filler, cliches, hype, clickbait, gossip-heavy framing, and robotic transitions.",
+    "Do not copy or closely paraphrase other sites. Do not invent facts, quotes, reactions, statistics, case studies, workshop details, business figures, or expert opinions.",
+    "Treat the provided source material as the verified reporting pack. Use only claims clearly supported by it. If a detail is uncertain, use cautious wording.",
+    "The final article body must be 2,000 to 3,200 words in Markdown.",
+    "Write short paragraphs of 2 to 4 sentences, varied sentence length, strong flow, and no duplicated ideas.",
+    "The title must be human, trustworthy, search-friendly, and specific. Avoid weak patterns such as 'what it means', 'why ...', 'everything you need to know', 'full story', or 'explained'.",
+    "The seoTitle must remain under 60 characters where realistically possible while still sounding natural and keyword-rich.",
+    "The metaDescription must be 150 to 160 characters and compelling without sensationalism.",
+    "The excerpt must be concise, professional, and suitable for homepage cards.",
+    "Write the content using this exact H2 structure in order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
+    "Inside ## Executive summary, include 3 to 6 bullet points.",
+    "Inside ## Table of contents, include a clean bullet list of the major sections that follow.",
+    "Inside ## Frequently asked questions, provide 8 to 12 concise factual FAQs using ### question headings.",
+    "Every major section must add genuine value through explanation, real-world context, expert-style insight, and practical implications for readers.",
+    "The opening paragraph must answer the core issue quickly and explain why readers should care.",
+    "Include a strong Nigerian perspective where relevant and, when useful, connect the issue to Africa and wider global context.",
+    "Recommend natural internal links within the article body using the provided Century Blog URLs. Add at least 3 internal links when relevant.",
+    "When a real source URL is provided, add a final ## Sources section with at least one Markdown bullet link using the provided source name and URL.",
+    "Use ## for main headings and ### for subheadings where helpful. Use bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
+    "Naturally include the focus keyword in the title, SEO title, meta description, and opening paragraph without keyword stuffing.",
+    "The unsplashImages value must include featuredImage plus supportingImage1, supportingImage2, supportingImage3, and supportingImage4. Each must include searchQuery, altText, filename, and placement.",
+    "Use image search terms that fit a premium editorial article: realistic, practical, and relevant to the subject. Avoid vague generic image suggestions.",
+    "If revision notes are present, repair and expand the existing draft instead of restarting blindly.",
+    "Never leak instructions, prompt wording, or editorial notes into the title, seoTitle, metaDescription, excerpt, or content."
   ].join(" ");
 
   const primaryKeyword = buildPrimaryKeyword(article);
@@ -1329,7 +1497,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                   schema: buildRewriteJsonSchema()
                 }
               },
-              max_output_tokens: 4200,
+              max_output_tokens: 6800,
               temperature: 0.35
             }
           : aiConfig.provider === "groq"
@@ -1340,7 +1508,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                 reasoning: {
                   effort: "low"
                 },
-                max_output_tokens: 4200,
+                max_output_tokens: 6800,
                 temperature: 0.35
               }
             : {
@@ -1475,6 +1643,10 @@ async function rewriteCandidateWithAi(article, baseCandidate, relatedLinks = [])
     failedAttempts: attemptedRuns.filter((item) => item && item.succeeded === false).length,
     error: successfulRun ? "" : latestAttempt.error || ""
   });
+
+  if (!rewriteMeta.succeeded) {
+    qualityReport = appendQualityReason(qualityReport, "rewrite-required", { blocking: true });
+  }
 
   if (rewriteMeta.attempted && !rewriteMeta.succeeded) {
     qualityReport = appendQualityReason(qualityReport, "rewrite-failed", { blocking: true });
