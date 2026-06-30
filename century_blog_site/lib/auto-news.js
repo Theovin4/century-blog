@@ -957,6 +957,23 @@ function hasVisibleSourceSection(content) {
   );
 }
 
+function extractNumericClaims(value) {
+  return new Set(
+    String(value || "")
+      .match(/(?:[$£€₦]\s*)?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|billion|million|trillion|bn|m|k))?/gi) || []
+      .map((item) => item.replace(/\s+/g, " ").trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function getUnexpectedNumericClaims(article, candidateContent) {
+  const sourceClaims = extractNumericClaims(
+    [article?.title, article?.description, article?.content, article?.sourceName].filter(Boolean).join(" ")
+  );
+  const candidateClaims = [...extractNumericClaims(candidateContent)];
+  return candidateClaims.filter((claim) => !sourceClaims.has(claim));
+}
+
 function evaluateCandidateQuality(article, candidate) {
   const content = String(candidate?.content || "").trim();
   const wordCount = countWords(content);
@@ -1161,6 +1178,21 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 0.5;
   }
 
+  const unexpectedNumericClaims = getUnexpectedNumericClaims(article, content);
+  const suspiciousUnexpectedClaims = unexpectedNumericClaims.filter((claim) =>
+    /[%$£€₦]|percent|billion|million|trillion|\bbn\b|\bm\b|\bk\b/i.test(claim)
+  );
+
+  if (suspiciousUnexpectedClaims.length > 0) {
+    reasons.push("unsupported-numeric-claims");
+    blockingReasons.push("unsupported-numeric-claims");
+    score -= 3;
+  } else if (unexpectedNumericClaims.length >= 3) {
+    reasons.push("too-many-new-numeric-claims");
+    blockingReasons.push("too-many-new-numeric-claims");
+    score -= 2;
+  }
+
   return {
     passed: blockingReasons.length === 0 && Math.max(0, score) >= 8,
     score: Math.max(0, score),
@@ -1214,6 +1246,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     "Naturally include the primary keyword in the title, seoTitle, meta description, and opening paragraph. Use secondary keywords naturally without keyword stuffing.",
     "Sound like a real expert. Be specific, practical, helpful, and human. Avoid fake statistics, unverifiable claims, AI cliches, fluff, filler, plagiarism, and thin content.",
     "Do not use weak explainer title patterns such as 'what it means', 'why ...', 'everything you need to know', 'full story', or 'explained' in the title or SEO title.",
+    "Do not introduce any percentage, revenue number, volume figure, price, date comparison, count, or other numeric claim unless it is clearly supported by the provided source material.",
     "Do not invent social-share counts, workshop announcements, adaptation plans, ratings, critic comparisons, business figures, public reactions, expert commentary, or named examples unless those details are explicitly supported by the provided source material.",
     "If a detail is not confirmed by the source, keep the wording cautious and general instead of filling gaps with confident specifics.",
     "Maintain reader interest throughout with relatable examples and local Nigerian relevance where appropriate.",

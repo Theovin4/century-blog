@@ -356,6 +356,23 @@ function containsTruncatedArtifact(content = "") {
   return /\[\d+\s+chars]/i.test(String(content || ""));
 }
 
+function extractNumericClaims(value = "") {
+  return new Set(
+    String(value || "")
+      .match(/(?:[$£€₦]\s*)?\d[\d,]*(?:\.\d+)?(?:\s?(?:%|percent|billion|million|trillion|bn|m|k))?/gi) || []
+      .map((item) => item.replace(/\s+/g, " ").trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+function getUnexpectedNumericClaims(post, content = "") {
+  const sourceClaims = extractNumericClaims(
+    [post?.title, post?.excerpt, post?.content, post?.sourceName, post?.sourceUrl].filter(Boolean).join(" ")
+  );
+  const candidateClaims = [...extractNumericClaims(content)];
+  return candidateClaims.filter((claim) => !sourceClaims.has(claim));
+}
+
 function isSensitivePost(post) {
   const category = String(post?.category || "");
   const title = String(post?.title || "").toLowerCase();
@@ -678,6 +695,15 @@ function validateAuthorityRewriteOutput(post, rewritten) {
     throw new Error(`Rewrite validation failed for ${post.slug}: weak excerpt`);
   }
 
+  const unexpectedNumericClaims = getUnexpectedNumericClaims(post, content);
+  const suspiciousUnexpectedClaims = unexpectedNumericClaims.filter((claim) =>
+    /[%$£€₦]|percent|billion|million|trillion|\bbn\b|\bm\b|\bk\b/i.test(claim)
+  );
+
+  if (suspiciousUnexpectedClaims.length > 0) {
+    throw new Error(`Rewrite validation failed for ${post.slug}: unsupported numeric claims`);
+  }
+
   return {
     ...rewritten,
     title,
@@ -743,6 +769,7 @@ async function rewriteWithGroq(post, allPosts) {
     "Return only valid JSON with title, seoTitle, metaDescription, excerpt, imageAlt, and content.",
     "Use clear British English, a human newsroom tone, and preserve factual accuracy.",
     "Do not invent quotes, statistics, interviews, or unverifiable details.",
+    "Do not introduce any percentage, revenue number, price, count, historic figure, or numeric comparison unless it is clearly supported by the provided source material.",
     "Do not invent workshops, rights deals, classroom adoption, social-media share counts, audience numbers, critic comparisons, industry reactions, or named examples unless they are clearly supported by the provided source material.",
     "If a detail is not confirmed by the source, leave it out or describe it cautiously in general terms.",
     "Do not claim readers, publishers, teachers, producers, officials, or markets reacted in a specific way unless that reaction is explicitly supported by the source.",
