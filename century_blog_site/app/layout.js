@@ -1,8 +1,9 @@
 import Script from "next/script";
 import "./globals.css";
-import { socialLinks } from "@/lib/site";
+import { ADSENSE_ACCOUNT_META, ADSENSE_SCRIPT_SRC } from "@/lib/adsense";
+import { getSiteUrl, socialLinks } from "@/lib/site";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
+const siteUrl = getSiteUrl();
 const gaId = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata = {
@@ -30,7 +31,7 @@ export const metadata = {
   category: "news",
   manifest: "/manifest.webmanifest",
   alternates: {
-    canonical: "/"
+    canonical: siteUrl
   },
   openGraph: {
     title: "Century Blog",
@@ -62,7 +63,7 @@ export const metadata = {
     apple: "/century-blog-logo.png"
   },
   other: {
-    "google-adsense-account": "ca-pub-1037358753872630",
+    "google-adsense-account": ADSENSE_ACCOUNT_META,
     "google-site-verification": "KkO1C4c8bxgmEBRKYl-EOspUpwfBT4yustVIkEu9pIE"
   },
   robots: {
@@ -119,11 +120,17 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="//pagead2.googlesyndication.com" />
+        <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="//googleads.g.doubleclick.net" />
+      </head>
       <body>
         <Script
           id="google-adsense"
           async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1037358753872630"
+          src={ADSENSE_SCRIPT_SRC}
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />

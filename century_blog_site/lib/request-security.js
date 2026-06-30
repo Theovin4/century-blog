@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSiteUrl } from "@/lib/site";
 
 function normalizeOrigin(value) {
   try {
@@ -11,7 +12,7 @@ function normalizeOrigin(value) {
 function getTrustedOrigins(request) {
   const trusted = new Set();
   const requestOrigin = normalizeOrigin(request?.nextUrl?.origin || "");
-  const configuredSiteOrigin = normalizeOrigin(process.env.NEXT_PUBLIC_SITE_URL || "");
+  const configuredSiteOrigin = normalizeOrigin(getSiteUrl());
 
   if (requestOrigin) {
     trusted.add(requestOrigin);
@@ -55,4 +56,3 @@ export function validateStrongPassword(password) {
 
   return "";
 }
-

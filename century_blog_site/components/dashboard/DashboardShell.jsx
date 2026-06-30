@@ -87,6 +87,7 @@ const markdownPreviewComponents = {
       : imageSrc;
 
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         className="blog-content__image"
         src={displaySrc}
@@ -107,6 +108,7 @@ const markdownPreviewComponents = {
       const displaySrc = getOptimizedImageUrl(imageSrc, { width: 1200, height: 800, fit: "fit" });
 
       return (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           className="blog-content__image"
           src={displaySrc}
@@ -1453,7 +1455,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
         ) : null}
         {!aiEnhanced ? (
           <p className="dashboard-warning dashboard-warning--soft">
-            The rewrite engine still works, but premium AI rewrite needs either <code>AI_REWRITE_PROVIDER=groq</code> with a <code>GROQ_API_KEY</code> or a valid <code>OPENAI_API_KEY</code> in Vercel.
+            The rewrite engine still works, but premium AI rewrite needs either <code>AI_REWRITE_PROVIDER=groq</code> or <code>AUTHORITY_REWRITE_PROVIDER=groq</code> with a <code>GROQ_API_KEY</code>, or a valid <code>OPENAI_API_KEY</code> in Vercel.
           </p>
         ) : null}
         {!providerSummary.cronSecretEnabled ? (
@@ -1895,6 +1897,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                   <source src={previewUrl} type={previewType} />
                 </video>
               ) : isImageMedia(previewUrl, previewType) ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img className="dashboard-preview__media" src={previewUrl} alt="Post preview" />
               ) : null}
             </div>
@@ -1985,6 +1988,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                       <source src={cardMedia.url} type={cardMedia.type} />
                     </video>
                   ) : isImageMedia(cardMedia.url, cardMedia.type) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img className="dashboard-post-card__media" src={cardMedia.url} alt={post.title} />
                   ) : null}
                 </div>

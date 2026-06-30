@@ -111,6 +111,16 @@ export const socialLinks = [
   }
 ];
 
+export const PRIMARY_SITE_URL = "https://www.centuryblog.com.ng";
+export const REDIRECT_SITE_URL = "https://centuryblog.com.ng";
+
+const INTERNAL_SITE_HOSTNAMES = new Set([
+  "www.centuryblog.com.ng",
+  "centuryblog.com.ng",
+  "centuryblogg.vercel.app",
+  "centuryblog.vercel.app"
+]);
+
 const countryNames = [
   "Nigeria",
   "Ghana",
@@ -139,8 +149,44 @@ const countryNames = [
   "Saudi Arabia"
 ];
 
+function trimTrailingSlash(value) {
+  return String(value || "").trim().replace(/\/+$/g, "");
+}
+
+function getKnownSiteHostnames() {
+  const hostnames = new Set(INTERNAL_SITE_HOSTNAMES);
+
+  try {
+    hostnames.add(new URL(getSiteUrl()).hostname.toLowerCase());
+  } catch {
+    // Ignore invalid env configuration and fall back to known hostnames.
+  }
+
+  return hostnames;
+}
+
+function normalizeInternalSiteUrl(value) {
+  const raw = String(value || "").trim();
+
+  if (!isAbsoluteUrl(raw)) {
+    return raw;
+  }
+
+  try {
+    const target = new URL(raw);
+
+    if (!getKnownSiteHostnames().has(target.hostname.toLowerCase())) {
+      return raw;
+    }
+
+    return `${getSiteUrl()}${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return raw;
+  }
+}
+
 export function getSiteUrl() {
-  return process.env.NEXT_PUBLIC_SITE_URL || "https://centuryblogg.vercel.app";
+  return trimTrailingSlash(process.env.NEXT_PUBLIC_APP_URL) || PRIMARY_SITE_URL;
 }
 
 export function buildPageMetadata({
@@ -152,13 +198,14 @@ export function buildPageMetadata({
 }) {
   const siteUrl = getSiteUrl();
   const canonical = `${siteUrl}${path === "/" ? "" : path}`;
+  const defaultImage = `${siteUrl}/century-blog-logo.png`;
 
   return {
     title,
     description,
     keywords,
     alternates: {
-      canonical: path
+      canonical
     },
     openGraph: {
       title: `${title} | Century Blog`,
@@ -166,12 +213,21 @@ export function buildPageMetadata({
       url: canonical,
       siteName: "Century Blog",
       locale: "en_NG",
-      type
+      type,
+      images: [
+        {
+          url: defaultImage,
+          width: 768,
+          height: 768,
+          alt: "Century Blog logo"
+        }
+      ]
     },
     twitter: {
       card: "summary_large_image",
       title: `${title} | Century Blog`,
-      description
+      description,
+      images: [defaultImage]
     }
   };
 }
@@ -209,14 +265,14 @@ export function toAbsoluteUrl(value) {
   }
 
   if (isAbsoluteUrl(value)) {
-    return value;
+    return normalizeInternalSiteUrl(value);
   }
 
   return `${getSiteUrl()}${String(value).startsWith("/") ? "" : "/"}${value}`;
 }
 
 export function getProxiedImageUrl(value) {
-  const target = String(value || "").trim();
+  const target = normalizeInternalSiteUrl(String(value || "").trim());
 
   if (!target) {
     return "";

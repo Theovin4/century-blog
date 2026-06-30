@@ -1,4 +1,41 @@
 /** @type {import('next').NextConfig} */
+const defaultSiteUrl = "https://www.centuryblog.com.ng";
+const redirectSiteUrl = "https://centuryblog.com.ng";
+const legacyRedirectHosts = ["centuryblogg.vercel.app", "centuryblog.vercel.app"];
+const publicRedirectSources = [
+  "/",
+  "/blog",
+  "/about",
+  "/contact",
+  "/advertise",
+  "/disclaimer",
+  "/privacy-policy",
+  "/terms",
+  "/terms-and-conditions",
+  "/cookie-policy",
+  "/cookies-policy",
+  "/editorial-policy",
+  "/corrections-policy",
+  "/sitemap.xml",
+  "/news-sitemap.xml",
+  "/robots.txt",
+  "/ads.txt",
+  "/category/:path*",
+  "/news/:path*"
+];
+
+function getConfiguredSiteHostname() {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_APP_URL || defaultSiteUrl).hostname;
+  } catch {
+    return new URL(defaultSiteUrl).hostname;
+  }
+}
+
+const configuredHostnames = Array.from(
+  new Set([new URL(defaultSiteUrl).hostname, new URL(redirectSiteUrl).hostname, getConfiguredSiteHostname()].filter(Boolean))
+);
+
 const securityHeaders = [
   {
     key: "X-Content-Type-Options",
@@ -44,7 +81,8 @@ const securityHeaders = [
 
 const nextConfig = {
   experimental: {
-    viewTransition: true
+    viewTransition: true,
+    workerThreads: true
   },
   images: {
     formats: ["image/avif", "image/webp"],
@@ -53,11 +91,21 @@ const nextConfig = {
         protocol: "https",
         hostname: "res.cloudinary.com"
       },
-      {
+      ...configuredHostnames.map((hostname) => ({
         protocol: "https",
-        hostname: "centuryblogg.vercel.app"
-      }
+        hostname
+      }))
     ]
+  },
+  async redirects() {
+    return legacyRedirectHosts.flatMap((host) =>
+      publicRedirectSources.map((source) => ({
+        source,
+        has: [{ type: "host", value: host }],
+        destination: `${defaultSiteUrl}${source === "/" ? "" : source}`,
+        permanent: true
+      }))
+    );
   },
   async headers() {
     return [

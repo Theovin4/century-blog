@@ -10,6 +10,7 @@ import { AdPlaceholder } from "@/components/site/AdPlaceholder";
 import { PostEngagement } from "@/components/site/PostEngagement";
 import { PostShareBar } from "@/components/site/PostShareBar";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { shouldNoIndexPost } from "@/lib/content-quality";
 import { getEngagementBySlug } from "@/lib/engagement-store";
 import { getPostBySlug, getPosts } from "@/lib/posts-store";
 import {
@@ -80,6 +81,9 @@ export async function generateMetadata({ params }) {
 
   const siteUrl = getSiteUrl();
   const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
+  const noIndex = shouldNoIndexPost(post);
+  const articleUrl = `${siteUrl}/news/${post.slug}`;
+  const defaultImage = `${siteUrl}/century-blog-logo.png`;
   const metadata = {
     title: post.seoTitle || post.title,
     description: post.metaDescription || post.excerpt,
@@ -87,24 +91,49 @@ export async function generateMetadata({ params }) {
     authors: [{ name: post.author || "Century Blog Editorial Team" }],
     category: getCategoryMeta(post.category).label,
     alternates: {
-      canonical: `/news/${post.slug}`
+      canonical: articleUrl
     },
     openGraph: {
       title: post.title,
       description: post.metaDescription || post.excerpt,
-      url: `${siteUrl}/news/${post.slug}`,
+      url: articleUrl,
       type: "article",
       publishedTime: post.publishedAt,
       modifiedTime: post.updatedAt || post.publishedAt,
       section: getCategoryMeta(post.category).label,
       authors: [post.author || "Century Blog Editorial Team"],
-      tags: countries
+      tags: countries,
+      images: [{ url: defaultImage, alt: post.imageAlt || post.title }]
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
-      description: post.metaDescription || post.excerpt
-    }
+      description: post.metaDescription || post.excerpt,
+      images: [defaultImage]
+    },
+    robots: noIndex
+      ? {
+          index: false,
+          follow: true,
+          googleBot: {
+            index: false,
+            follow: true,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+            "max-video-preview": -1
+          }
+        }
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+            "max-video-preview": -1
+          }
+        }
   };
 
   if (isImageMedia(post.mediaUrl, post.mediaType)) {
@@ -230,12 +259,14 @@ export default async function PostPage({ params }) {
       }) : candidateSrc;
 
       return (
-        <img
+        <Image
           className="blog-content__image"
           src={displaySrc}
           alt={alt || post.title}
-          loading="lazy"
-          decoding="async"
+          width={1400}
+          height={900}
+          sizes="(max-width: 768px) 100vw, 760px"
+          unoptimized={String(displaySrc || "").startsWith("data:")}
           referrerPolicy="no-referrer"
         />
       );
@@ -257,12 +288,14 @@ export default async function PostPage({ params }) {
         });
 
         return (
-          <img
+          <Image
             className="blog-content__image"
             src={displaySrc}
             alt={post.title}
-            loading="lazy"
-            decoding="async"
+            width={1400}
+            height={900}
+            sizes="(max-width: 768px) 100vw, 760px"
+            unoptimized={String(displaySrc || "").startsWith("data:")}
             referrerPolicy="no-referrer"
           />
         );
@@ -270,7 +303,7 @@ export default async function PostPage({ params }) {
 
       return (
         <a
-          href={resolvedHref || href}
+          href={!isExternal && resolvedHref.startsWith(siteUrl) ? resolvedHref.slice(siteUrl.length) || "/" : resolvedHref || href}
           target={isExternal ? "_blank" : undefined}
           rel={isExternal ? "noreferrer" : undefined}
           {...props}

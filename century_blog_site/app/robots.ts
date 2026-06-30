@@ -1,13 +1,17 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/site";
 
-const siteUrl = "https://centuryblogg.vercel.app";
+const siteUrl = getSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      userAgent: "*",
-      allow: "/"
-    },
-    sitemap: [`${siteUrl}/sitemap.xml`, `${siteUrl}/news-sitemap.xml`]
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: ["/dashboard", "/dashboard/", "/api", "/api/"]
+      }
+    ],
+    sitemap: `${siteUrl}/sitemap.xml`
   };
 }

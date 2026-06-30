@@ -12,22 +12,25 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_REWRITE_MODEL = process.env.OPENAI_REWRITE_MODEL || "gpt-5-mini";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 const GROQ_REWRITE_MODEL = process.env.GROQ_REWRITE_MODEL || "openai/gpt-oss-120b";
-const AI_REWRITE_PROVIDER = String(process.env.AI_REWRITE_PROVIDER || "").trim().toLowerCase();
+const AI_REWRITE_PROVIDER = String(
+  process.env.AI_REWRITE_PROVIDER || process.env.AUTHORITY_REWRITE_PROVIDER || ""
+).trim().toLowerCase();
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
-const MIN_ARTICLE_WORDS = 600;
-const MAX_ARTICLE_WORDS = 1100;
+const MIN_ARTICLE_WORDS = 1200;
+const MAX_ARTICLE_WORDS = 1600;
 const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
-  "## Introduction",
-  "## Context / Background",
-  "## Main Explanation / Guide",
-  "## Practical Examples / Insights",
-  "## Common Mistakes to Avoid",
-  "## Expert Tips / Pro Advice",
-  "## Conclusion"
+  "## Why this story matters",
+  "## Context and background",
+  "## What happened",
+  "## Why it matters now",
+  "## Deeper analysis",
+  "## What happens next",
+  "## Final takeaway"
 ];
+const OPTIONAL_SOURCES_HEADING = "## Sources";
 const GENERIC_FILLER_PATTERNS = [
   /in today's digital world/i,
   /it is important to note that/i,
@@ -139,6 +142,52 @@ function sanitizeGeneratedArticleContent(content) {
     .replace(/<img\b[^>]*src=["']https?:\/\/source\.unsplash\.com\/[^"'<>]+["'][^>]*>/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function hasInstructionLeakage(value) {
+  const normalized = String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    "keep similar",
+    "maybe improved",
+    "seo title",
+    "meta description",
+    "return only valid json",
+    "strict content rules",
+    "current quality issues",
+    "revision notes",
+    "story angle questions"
+  ].some((phrase) => normalized.includes(phrase));
+}
+
+function groqSupportsStructuredRewrite(model = "") {
+  return /^openai\/gpt-oss-(20b|120b)$/i.test(String(model || "").trim());
+}
+
+function isGroqStructuredFailure(status, errorText = "") {
+  if (Number(status) !== 400) {
+    return false;
+  }
+
+  const normalized = String(errorText || "").toLowerCase();
+  return normalized.includes("json_validate_failed") || normalized.includes("failed to validate json");
+}
+
+function isSensitiveAutoCandidate(article, category = "") {
+  const haystack = `${article?.title || ""} ${article?.description || ""} ${article?.content || ""}`.toLowerCase();
+  const normalizedCategory = String(category || "").trim().toLowerCase();
+
+  return (
+    ["nigeria", "world", "business", "health"].includes(normalizedCategory) ||
+    /war|crime|court|bail|military|attack|fraud|health|disease|outbreak|ebola|budget|inflation|naira|fuel|tax|election|president|governor|senate|policy|hospital|ceasefire|oil|market|economy|security/i.test(haystack)
+  );
 }
 
 function extractSentences(value) {
@@ -283,53 +332,66 @@ function buildArticleContent(article) {
   const sourceName = article.sourceName || "international wires";
   const description = stripHtml(article.description || article.content || article.title);
   const context = stripHtml(article.content || article.description || article.title);
-  const regionLine = article.regionFocus === "nigeria"
-    ? "For Nigerian readers, the practical value of this story is not just the headline itself but how it could affect daily decisions, public conversation, and the wider national mood."
-    : "Even when a story breaks outside Nigeria, the useful question is what it signals for readers who follow markets, politics, culture, technology, or public life from a global perspective.";
-  const localRelevance = article.regionFocus === "nigeria"
-    ? "That local relevance matters because readers are often looking for direct consequences: transport costs, policy changes, school decisions, business sentiment, consumer confidence, or how public institutions respond after the first headline."
-    : "That wider relevance matters because international stories often influence prices, investor confidence, migration conversations, social media trends, diplomatic pressure, and the way local audiences interpret big global events.";
+  const nigeriaImpactLine = article.regionFocus === "nigeria"
+    ? "For readers in Nigeria, the immediate question is how the development could affect public life, daily choices, institutional trust, or the direction of policy and conversation."
+    : "For readers in Nigeria, the useful angle is how an international development like this could affect prices, jobs, travel, technology access, diplomacy, culture, or public debate.";
+  const whatNextLine = article.regionFocus === "nigeria"
+    ? "That usually means watching how officials respond, how quickly facts become clearer, and whether the issue begins to influence everyday decisions for households, workers, students, businesses, or communities."
+    : "That usually means watching whether the story stays external or starts to shape local decisions through markets, migration, consumer costs, energy, security, or wider regional implications.";
+  const sourceSection = article.sourceUrl
+    ? [
+        "",
+        OPTIONAL_SOURCES_HEADING,
+        "",
+        `- [${sourceName}](${article.sourceUrl})`
+      ]
+    : [];
 
   return [
-    "## Introduction",
+    "## Why this story matters",
     "",
-    `${title} is drawing attention because it sits at the point where public interest, timing, and real-world impact meet. According to reporting linked to ${sourceName}, the issue is already moving beyond a simple headline and into the wider conversation about what happens next.`,
+    `${title} matters because it is not only a headline about a single event. It is part of a wider chain of consequences that readers are likely to feel through public discussion, market behaviour, social reaction, institutional response, or practical day-to-day decision-making.`,
     "",
-    `${description} Rather than treating the update as background noise, it helps to look at what led to this moment, who is affected, and why the next few days could matter just as much as the first report.`,
+    `${description} ${nigeriaImpactLine}`,
     "",
-    "## Context / Background",
+    "## Context and background",
     "",
-    `${context} In fast-moving news cycles, the first version of a story usually creates curiosity, but the background is what gives it real meaning. That is why readers look beyond the headline for context, competing viewpoints, and signs of whether the matter is likely to grow or cool down quickly.`,
+    `${context} The first version of a breaking story often carries the biggest emotional force, but it rarely carries the full explanation. The background usually reveals whether the development is part of a longer pattern, a one-off disruption, or a sign of deeper pressure building underneath the surface.`,
     "",
-    `${regionLine} ${localRelevance}`,
+    `That context is especially useful when the issue touches politics, business, education, health, technology, or security, because those are the stories where timing alone does not explain why readers should care. Background turns a fast update into something people can actually understand.`,
     "",
-    "## Main Explanation / Guide",
+    "## What happened",
     "",
-    `What makes this kind of story important is the chain reaction it can create. A policy issue can affect households and businesses. A business story can shape spending and confidence. A technology or cultural story can alter behaviour, opportunities, and online conversation almost immediately. Readers do not only want to know what happened; they want to know what it changes.`,
+    `According to reporting from ${sourceName}, the core development is that ${description.charAt(0).toLowerCase()}${description.slice(1)}. That basic summary is useful, but it only answers the first question. Readers also need clarity on what changed, who moved first, what evidence is already public, and what still depends on confirmation or follow-up reporting.`,
     "",
-    `In this case, the strongest reader questions are likely to centre on accountability, direct impact, and whether official reactions match the seriousness of the moment. If the issue involves government, people will watch for clarity and implementation. If it involves business, they will watch for prices, confidence, and operational consequences. If it touches culture or public sentiment, they will watch how quickly the reaction spreads and whether it lasts.`,
+    `In stories like this, the difference between noise and useful reporting often comes down to sequence. What happened first, what reaction followed, and what remains unresolved are usually the details that shape how seriously the public takes the story.`,
     "",
-    `What this means for readers is that the story should be judged not only by the headline but by the consequences that follow. Who is affected, what changes immediately, and what should people watch next are the questions that turn a trending report into a useful article.`,
+    `That is why a clear timeline matters. A single update can sound dramatic at first, but its real meaning becomes sharper when readers can see whether the development is escalating, stabilising, or already prompting formal response from the people involved.`,
     "",
-    "## Practical Examples / Insights",
+    "## Why it matters now",
     "",
-    `A useful way to read stories like this is to compare them with similar moments from the past. Sometimes the first wave of reaction is emotional, but the deeper impact only appears later in regulation, business behaviour, public trust, or community response. That is why follow-up reporting often matters more than the initial headline.`,
+    `This matters now because timing changes impact. A business development can shape pricing and confidence. A political or legal development can shift public trust. A health story can influence caution and behaviour. A technology or education story can alter opportunity, access, and expectation very quickly once people believe the change is real.`,
     "",
-    `For everyday readers, the practical insight is simple: look for the consequence, not just the noise. Ask who gains, who loses, what changes immediately, and what still depends on confirmation. That approach separates useful reporting from empty hype and helps people make sense of trending developments with more confidence.`,
+    `${whatNextLine}`,
     "",
-    "## Common Mistakes to Avoid",
+    "## Deeper analysis",
     "",
-    `One common mistake is reacting to the first version of a breaking report as if every key fact is already settled. Another is focusing only on dramatic angles without checking whether the underlying issue has clear evidence, credible sourcing, or likely follow-up action. Fast headlines create momentum, but careful reading creates understanding.`,
+    `The deeper issue is usually not the headline alone, but the pressure around it. Readers should ask whether the development points to a structural problem, a temporary disruption, or a turning point. That question matters because stories with real staying power tend to reveal weakness or change in systems, not just drama in a single moment.`,
     "",
-    `It is also easy to miss the local angle. A global event may still affect Nigerian readers through fuel prices, financial markets, technology access, migration decisions, education, or public debate. In the same way, a Nigeria-focused update can have wider relevance when it reflects a broader regional or international trend.`,
+    `For Nigerian readers, analysis becomes useful when it moves from summary to consequence. Does this affect costs, jobs, schools, health decisions, investor confidence, civic trust, or social behaviour? Does it point to a wider regional pattern? Does it expose a gap between public messaging and lived reality? Those are the questions that give the story weight.`,
     "",
-    "## Expert Tips / Pro Advice",
+    `This is also the point where credibility matters most. Readers are better served by cautious interpretation than exaggerated certainty. Where details are still developing, it is more honest to note what is known, what is disputed, and what must still be confirmed by official statements or clearer evidence.`,
     "",
-    `The smartest way to track this story is to watch for confirmed statements, policy movement, verified numbers, and follow-up reactions from the people most directly affected. Readers should also pay attention to whether the conversation shifts from emotion to action, because that is usually the point where a trending topic becomes a genuinely important public story.`,
+    "## What happens next",
     "",
-    "## Conclusion",
+    `The next stage of the story will likely be shaped by verification, response, and fallout. Readers should watch for updated statements, confirmed figures, policy moves, institutional reaction, market response, or public pressure depending on the category of the story. Those follow-up signals usually tell us whether the development is fading or becoming more serious.`,
     "",
-    `The clearest takeaway is that ${title} matters because it combines timing with consequence. It is not only a story people are talking about now; it is also one that could shape decisions, attitudes, and further reporting in the near term. That is the difference between a passing headline and a story worth following closely.`
+    `The strongest follow-up reporting will not just repeat the original headline. It will show what changed after the attention arrived. That is where readers usually find the most useful insight.`,
+    "",
+    "## Final takeaway",
+    "",
+    `${title} is worth following closely because the real value of the story lies in what it changes for readers, institutions, or wider public life. The headline may pull attention first, but the consequence is what gives it lasting meaning.`,
+    ...sourceSection
   ].join("\n");
 }
 
@@ -648,9 +710,10 @@ function buildRewriteJsonSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["title", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
+    required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
     properties: {
       title: { type: "string" },
+      seoTitle: { type: "string" },
       metaDescription: { type: "string" },
       excerpt: { type: "string" },
       content: { type: "string" },
@@ -820,9 +883,21 @@ function getSectionContent(content, heading) {
   return String(match?.[1] || "").trim();
 }
 
+function hasVisibleSourceSection(content) {
+  const sources = getSectionContent(content, OPTIONAL_SOURCES_HEADING);
+  return Boolean(
+    sources &&
+    (/\[[^\]]+]\(https?:\/\/[^)]+\)/i.test(sources) || /https?:\/\/\S+/i.test(sources))
+  );
+}
+
 function evaluateCandidateQuality(article, candidate) {
   const content = String(candidate?.content || "").trim();
   const wordCount = countWords(content);
+  const title = trimToLength(candidate?.title || "", 140);
+  const seoTitle = trimToLength(candidate?.seoTitle || title, 160);
+  const excerpt = trimToLength(candidate?.excerpt || "", 280);
+  const metaDescription = trimToLength(candidate?.metaDescription || excerpt, 160);
   const reasons = [];
   const blockingReasons = [];
   let score = 10;
@@ -853,6 +928,30 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 1;
   }
 
+  if (hasInstructionLeakage(title)) {
+    reasons.push("title-instruction-leakage");
+    blockingReasons.push("title-instruction-leakage");
+    score -= 3;
+  }
+
+  if (hasInstructionLeakage(seoTitle)) {
+    reasons.push("seotitle-instruction-leakage");
+    blockingReasons.push("seotitle-instruction-leakage");
+    score -= 2;
+  }
+
+  if (hasInstructionLeakage(metaDescription)) {
+    reasons.push("meta-instruction-leakage");
+    blockingReasons.push("meta-instruction-leakage");
+    score -= 2;
+  }
+
+  if (hasInstructionLeakage(excerpt)) {
+    reasons.push("excerpt-instruction-leakage");
+    blockingReasons.push("excerpt-instruction-leakage");
+    score -= 2;
+  }
+
   const repeatedPhrase = findRepeatedPhrase(content);
 
   if (repeatedPhrase) {
@@ -879,16 +978,28 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 3;
   }
 
-  const introduction = getSectionContent(content, "## Introduction");
-  const conclusion = getSectionContent(content, "## Conclusion");
+  const whyThisStoryMatters = getSectionContent(content, "## Why this story matters");
+  const whatHappened = getSectionContent(content, "## What happened");
+  const deeperAnalysis = getSectionContent(content, "## Deeper analysis");
+  const finalTakeaway = getSectionContent(content, "## Final takeaway");
 
-  if (countWords(introduction) < 45) {
-    reasons.push("weak-introduction");
+  if (countWords(whyThisStoryMatters) < 90) {
+    reasons.push("weak-opening-section");
     score -= 1;
   }
 
-  if (countWords(conclusion) < 35) {
-    reasons.push("thin-conclusion");
+  if (countWords(whatHappened) < 110) {
+    reasons.push("thin-what-happened");
+    score -= 1;
+  }
+
+  if (countWords(deeperAnalysis) < 140) {
+    reasons.push("thin-analysis");
+    score -= 1.5;
+  }
+
+  if (countWords(finalTakeaway) < 60) {
+    reasons.push("thin-final-takeaway");
     score -= 1;
   }
 
@@ -906,12 +1017,22 @@ function evaluateCandidateQuality(article, candidate) {
     score -= 1;
   }
 
-  if (trimToLength(candidate?.title || "", 140).length < 35) {
+  if (title.length < 35) {
     reasons.push("weak-title");
     score -= 1;
   }
 
-  if (trimToLength(candidate?.excerpt || "", 280).length < 110) {
+  if (seoTitle.length < 45) {
+    reasons.push("weak-seo-title");
+    score -= 1;
+  }
+
+  if (metaDescription.length < 140) {
+    reasons.push("weak-meta-description");
+    score -= 1;
+  }
+
+  if (excerpt.length < 110) {
     reasons.push("weak-excerpt");
     score -= 1;
   }
@@ -919,6 +1040,16 @@ function evaluateCandidateQuality(article, candidate) {
   if (article?.regionFocus === "nigeria" && !/nigeria|nigerian|lagos|abuja|naira/i.test(content)) {
     reasons.push("missing-nigeria-angle");
     score -= 2;
+  }
+
+  if (article?.sourceUrl && !hasVisibleSourceSection(content)) {
+    reasons.push("missing-visible-sources");
+    score -= 1;
+
+    if (isSensitiveAutoCandidate(article, candidate?.category)) {
+      blockingReasons.push("missing-visible-sources");
+      score -= 1;
+    }
   }
 
   if (!candidate?.mediaUrl && !candidate?._featuredImageQuery) {
@@ -961,24 +1092,30 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
     "GOAL: Generate a high-quality, 100% original, AdSense-approved blog post that delivers real value, strong user experience, and meets Google content quality standards. Content must be written for humans first, SEO second.",
     "ROLE: Act as an expert SEO content writer, journalist, and subject-matter analyst. Produce engaging, authoritative, and insight-driven content suitable for publication.",
     "You must follow the user's latest master prompt in substance while returning only valid JSON for the app.",
-    "Return only valid JSON with these keys: title, metaDescription, excerpt, content, category, author, unsplashImages.",
-    "STRICT CONTENT RULES: Content must be 100% original. Do not rewrite or paraphrase existing articles. Provide unique insights, meaningful explanations, real-world relevance, and what-this-means value. Add Nigerian or local context where appropriate. Avoid generic or shallow explanations.",
-    "The title must be SEO-optimized and click-worthy.",
+    "Return only valid JSON with these keys: title, seoTitle, metaDescription, excerpt, content, category, author, unsplashImages.",
+    "STRICT CONTENT RULES: Content must be 100% original. Do not copy or closely paraphrase existing articles. Provide unique insights, meaningful explanations, real-world relevance, and what-this-means value. Add Nigerian or local context where appropriate. Avoid generic or shallow explanations.",
+    "The title must be SEO-optimised, human, and specific without clickbait.",
+    "The seoTitle must be keyword-rich, clear, and suitable for search results.",
     "The metaDescription must be 150 to 160 characters, compelling, and keyword-aware.",
     "The excerpt must be concise, compelling, and suitable for homepage cards.",
-    "The article must be 700 to 1000 words, written in clear British English, professional, clear, engaging, natural, and never robotic.",
+    "The article must be 1250 to 1450 words, written in clear British English, professional, clear, engaging, natural, and never robotic.",
     "Write the article body in Markdown only.",
-    "Use this exact article structure: ## Introduction, ## Context / Background, ## Main Explanation / Guide, ## Practical Examples / Insights, ## Common Mistakes to Avoid, ## Expert Tips / Pro Advice, ## Conclusion.",
+    "Use this exact article structure: ## Why this story matters, ## Context and background, ## What happened, ## Why it matters now, ## Deeper analysis, ## What happens next, ## Final takeaway.",
+    "When a real source URL is provided, add a final ## Sources section with at least one Markdown bullet link using the provided source name and source URL.",
     "Use short paragraphs of 2 to 4 lines max with exactly one blank line between paragraphs.",
     "Use ## for main headings and ### for subheadings where helpful.",
     "Use bold as **text**, italics as *text*, bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
-    "Naturally include the primary keyword in the title, meta description, and introduction. Use secondary keywords naturally without keyword stuffing.",
+    "Naturally include the primary keyword in the title, seoTitle, meta description, and opening paragraph. Use secondary keywords naturally without keyword stuffing.",
     "Sound like a real expert. Be specific, practical, helpful, and human. Avoid fake statistics, unverifiable claims, AI cliches, fluff, filler, plagiarism, and thin content.",
+    "Do not invent social-share counts, workshop announcements, adaptation plans, ratings, critic comparisons, business figures, public reactions, expert commentary, or named examples unless those details are explicitly supported by the provided source material.",
+    "If a detail is not confirmed by the source, keep the wording cautious and general instead of filling gaps with confident specifics.",
     "Maintain reader interest throughout with relatable examples and local Nigerian relevance where appropriate.",
-    "Reduce news-summary tone. The article must clearly answer what happened, why it matters, who is affected, and what readers should watch next.",
+    "Reduce news-summary tone. The article must clearly explain context, what happened, why it matters, what this means for readers, and what readers should watch next.",
     "Allowed categories: nigeria, world, business, tech, entertainment, health, lifestyle, education, daily-gist. Prefer nigeria when the story is Nigeria-focused, otherwise choose the best fitting category.",
     "The unsplashImages value must be a JSON object with featuredImage, supportingImage1, supportingImage2, and supportingImage3. Each item must include searchQuery, altText, filename, and placement.",
     "Use short specific image search queries only, prefer realistic editorial imagery, avoid generic terms, and use broader African context when Nigerian visuals are unlikely.",
+    "If revision notes are present, expand and repair the current draft instead of restarting from the raw source summary.",
+    "Never leak instructions, prompt wording, or editorial notes into the title, seoTitle, metaDescription, or excerpt.",
     "Although the user's public output format is Title, Meta Description, Full Article, and [UNSPLASH_IMAGES], you must map that faithfully into the required JSON fields for the application."
   ].join(" ");
 
@@ -997,84 +1134,141 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [] 
     sourceName: article.sourceName,
     sourceUrl: article.sourceUrl,
     sourceCountry: article.sourceCountry,
+    sensitiveTopic: isSensitiveAutoCandidate(article, baseCandidate.category),
+    requiresSourcesSection: Boolean(article.sourceUrl),
     categoryWritingRule: getCategoryWritingRule(baseCandidate.category),
     nigeriaRelevance: getNigeriaRelevance(article, baseCandidate.category),
     sourceSummary: buildSourceSummary(article),
     storyAngleQuestions: [
+      "Why should readers care right now?",
       "What happened?",
-      "Why does it matter?",
-      "Who is affected?",
+      "Why does it matter now?",
+      "What does it mean for readers in Nigeria or globally?",
       "What should readers watch next?"
     ],
+    factGuardrails: {
+      useOnlySourceBackedSpecifics: true,
+      banInventedMetricsAndNamedExamples: true,
+      preferCautiousWordingWhenEvidenceIsThin: true
+    },
     title: article.title,
     description: article.description,
-    content: article.content,
+    sourceContent: article.content,
+    currentDraft: baseCandidate.content,
     publishedAt: article.publishedAt,
     revisionNotes
   });
 
   try {
-    const requestBody =
-      aiConfig.provider === "groq"
-        ? {
-            model: aiConfig.model,
-            instructions: systemPrompt,
-            input: userPrompt,
-            reasoning: {
-              effort: "low"
-            },
-            text: {
-              format: {
-                type: "json_schema",
-                name: "century_blog_rewrite",
-                schema: buildRewriteJsonSchema()
-              }
-            }
-          }
-        : {
-            model: aiConfig.model,
-            store: false,
-            input: [
-              {
-                role: "system",
-                content: [{ type: "input_text", text: systemPrompt }]
+    const groqFormats =
+      aiConfig.provider === "groq" && groqSupportsStructuredRewrite(aiConfig.model)
+        ? ["structured", "prompt-json"]
+        : aiConfig.provider === "groq"
+          ? ["prompt-json"]
+          : ["default"];
+
+    let parsed = null;
+    let lastGroqError = null;
+
+    for (const formatMode of groqFormats) {
+      const requestBody =
+        aiConfig.provider === "groq" && formatMode === "structured"
+          ? {
+              model: aiConfig.model,
+              instructions: systemPrompt,
+              input: userPrompt,
+              reasoning: {
+                effort: "low"
               },
-              {
-                role: "user",
-                content: [{ type: "input_text", text: userPrompt }]
+              text: {
+                format: {
+                  type: "json_schema",
+                  name: "century_blog_rewrite",
+                  strict: true,
+                  schema: buildRewriteJsonSchema()
+                }
+              },
+              max_output_tokens: 4200,
+              temperature: 0.35
+            }
+          : aiConfig.provider === "groq"
+            ? {
+                model: aiConfig.model,
+                instructions: `${systemPrompt} Return only a valid JSON object with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages. Do not return markdown fences or commentary outside the JSON object.`,
+                input: userPrompt,
+                reasoning: {
+                  effort: "low"
+                },
+                max_output_tokens: 4200,
+                temperature: 0.35
               }
-            ]
-          };
+            : {
+                model: aiConfig.model,
+                store: false,
+                input: [
+                  {
+                    role: "system",
+                    content: [{ type: "input_text", text: systemPrompt }]
+                  },
+                  {
+                    role: "user",
+                    content: [{ type: "input_text", text: userPrompt }]
+                  }
+                ]
+              };
 
-    const response = await fetch(aiConfig.endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${aiConfig.apiKey}`
-      },
-      body: JSON.stringify(requestBody)
-    });
+      const response = await fetch(aiConfig.endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${aiConfig.apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
 
-    if (!response.ok) {
-      throw new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        if (formatMode === "structured" && isGroqStructuredFailure(response.status, errorText)) {
+          lastGroqError = new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
+          console.warn(`[auto-news] ${aiConfig.provider} structured rewrite fallback triggered for ${article.slug || article.title}.`);
+          continue;
+        }
+
+        throw new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+      parsed = extractJsonPayload(getResponseText(payload));
+      break;
     }
 
-    const payload = await response.json();
-    const parsed = extractJsonPayload(getResponseText(payload));
+    if (!parsed) {
+      throw lastGroqError || new Error(`${aiConfig.provider} rewrite did not return usable content.`);
+    }
+
     const category = isValidCategory(parsed.category) ? parsed.category : baseCandidate.category;
     const featuredImageQuery = String(
       parsed?.unsplashImages?.featuredImage?.searchQuery ||
       parsed?.unsplashImages?.featured_image?.search_query ||
       ""
     ).trim();
+    const featuredImageAlt = String(
+      parsed?.unsplashImages?.featuredImage?.altText ||
+      parsed?.unsplashImages?.featured_image?.alt_text ||
+      ""
+    ).trim();
 
     return {
       ...baseCandidate,
       title: trimToLength(parsed.title || baseCandidate.title, 140),
+      seoTitle: trimToLength(parsed.seoTitle || parsed.title || baseCandidate.seoTitle || baseCandidate.title, 160),
+      metaDescription: trimToLength(parsed.metaDescription || baseCandidate.metaDescription || baseCandidate.excerpt, 160),
       excerpt: trimToLength(parsed.excerpt || parsed.metaDescription || baseCandidate.excerpt, 280),
       content: sanitizeGeneratedArticleContent(String(parsed.content || baseCandidate.content).trim()),
       category,
       author: trimToLength(parsed.author || baseCandidate.author, 80),
+      imageAlt: trimToLength(featuredImageAlt || baseCandidate.imageAlt || parsed.title || baseCandidate.title, 180),
       _featuredImageQuery: featuredImageQuery,
       _aiRewriteMeta: createAiRewriteMeta({
         attempted: true,
@@ -1110,7 +1304,7 @@ async function reviseCandidateWithAi(article, candidate, qualityReport) {
     revisionNotes: [
       "Repair the article so it fully passes the content requirements before publication.",
       `Current quality issues: ${qualityReport.reasons.join(", ")}.`,
-      "Keep the structure exact and improve originality, usefulness, and local relevance without sounding robotic."
+      "Keep the authority structure exact, expand the current draft instead of restarting, and improve originality, usefulness, sourcing visibility, and local relevance without sounding robotic."
     ]
   });
 }
@@ -1156,6 +1350,8 @@ async function buildCandidate(article) {
 
   const baseCandidate = {
     title: article.title,
+    seoTitle: article.title,
+    metaDescription: createExcerpt(article),
     excerpt: createExcerpt(article),
     content: buildArticleContent(article),
     category,
@@ -1172,7 +1368,8 @@ async function buildCandidate(article) {
     imageCreditName: article.mediaUrl ? article.sourceName : "",
     imageCreditUrl: article.mediaUrl ? article.sourceUrl : "",
     mediaType: article.mediaType || "image/jpeg",
-    publishedAt: article.publishedAt
+    publishedAt: article.publishedAt,
+    imageAlt: article.title
   };
 
   const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate);

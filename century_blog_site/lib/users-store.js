@@ -88,7 +88,7 @@ function envSuperAdmin() {
   return {
     id: "env-super-admin",
     name: "Century Blog Super Admin",
-    email: process.env.ADMIN_EMAIL ? String(process.env.ADMIN_EMAIL).trim().toLowerCase() : "admin@centuryblogg.vercel.app",
+    email: process.env.ADMIN_EMAIL ? String(process.env.ADMIN_EMAIL).trim().toLowerCase() : "admin@centuryblog.com.ng",
     username,
     role: "super_admin",
     status: "active",

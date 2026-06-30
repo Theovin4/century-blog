@@ -20,6 +20,7 @@ export function SiteFooter({ showSocial = true }) {
         <Link href="/privacy-policy">Privacy Policy</Link>
         <Link href="/terms">Terms</Link>
         <Link href="/cookie-policy">Cookie Policy</Link>
+        <Link href="/sitemap.xml">Sitemap</Link>
         {substackUrl ? (
           <a href={substackUrl} target="_blank" rel="noreferrer">
             Substack

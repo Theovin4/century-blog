@@ -132,7 +132,7 @@ export async function getAuthenticatedUser(token) {
       return sanitizeUserForClient({
         id: "env-super-admin",
         name: "Century Blog Super Admin",
-        email: process.env.ADMIN_EMAIL || "admin@centuryblogg.vercel.app",
+        email: process.env.ADMIN_EMAIL || "admin@centuryblog.com.ng",
         username: envUsername,
         role: "super_admin",
         status: "active",
@@ -173,7 +173,7 @@ export async function authenticateUser(username, password) {
     return {
       id: "env-super-admin",
       name: "Century Blog Super Admin",
-      email: process.env.ADMIN_EMAIL || "admin@centuryblogg.vercel.app",
+      email: process.env.ADMIN_EMAIL || "admin@centuryblog.com.ng",
       username: envUsername,
       role: "super_admin",
       status: "active",

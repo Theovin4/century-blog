@@ -34,24 +34,27 @@ export async function generateMetadata({ params }) {
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
   const canonical = `${siteUrl}/category/${category}`;
+  const defaultImage = `${siteUrl}/century-blog-logo.png`;
 
   return {
     title: `${meta.label} News and Stories`,
     description: meta.description,
     keywords: buildCategoryKeywords(category),
     alternates: {
-      canonical: `/category/${category}`
+      canonical
     },
     openGraph: {
       title: `${meta.label} | Century Blog`,
       description: meta.description,
       url: canonical,
-      type: "website"
+      type: "website",
+      images: [{ url: defaultImage, alt: "Century Blog logo" }]
     },
     twitter: {
       card: "summary_large_image",
       title: `${meta.label} | Century Blog`,
-      description: meta.description
+      description: meta.description,
+      images: [defaultImage]
     }
   };
 }

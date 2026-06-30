@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { filterIndexablePosts } from "@/lib/content-quality";
 import { getPosts } from "@/lib/posts-store";
 import { getActiveCategories, getSiteUrl } from "@/lib/site";
 
@@ -38,7 +39,7 @@ function renderUrl({ url, lastModified, changeFrequency, priority }) {
 
 export async function GET() {
   const siteUrl = getSiteUrl();
-  const posts = await getPosts().catch(() => []);
+  const posts = filterIndexablePosts(await getPosts().catch(() => []));
   const activeCategories = getActiveCategories(posts);
   const generatedAt = new Date().toISOString();
 
@@ -53,7 +54,9 @@ export async function GET() {
     { url: `${siteUrl}/disclaimer`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/privacy-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
     { url: `${siteUrl}/terms`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/cookie-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
+    { url: `${siteUrl}/terms-and-conditions`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/cookie-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/cookies-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
   ];
 
   const categoryPages = activeCategories.map((category) => ({
