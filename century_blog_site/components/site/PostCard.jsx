@@ -15,11 +15,12 @@ export function PostCard({ post }) {
           <div className="post-card__media-shell">
             <Image
               src={media.url}
-              alt={post.title}
+              alt={post.imageAlt || post.title}
               fill
+              quality={72}
               sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 33vw"
               className="post-card__media post-card__image"
-              unoptimized={String(media.url || "").startsWith("data:")}
+              unoptimized={media.generated || String(media.url || "").startsWith("data:")}
             />
           </div>
         ) : null}

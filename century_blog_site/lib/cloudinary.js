@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { v2 as cloudinary } from "cloudinary";
@@ -21,6 +22,56 @@ function getTempFilePath(filename) {
 
 function cleanupTempFile(filePath) {
   return fs.unlink(filePath).catch(() => undefined);
+}
+
+function readJsonFromRemoteUrl(url, { maxRedirects = 3 } = {}) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, (response) => {
+      const statusCode = Number(response.statusCode || 0);
+
+      if (
+        statusCode >= 300 &&
+        statusCode < 400 &&
+        response.headers.location &&
+        maxRedirects > 0
+      ) {
+        response.resume();
+        const nextUrl = new URL(response.headers.location, url).toString();
+        resolve(readJsonFromRemoteUrl(nextUrl, { maxRedirects: maxRedirects - 1 }));
+        return;
+      }
+
+      if (statusCode === 404) {
+        response.resume();
+        resolve(null);
+        return;
+      }
+
+      if (statusCode < 200 || statusCode >= 300) {
+        response.resume();
+        reject(new Error(`Unexpected Cloudinary JSON response (${statusCode}) for ${url}`));
+        return;
+      }
+
+      let payload = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        payload += chunk;
+      });
+      response.on("end", () => {
+        try {
+          resolve(JSON.parse(payload));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    request.on("error", reject);
+    request.setTimeout(20000, () => {
+      request.destroy(new Error(`Timed out while fetching Cloudinary JSON for ${url}`));
+    });
+  });
 }
 
 export function isCloudinaryConfigured() {
@@ -216,7 +267,7 @@ export async function uploadRemoteMedia(sourceUrl, slug, mediaType = "") {
   return buildMediaResponse(result);
 }
 
-export async function readCloudinaryJson(publicId, { deliveryType = "upload" } = {}) {
+export async function readCloudinaryJson(publicId, { deliveryType = "upload", cacheBust = false } = {}) {
   if (!isCloudinaryConfigured()) {
     return null;
   }
@@ -236,17 +287,10 @@ export async function readCloudinaryJson(publicId, { deliveryType = "upload" } =
     // Fall back to a signed or unversioned URL if metadata lookup fails.
   }
 
-  const response = await fetch(`${directUrl}${directUrl.includes("?") ? "&" : "?"}t=${Date.now()}`, { cache: "no-store" });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error(`Unable to fetch Cloudinary JSON for ${publicId}`);
-  }
-
-  return response.json();
+  const requestUrl = cacheBust
+    ? `${directUrl}${directUrl.includes("?") ? "&" : "?"}t=${Date.now()}`
+    : directUrl;
+  return readJsonFromRemoteUrl(requestUrl);
 }
 
 export async function backupCloudinaryJson(publicId, backupFolder = "century-blog/backups", { deliveryType = "upload" } = {}) {
@@ -276,7 +320,12 @@ export async function backupCloudinaryJson(publicId, backupFolder = "century-blo
     format: "json"
   });
 
-  return result.secure_url || "";
+  return {
+    publicId: result.public_id || targetId,
+    secureUrl: result.secure_url || "",
+    bytes: Number(result.bytes || 0),
+    createdAt: result.created_at || new Date().toISOString()
+  };
 }
 
 export async function getLatestCloudinaryJsonBackup(publicId, backupFolder = "century-blog/backups") {
@@ -334,14 +383,22 @@ export async function ensureCloudinaryJsonBackup(
     };
   }
 
-  const secureUrl = await backupCloudinaryJson(publicId, backupFolder);
+  const backupResult = await backupCloudinaryJson(publicId, backupFolder);
   const refreshedLatestBackup = await getLatestCloudinaryJsonBackup(publicId, backupFolder);
+  const fallbackLatestBackup = backupResult?.secureUrl
+    ? {
+      publicId: backupResult.publicId || "",
+      secureUrl: backupResult.secureUrl || "",
+      bytes: Number(backupResult.bytes || 0),
+      createdAt: backupResult.createdAt || new Date().toISOString()
+    }
+    : null;
 
   return {
-    created: Boolean(secureUrl),
-    reason: secureUrl ? "backup-created" : "backup-create-returned-empty",
-    secureUrl,
-    latestBackup: refreshedLatestBackup || latestBackup
+    created: Boolean(backupResult?.secureUrl),
+    reason: backupResult?.secureUrl ? "backup-created" : "backup-create-returned-empty",
+    secureUrl: backupResult?.secureUrl || "",
+    latestBackup: refreshedLatestBackup || fallbackLatestBackup || latestBackup
   };
 }
 

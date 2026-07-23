@@ -66,6 +66,14 @@ export async function PATCH(request) {
     patch.globalShareTarget = body.globalShareTarget;
   }
 
+  if (typeof body.evergreenAutoPostingEnabled === "boolean") {
+    patch.evergreenAutoPostingEnabled = body.evergreenAutoPostingEnabled;
+  }
+
+  if (body.evergreenPostsPerRun !== undefined) {
+    patch.evergreenPostsPerRun = body.evergreenPostsPerRun;
+  }
+
   const next = await updateAutomationSettings(patch);
 
   return NextResponse.json({ settings: next, providers: getAutomationProviderSummary() });

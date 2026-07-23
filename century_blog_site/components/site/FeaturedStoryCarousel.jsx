@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { formatLongDate, getCategoryMeta, getDisplayMedia, pickFeaturedPost, sortPostsByRecency } from "@/lib/site";
 
+function hasPreferredHeroMedia(post) {
+  const media = getDisplayMedia(post, "feature");
+  return (media.kind === "image" || media.kind === "video") && !media.generated;
+}
+
 function buildRotationPool(posts) {
   const recentPosts = sortPostsByRecency(posts || []).slice(0, 5);
 
@@ -12,13 +17,20 @@ function buildRotationPool(posts) {
     return [];
   }
 
-  const manuallyFeatured = recentPosts.find((post) => post.featured) || null;
+  const mediaReadyPosts = recentPosts.filter(hasPreferredHeroMedia);
+  const fallbackPosts = recentPosts.filter((post) => !hasPreferredHeroMedia(post));
+  const primaryPool = mediaReadyPosts.length ? mediaReadyPosts : recentPosts;
+  const manuallyFeatured = primaryPool.find((post) => post.featured) || null;
 
   if (manuallyFeatured) {
-    return [manuallyFeatured, ...recentPosts.filter((post) => post.slug !== manuallyFeatured.slug)];
+    return [
+      manuallyFeatured,
+      ...primaryPool.filter((post) => post.slug !== manuallyFeatured.slug),
+      ...fallbackPosts.filter((post) => post.slug !== manuallyFeatured.slug)
+    ];
   }
 
-  return recentPosts;
+  return mediaReadyPosts.length ? [...mediaReadyPosts, ...fallbackPosts] : recentPosts;
 }
 
 export function FeaturedStoryCarousel({ posts }) {
@@ -54,12 +66,13 @@ export function FeaturedStoryCarousel({ posts }) {
       {featuredHasImage ? (
         <Image
           src={featuredMedia.url}
-          alt={featuredPost.title}
+          alt={featuredPost.imageAlt || featuredPost.title}
           fill
-          priority
+          priority={!featuredMedia.generated}
+          quality={78}
           sizes="(max-width: 980px) 100vw, 50vw"
           className="feature-card__image"
-          unoptimized={String(featuredMedia.url || "").startsWith("data:")}
+          unoptimized={featuredMedia.generated || String(featuredMedia.url || "").startsWith("data:")}
         />
       ) : null}
       {featuredHasVideo ? (

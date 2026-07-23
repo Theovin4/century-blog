@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { filterIndexablePosts } from "@/lib/content-quality";
-import { getPosts } from "@/lib/posts-store";
+import { getPostSummaries } from "@/lib/posts-store";
 import { getActiveCategories, getSiteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 function escapeXml(value) {
   return String(value || "")
@@ -39,7 +39,7 @@ function renderUrl({ url, lastModified, changeFrequency, priority }) {
 
 export async function GET() {
   const siteUrl = getSiteUrl();
-  const posts = filterIndexablePosts(await getPosts().catch(() => []));
+  const posts = filterIndexablePosts(await getPostSummaries().catch(() => []));
   const activeCategories = getActiveCategories(posts);
   const generatedAt = new Date().toISOString();
 
@@ -54,14 +54,15 @@ export async function GET() {
     { url: `${siteUrl}/disclaimer`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/privacy-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
     { url: `${siteUrl}/terms`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/terms-and-conditions`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/cookie-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 },
-    { url: `${siteUrl}/cookies-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
+    { url: `${siteUrl}/cookie-policy`, lastModified: generatedAt, changeFrequency: "monthly", priority: 0.4 }
   ];
 
   const categoryPages = activeCategories.map((category) => ({
     url: `${siteUrl}/category/${category}`,
-    lastModified: generatedAt,
+    lastModified:
+      posts.find((post) => post.category === category)?.updatedAt ||
+      posts.find((post) => post.category === category)?.publishedAt ||
+      generatedAt,
     changeFrequency: "daily",
     priority: 0.7
   }));
@@ -84,7 +85,7 @@ export async function GET() {
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "no-store, max-age=0",
+      "Cache-Control": "public, s-maxage=900, stale-while-revalidate=86400",
       "X-Robots-Tag": "index, follow"
     }
   });

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AudienceGrowthPanel } from "@/components/site/AudienceGrowthPanel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { getPosts } from "@/lib/posts-store";
+import { filterIndexablePosts } from "@/lib/content-quality";
+import { getPostSummaries } from "@/lib/posts-store";
 import {
   getActiveCategories,
   buildBreadcrumbJsonLd,
@@ -15,7 +17,7 @@ import {
   sortPostsByRecency
 } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 export async function generateMetadata({ params }) {
   const { category } = await params;
@@ -24,7 +26,7 @@ export async function generateMetadata({ params }) {
     return { title: "Category Not Found" };
   }
 
-  const posts = await getPosts();
+  const posts = filterIndexablePosts(await getPostSummaries());
   const activeCategories = getActiveCategories(posts);
 
   if (!activeCategories.includes(category)) {
@@ -60,7 +62,7 @@ export async function generateMetadata({ params }) {
 }
 
 export async function generateStaticParams() {
-  const posts = await getPosts();
+  const posts = filterIndexablePosts(await getPostSummaries());
   return getActiveCategories(posts).map((category) => ({ category }));
 }
 
@@ -74,7 +76,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
   const page = Math.max(1, Number.parseInt(String(resolvedSearchParams?.page || "1"), 10) || 1);
-  const posts = await getPosts();
+  const posts = filterIndexablePosts(await getPostSummaries());
   const activeCategories = getActiveCategories(posts);
 
   if (!activeCategories.includes(category)) {
@@ -84,10 +86,13 @@ export default async function CategoryPage({ params, searchParams }) {
   const filteredPosts = sortPostsByRecency(filterPosts(posts, { query, category }));
   const meta = getCategoryMeta(category);
   const siteUrl = getSiteUrl();
+  const featuredPosts = filteredPosts.slice(0, 3);
+  const listPosts = filteredPosts.slice(featuredPosts.length);
   const pageSize = 12;
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(listPosts.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const paginatedPosts = filteredPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedPosts = listPosts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const structuredPosts = currentPage === 1 ? [...featuredPosts, ...paginatedPosts] : paginatedPosts;
   const buildPageHref = (nextPage) => {
     const search = new URLSearchParams();
 
@@ -111,11 +116,21 @@ export default async function CategoryPage({ params, searchParams }) {
       url: `${siteUrl}/category/${category}`,
       description: meta.description
     },
+    structuredPosts.length ? {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: structuredPosts.map((post, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `${siteUrl}/news/${post.slug}`,
+        name: post.title
+      }))
+    } : null,
     buildBreadcrumbJsonLd([
       { name: "Home", url: siteUrl },
       { name: meta.label, url: `${siteUrl}/category/${category}` }
     ])
-  ];
+  ].filter(Boolean);
 
   return (
     <main className="page-shell">
@@ -126,8 +141,22 @@ export default async function CategoryPage({ params, searchParams }) {
         <span className="eyebrow">Category</span>
         <h1 className="category-page__title">{meta.label}</h1>
         <p className="hero-text">
-          {meta.description} Browse the latest articles in true recency order, with mobile-friendly cards, working search, and clear paths back to the homepage and related sections.
+          {meta.description} Explore recent Century Blog reporting, analysis, and practical context across {meta.label.toLowerCase()} stories in one organised archive.
         </p>
+        <div className="category-summary-grid">
+          <div className="category-summary-card">
+            <span className="pill">Coverage</span>
+            <p>{filteredPosts.length} indexable stories are currently available in this section.</p>
+          </div>
+          <div className="category-summary-card">
+            <span className="pill">Browse</span>
+            <p>Use the filters below to refine recent stories without leaving the public category archive.</p>
+          </div>
+          <div className="category-summary-card">
+            <span className="pill">Latest</span>
+            <p>Fresh articles are shown in clean publishing order so readers and search engines can find the newest strong coverage quickly.</p>
+          </div>
+        </div>
       </section>
 
       <PostFilters
@@ -136,6 +165,26 @@ export default async function CategoryPage({ params, searchParams }) {
         action={`/category/${category}`}
         categories={activeCategories}
       />
+
+      {featuredPosts.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Top Stories</span>
+              <h2>Featured coverage in {meta.label}</h2>
+            </div>
+            <p>These are the most valuable stories currently leading this section.</p>
+          </div>
+          <div className="article-related__links">
+            {featuredPosts.map((post) => (
+              <Link key={`featured-${post.slug}`} href={`/news/${post.slug}`} className="article-related__item">
+                <strong>{post.title}</strong>
+                <span>{post.excerpt}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="section-block">
         <div className="post-grid">
@@ -146,7 +195,10 @@ export default async function CategoryPage({ params, searchParams }) {
         {filteredPosts.length === 0 ? (
           <p className="empty-state">No posts matched this category filter yet.</p>
         ) : null}
-        {filteredPosts.length > pageSize ? (
+        {!paginatedPosts.length && featuredPosts.length ? (
+          <p className="empty-state">This section is currently led by the featured stories above.</p>
+        ) : null}
+        {listPosts.length > pageSize ? (
           <div className="pagination-row">
             {currentPage > 1 ? (
               <Link href={buildPageHref(currentPage - 1)} className="button button-secondary">
@@ -168,6 +220,20 @@ export default async function CategoryPage({ params, searchParams }) {
           </div>
         ) : null}
       </section>
+
+      <AudienceGrowthPanel
+        eyebrow={`${meta.label} Updates`}
+        title={`Stay on top of ${meta.label.toLowerCase()} stories without checking back all day`}
+        description={`Use the Century Briefing to follow stronger ${meta.label.toLowerCase()} coverage, then move into related reporting through the main blog archive and today's homepage headlines.`}
+        actions={[
+          featuredPosts[0]
+            ? { href: `/news/${featuredPosts[0].slug}`, label: "Read the lead story" }
+            : { href: "/", label: "See home headlines" },
+          { href: "/blog", label: "Browse latest coverage", variant: "secondary" },
+          { href: "/", label: "Return to homepage", variant: "secondary" }
+        ]}
+        note={`This section is organised to help readers and search engines find stronger ${meta.label.toLowerCase()} coverage quickly.`}
+      />
 
       <SiteFooter />
 

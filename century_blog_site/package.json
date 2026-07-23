@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "migrate:cloudinary": "node scripts/migrate-media-to-cloudinary.cjs",
     "content:audit": "node scripts/authority-content-audit.cjs audit",
-    "content:rewrite": "node scripts/authority-content-audit.cjs rewrite"
+    "content:rewrite": "node scripts/authority-content-audit.cjs rewrite",
+    "media:backfill": "node scripts/backfill-post-images.cjs"
   },
   "dependencies": {
     "cloudinary": "^2.9.0",

@@ -1,0 +1,12 @@
+.vercel
+century_blog_site/.codex-*.log
+century_blog_site/.codex-*.err.log
+century_blog_site/.test-cookies.txt
+century_blog_site/tmp/
+century_blog_site/tsconfig.tsbuildinfo
+century_blog_site/data/activity-logs.json
+century_blog_site/data/automation-drafts.json
+century_blog_site/data/automation-settings.json
+century_blog_site/data/posts-backup-status.json
+century_blog_site/data/users.json
+century_blog_site/reports/

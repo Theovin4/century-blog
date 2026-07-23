@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { AudienceGrowthPanel } from "@/components/site/AudienceGrowthPanel";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { getPosts } from "@/lib/posts-store";
+import { filterIndexablePosts } from "@/lib/content-quality";
+import { getPostSummaries } from "@/lib/posts-store";
 import { buildPageMetadata, formatLongDate, sortPostsByRecency } from "@/lib/site";
+
+export const revalidate = 900;
 
 export const metadata = buildPageMetadata({
   title: "Blog",
@@ -13,7 +17,7 @@ export const metadata = buildPageMetadata({
 export default async function BlogPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const page = Math.max(1, Number.parseInt(String(resolvedSearchParams?.page || "1"), 10) || 1);
-  const posts = sortPostsByRecency(await getPosts());
+  const posts = sortPostsByRecency(filterIndexablePosts(await getPostSummaries()));
   const pageSize = 12;
   const totalPages = Math.max(1, Math.ceil(posts.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -28,7 +32,7 @@ export default async function BlogPage({ searchParams }) {
             <h1>Latest stories from Century Blog</h1>
           </div>
           <p>
-            Explore recent news, features, and practical stories published across Nigeria, world,
+            Explore the stronger public archive of Century Blog stories across Nigeria, world,
             business, sports, technology, entertainment, health, lifestyle, education, and daily gist.
           </p>
         </div>
@@ -48,6 +52,9 @@ export default async function BlogPage({ searchParams }) {
             </article>
           ))}
         </div>
+        {visiblePosts.length === 0 ? (
+          <p className="empty-state">No indexable stories are available in the public archive yet.</p>
+        ) : null}
         {posts.length > pageSize ? (
           <div className="pagination-row">
             {currentPage > 1 ? (
@@ -70,6 +77,18 @@ export default async function BlogPage({ searchParams }) {
           </div>
         ) : null}
       </section>
+      <AudienceGrowthPanel
+        eyebrow="Reader Growth"
+        title="Follow Century Blog beyond a single visit"
+        description="Get the Century Briefing for selected Nigeria and global updates, then keep exploring through the homepage, key sections, and the strongest recent stories."
+        actions={[
+          { href: "/", label: "Return to homepage" },
+          { href: "/category/nigeria", label: "Follow Nigeria stories", variant: "secondary" },
+          { href: "/category/sports", label: "Follow sports coverage", variant: "secondary" }
+        ]}
+        note="This archive is designed for deeper browsing, cleaner catch-up reading, and stronger internal discovery."
+        showSocial
+      />
       <SiteFooter />
     </main>
   );

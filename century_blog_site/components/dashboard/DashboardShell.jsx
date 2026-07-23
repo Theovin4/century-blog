@@ -48,6 +48,8 @@ const emptyAutomation = {
   nigeriaShareTarget: 0.7,
   globalShareTarget: 0.3,
   maxPostsPerRun: 2,
+  evergreenAutoPostingEnabled: true,
+  evergreenPostsPerRun: 1,
   lastRunAt: "",
   lastRunStatus: "idle",
   lastRunMessage: "",
@@ -1421,10 +1423,10 @@ export function DashboardShell({ initialPosts, currentUser }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Automation Control</span>
-            <h2>Auto news engine</h2>
+            <h2>Auto publishing engine</h2>
           </div>
           <p>
-            Nigeria stories are prioritised ahead of world headlines, and your homepage stays fresh automatically.
+            Authority evergreen explainers now run morning and evening, while qualifying Nigeria and world updates can still fill the remaining publishing slots.
           </p>
         </div>
         <div className="automation-panel__grid">
@@ -1441,6 +1443,10 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <span>{automationSettings.maxPostsPerRun}</span>
           </div>
           <div className="automation-panel__card">
+            <strong>Evergreen per run</strong>
+            <span>{automationSettings.evergreenAutoPostingEnabled === false ? "Off" : automationSettings.evergreenPostsPerRun || 1}</span>
+          </div>
+          <div className="automation-panel__card">
             <strong>Last run</strong>
             <span>{automationSettings.lastRunAt ? new Date(automationSettings.lastRunAt).toLocaleString("en-NG") : "Not run yet"}</span>
           </div>
@@ -1448,12 +1454,17 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <strong>Draft queue</strong>
             <span>{autoDrafts.length}</span>
           </div>
+          <div className="automation-panel__card">
+            <strong>Schedule</strong>
+            <span>08:00 / 20:00 WAT</span>
+          </div>
         </div>
         <div className="automation-panel__providers">
           <span className={`pill ${providerSummary.newsApiEnabled ? "pill-status-ok" : "pill-status-off"}`}>NewsAPI {providerSummary.newsApiEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${providerSummary.gNewsEnabled ? "pill-status-ok" : "pill-status-off"}`}>GNews {providerSummary.gNewsEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${providerSummary.pexelsEnabled ? "pill-status-ok" : "pill-status-off"}`}>Pexels {providerSummary.pexelsEnabled ? "ready" : "optional"}</span>
           <span className={`pill ${providerSummary.unsplashEnabled ? "pill-status-ok" : "pill-status-off"}`}>Unsplash {providerSummary.unsplashEnabled ? "ready" : "optional"}</span>
+          <span className="pill pill-status-ok">Evergreen bank {providerSummary.evergreenTopicCount || 0} ready</span>
           <span className="pill pill-status-ok">Rewrite engine ready</span>
           <span className={`pill ${providerSummary.cronSecretEnabled ? "pill-status-ok" : "pill-status-off"}`}>Cron auth {providerSummary.cronSecretEnabled ? "ready" : "missing"}</span>
           <span className={`pill ${aiEnhanced ? "pill-status-ok" : "pill-status-off"}`}>AI voice {rewriteVoiceLabel || "on"}</span>

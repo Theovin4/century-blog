@@ -814,7 +814,9 @@ export function extractMentionedCountries(input) {
 
 export function buildPostKeywords(post) {
   const category = getCategoryMeta(post.category).label;
-  const countries = extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
+  const countries = Array.isArray(post?.countriesMentioned) && post.countriesMentioned.length
+    ? post.countriesMentioned
+    : extractMentionedCountries(`${post.title} ${post.excerpt} ${post.content}`);
   const regionKeywords = post.regionFocus === "nigeria"
     ? ["Nigeria news", "Nigerian blog", "Africa headlines"]
     : ["world news", "global headlines", "international news blog"];
@@ -931,6 +933,45 @@ export function filterPosts(posts, filters = {}) {
 
 export function getTopStories(posts, limit = 4) {
   return prioritizePosts(posts).slice(0, limit);
+}
+
+export function getRelatedPosts(posts, currentPost, limit = 6) {
+  if (!Array.isArray(posts) || !currentPost?.slug) {
+    return [];
+  }
+
+  const currentCountries = Array.isArray(currentPost?.countriesMentioned) && currentPost.countriesMentioned.length
+    ? currentPost.countriesMentioned
+    : extractMentionedCountries(
+        `${currentPost.title || ""} ${currentPost.excerpt || ""} ${currentPost.content || ""}`
+      );
+
+  return [...posts]
+    .filter((candidate) => candidate?.slug && candidate.slug !== currentPost.slug)
+    .map((candidate) => {
+      const candidateCountries = Array.isArray(candidate?.countriesMentioned) && candidate.countriesMentioned.length
+        ? candidate.countriesMentioned
+        : extractMentionedCountries(
+            `${candidate.title || ""} ${candidate.excerpt || ""} ${candidate.content || ""}`
+          );
+      const sharedCountries = candidateCountries.filter((country) => currentCountries.includes(country)).length;
+      const sameCategory = candidate.category === currentPost.category ? 1 : 0;
+      const manualBonus = (candidate.type || "manual") === "manual" ? 0.2 : 0;
+
+      return {
+        post: candidate,
+        score: sameCategory * 3 + sharedCountries * 2 + manualBonus + (Number(candidate.featured) ? 0.5 : 0)
+      };
+    })
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+
+      return getPostTimestamp(right.post) - getPostTimestamp(left.post);
+    })
+    .slice(0, limit)
+    .map((entry) => entry.post);
 }
 
 export function getMostReadPosts(posts, limit = 4) {

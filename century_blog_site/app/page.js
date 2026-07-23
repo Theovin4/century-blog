@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
-import { NewsletterForm } from "@/components/forms/NewsletterForm";
+import { AudienceGrowthPanel } from "@/components/site/AudienceGrowthPanel";
 import { AdPlaceholder } from "@/components/site/AdPlaceholder";
 import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { getPosts } from "@/lib/posts-store";
+import { filterIndexablePosts } from "@/lib/content-quality";
+import { getPostSummaries } from "@/lib/posts-store";
 import {
   getActiveCategories,
   buildPageMetadata,
@@ -23,12 +24,12 @@ import {
   toAbsoluteUrl
 } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 export const metadata = buildPageMetadata({
   title: "Century Blog",
   description:
-    "Century Blog covers Nigeria news, world updates, business, sports, technology, entertainment, health, lifestyle, education, and daily gist in a clear reader-first format.",
+    "Breaking Nigeria news, global updates, and stories that matter across business, sports, technology, entertainment, health, lifestyle, and education.",
   path: "/",
   keywords: [
     "Century Blog",
@@ -54,11 +55,12 @@ function StoryHighlightCard({ post, meta }) {
         <div className="mini-post-card__media-shell">
           <Image
             src={media.url}
-            alt={post.title}
+            alt={post.imageAlt || post.title}
             fill
+            quality={72}
             sizes="(max-width: 640px) 100vw, (max-width: 1200px) 50vw, 25vw"
             className="mini-post-card__media"
-            unoptimized={String(media.url || "").startsWith("data:")}
+            unoptimized={media.generated || String(media.url || "").startsWith("data:")}
           />
         </div>
       ) : null}
@@ -79,15 +81,24 @@ function StoryHighlightCard({ post, meta }) {
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
-  const posts = await getPosts();
+  const posts = filterIndexablePosts(await getPostSummaries());
   const prioritizedPosts = prioritizePosts(posts);
   const recentPosts = sortPostsByRecency(posts);
   const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
   const visiblePosts = filteredPosts.length ? filteredPosts : recentPosts;
+  const heroPosts = prioritizePosts(visiblePosts).slice(0, 8);
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 5);
   const editorPicks = prioritizedPosts.filter((post) => !post.featured).slice(0, 3);
   const secondaryPosts = visiblePosts.slice(0, 18);
   const activeCategories = getActiveCategories(prioritizedPosts);
+  const categorySpotlights = activeCategories
+    .map((category) => ({
+      category,
+      meta: getCategoryMeta(category),
+      posts: prioritizedPosts.filter((post) => post.category === category).slice(0, 3)
+    }))
+    .filter((section) => section.posts.length)
+    .slice(0, 6);
   const siteUrl = getSiteUrl();
 
   const breadcrumbLd = buildBreadcrumbJsonLd([{ name: "Home", url: siteUrl }]);
@@ -172,7 +183,7 @@ export default async function HomePage({ searchParams }) {
           </div>
         </div>
 
-        <FeaturedStoryCarousel posts={visiblePosts} />
+        <FeaturedStoryCarousel posts={heroPosts} />
       </section>
 
       <section className="section-block section-card">
@@ -239,18 +250,60 @@ export default async function HomePage({ searchParams }) {
         </section>
       ) : null}
 
+      {!query && categorySpotlights.length ? (
+        <section className="section-block section-card top-stories-panel">
+          <div className="section-header">
+            <div>
+              <span className="eyebrow">Major Sections</span>
+              <h2>Stronger coverage across the topics readers search most</h2>
+            </div>
+            <p>
+              Explore key Century Blog sections with recent, higher-value stories that help search
+              engines and readers find the clearest coverage first.
+            </p>
+          </div>
+          <div className="category-spotlight-grid">
+            {categorySpotlights.map((section) => (
+              <section key={section.category} className="category-summary-card">
+                <div className="category-summary-card__header">
+                  <span className="pill">{section.meta.label}</span>
+                  <Link href={`/category/${section.category}`} className="text-link">
+                    View section
+                  </Link>
+                </div>
+                <p>{section.meta.description}</p>
+                <div className="article-related__links">
+                  {section.posts.map((post) => (
+                    <Link
+                      key={`${section.category}-${post.slug}`}
+                      href={`/news/${post.slug}`}
+                      className="article-related__item"
+                    >
+                      <strong>{post.title}</strong>
+                      <span>{post.excerpt}</span>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <AdPlaceholder label="Homepage ad slot" variant="homepage" />
 
-      <section className="newsletter-panel section-card">
-        <div>
-          <span className="eyebrow">Newsletter</span>
-          <h2>Get fresh posts and updates in your inbox</h2>
-          <p className="hero-text">
-            Subscribe for breaking headlines, useful explainers, and selected updates across Nigeria, world news, business, sports, technology, entertainment, lifestyle, health, and education.
-          </p>
-        </div>
-        <NewsletterForm />
-      </section>
+      <AudienceGrowthPanel
+        eyebrow="Century Briefing"
+        title="Get the Century Briefing and stay close to the stories that matter"
+        description="Join the email list for sharper Nigeria headlines, global updates, and selected stories across business, sports, technology, entertainment, health, lifestyle, and education. Then keep up through Century Blog's public channels for breaking developments and follow-up explainers."
+        actions={[
+          { href: "/blog", label: "Browse latest coverage" },
+          { href: "/category/nigeria", label: "Follow Nigeria news", variant: "secondary" },
+          { href: "/category/business", label: "Track business updates", variant: "secondary" }
+        ]}
+        note="Century Blog is built for readers who want clean navigation, quicker catch-up reading, and stronger context without clutter."
+        showSocial
+      />
 
       <SiteFooter />
 

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { revalidateTag, unstable_cache } from "next/cache";
+import { cache } from "react";
 import {
   ensureCloudinaryJsonBackup,
   getLatestCloudinaryJsonBackup,
@@ -9,11 +10,15 @@ import {
   uploadMediaFile,
   uploadRemoteMedia
 } from "@/lib/cloudinary";
+import { getIndexingAssessment, hasSourceAttribution } from "@/lib/content-quality";
 import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+import { injectInlineSupportImage, resolveFallbackHeroImage } from "@/lib/post-images";
 import {
   estimateReadTime,
+  extractMentionedCountries,
   getCoverStyle,
   inferMediaType,
+  isImageMedia,
   isValidCategory,
   getPostTimestamp,
   normalizeMarkdownContent,
@@ -25,7 +30,24 @@ const localFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "
 const publicId = "century-blog/data/posts";
 const POSTS_CACHE_TAG = "century-blog-posts";
 const POSTS_BACKUP_FOLDER = "century-blog/backups";
+const postsBackupStatusLocalFilePath = path.join(process.env.INIT_CWD || process.cwd(), "data", "posts-backup-status.json");
+const postsBackupStatusPublicId = "century-blog/data/posts-backup-status";
+const backupStatusStoreOptions = { deliveryType: "upload" };
 let scheduledPublishJob = null;
+
+function normalizeBackupStatus(status = null) {
+  return {
+    latestBackupAt: String(status?.latestBackupAt || status?.createdAt || ""),
+    latestBackupUrl: String(status?.latestBackupUrl || status?.secureUrl || ""),
+    latestBackupBytes: Math.max(0, Number(status?.latestBackupBytes || status?.bytes || 0)),
+    latestBackupPublicId: String(status?.latestBackupPublicId || status?.publicId || "")
+  };
+}
+
+function getBackupStatusTimestamp(status = null) {
+  const timestamp = new Date(status?.latestBackupAt || status?.createdAt || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
 
 async function readLocalSeedPosts() {
   return readJsonStore(localFilePath, null, []);
@@ -274,9 +296,55 @@ async function loadPostsSource() {
   return normalizeFeaturedPosts(dedupePosts(seedPosts));
 }
 
-const readCachedPostsSource = unstable_cache(
-  async () => loadPostsSource(),
-  ["century-blog-posts-source"],
+function buildPostSummary(post) {
+  const indexingAssessment = getIndexingAssessment(post);
+
+  return {
+    id: post.id,
+    slug: post.slug,
+    title: post.title,
+    seoTitle: post.seoTitle || "",
+    metaDescription: post.metaDescription || "",
+    excerpt: post.excerpt,
+    category: post.category,
+    author: post.author,
+    type: post.type || "manual",
+    sourceName: post.sourceName || "",
+    sourceUrl: post.sourceUrl || "",
+    sourceCountry: post.sourceCountry || "",
+    regionFocus: defaultRegionFocus(post.category, post.regionFocus),
+    autoProvider: post.autoProvider || "",
+    autoSourceId: post.autoSourceId || "",
+    trendingScore: Number(post.trendingScore || 0),
+    featured: Boolean(post.featured),
+    mediaUrl: post.mediaUrl || "",
+    originalMediaUrl: post.originalMediaUrl || post.mediaUrl || "",
+    mediaType: post.mediaType || "",
+    posterUrl: post.posterUrl || "",
+    publishedAt: post.publishedAt || "",
+    updatedAt: post.updatedAt || "",
+    createdAt: post.createdAt || "",
+    approvedAt: post.approvedAt || "",
+    sitePublishedAt: post.sitePublishedAt || "",
+    imageAlt: post.imageAlt || post.title,
+    readTime: post.readTime || estimateReadTime(post.content),
+    coverStyle: post.coverStyle || getCoverStyle(post.category, post.title),
+    countriesMentioned: extractMentionedCountries(`${post.title || ""} ${post.excerpt || ""} ${post.content || ""}`),
+    hasSourceAttribution: hasSourceAttribution(post),
+    indexingAssessment,
+    wordCount: Number(indexingAssessment.wordCount || 0),
+    workflowStatus: post.workflowStatus || "published"
+  };
+}
+
+const readMemoizedPostsSource = cache(async () => loadPostsSource());
+
+const readCachedPostSummariesSource = unstable_cache(
+  async () => {
+    const posts = await loadPostsSource();
+    return posts.map(buildPostSummary);
+  },
+  ["century-blog-posts-summaries"],
   {
     tags: [POSTS_CACHE_TAG],
     revalidate: 120
@@ -284,7 +352,11 @@ const readCachedPostsSource = unstable_cache(
 );
 
 async function readPostsSource() {
-  return readCachedPostsSource();
+  return readMemoizedPostsSource();
+}
+
+async function readPostSummariesSource() {
+  return readCachedPostSummariesSource();
 }
 
 async function writePostsSource(posts) {
@@ -293,21 +365,49 @@ async function writePostsSource(posts) {
 }
 
 export async function ensurePostsBackup({ maxAgeHours = 24, force = false } = {}) {
-  return ensureCloudinaryJsonBackup(publicId, {
+  const backup = await ensureCloudinaryJsonBackup(publicId, {
     backupFolder: POSTS_BACKUP_FOLDER,
     maxAgeHours,
     force
   });
+
+  const latestBackupStatus = normalizeBackupStatus(backup?.latestBackup);
+
+  if (latestBackupStatus.latestBackupAt) {
+    await writeJsonStore(
+      postsBackupStatusLocalFilePath,
+      postsBackupStatusPublicId,
+      latestBackupStatus,
+      backupStatusStoreOptions
+    ).catch((error) => {
+      console.warn("[posts-store] Unable to persist backup status:", error?.message || error);
+    });
+  }
+
+  return backup;
 }
 
 export async function getPostsBackupStatus() {
-  const latestBackup = await getLatestCloudinaryJsonBackup(publicId, POSTS_BACKUP_FOLDER);
+  const [latestBackup, storedBackupStatus] = await Promise.all([
+    getLatestCloudinaryJsonBackup(publicId, POSTS_BACKUP_FOLDER).catch(() => null),
+    readJsonStore(
+      postsBackupStatusLocalFilePath,
+      postsBackupStatusPublicId,
+      normalizeBackupStatus(),
+      backupStatusStoreOptions
+    ).catch(() => normalizeBackupStatus())
+  ]);
+  const latestBackupStatus = normalizeBackupStatus(latestBackup);
+  const freshestBackupStatus =
+    getBackupStatusTimestamp(storedBackupStatus) > getBackupStatusTimestamp(latestBackupStatus)
+      ? normalizeBackupStatus(storedBackupStatus)
+      : latestBackupStatus;
 
   return {
-    latestBackupAt: latestBackup?.createdAt || "",
-    latestBackupUrl: latestBackup?.secureUrl || "",
-    latestBackupBytes: Number(latestBackup?.bytes || 0),
-    latestBackupPublicId: latestBackup?.publicId || ""
+    latestBackupAt: freshestBackupStatus.latestBackupAt,
+    latestBackupUrl: freshestBackupStatus.latestBackupUrl,
+    latestBackupBytes: freshestBackupStatus.latestBackupBytes,
+    latestBackupPublicId: freshestBackupStatus.latestBackupPublicId
   };
 }
 
@@ -421,8 +521,29 @@ export async function getAllPosts() {
   return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
 
+export async function getPostSummaries() {
+  await publishDueScheduledPosts();
+  const posts = await readPostSummariesSource();
+  return posts
+    .filter((post) => String(post.workflowStatus || "published") === "published")
+    .sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
+}
+
+export async function getAllPostSummaries() {
+  await publishDueScheduledPosts();
+  const posts = await readPostSummariesSource();
+  return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
+}
+
 export async function getPostBySlug(slug) {
-  const posts = await getPosts();
+  await publishDueScheduledPosts();
+  const posts = await readPostsSource();
+  const publishedPosts = posts.filter((post) => String(post.workflowStatus || "published") === "published");
+  return publishedPosts.find((post) => post.slug === slug) || null;
+}
+
+export async function getPostSummaryBySlug(slug) {
+  const posts = await getPostSummaries();
   return posts.find((post) => post.slug === slug) || null;
 }
 
@@ -465,56 +586,80 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
   const publishedAt = input.publishedAt || existing?.publishedAt || new Date().toISOString();
   const updatedAt = new Date().toISOString();
   const workflowStatus = input.workflowStatus || existing?.workflowStatus || (input.type === "auto" ? "published" : "draft");
+  const category = isValidCategory(input.category) ? input.category : existing?.category || "daily-gist";
+  const regionFocus = defaultRegionFocus(category, input.regionFocus || existing?.regionFocus);
   const sitePublishedAt =
     workflowStatus === "published"
       ? existing?.sitePublishedAt || new Date().toISOString()
       : existing?.sitePublishedAt || "";
 
   let media = null;
+  let fallbackHero = null;
 
   if (mediaFile) {
     media = await uploadMediaFile(mediaFile, slug);
   } else if (remoteMediaUrl) {
     media = await uploadRemoteMedia(remoteMediaUrl, slug, input.mediaType || existing?.mediaType || "");
+  } else if ((workflowStatus === "published" || workflowStatus === "scheduled") && !existing?.mediaUrl && !existing?.originalMediaUrl) {
+    fallbackHero = await resolveFallbackHeroImage({
+      title,
+      category,
+      regionFocus,
+      sourceName: input.sourceName || existing?.sourceName || ""
+    });
+
+    if (fallbackHero?.mediaUrl) {
+      media = await uploadRemoteMedia(fallbackHero.mediaUrl, slug, input.mediaType || existing?.mediaType || "");
+    }
   }
 
   const base = existing || {
     id: crypto.randomUUID(),
     featured: false
   };
+  const resolvedMediaUrl = media ? media.mediaUrl : existing?.mediaUrl || "";
+  const resolvedOriginalMediaUrl = media ? media.originalMediaUrl : existing?.originalMediaUrl || existing?.mediaUrl || "";
+  const resolvedMediaType = media ? media.mediaType : input.mediaType || existing?.mediaType || "";
+  const resolvedImageAlt = normalizeStoredText(input.imageAlt || existing?.imageAlt || title).trim();
+  const resolvedContent = (workflowStatus === "published" || workflowStatus === "scheduled") && isImageMedia(resolvedMediaUrl, resolvedMediaType)
+    ? injectInlineSupportImage(input.content, {
+        url: resolvedMediaUrl,
+        alt: resolvedImageAlt || title
+      })
+    : normalizeMarkdownContent(input.content);
 
   return normalizePost({
     ...base,
     slug,
     title,
     excerpt: normalizeStoredText(input.excerpt).trim(),
-    content: normalizeMarkdownContent(input.content),
-    category: isValidCategory(input.category) ? input.category : existing?.category || "daily-gist",
+    content: resolvedContent,
+    category,
     author: normalizeStoredText(input.author).trim() || existing?.author || "Century Blog Editorial Team",
     type: input.type || existing?.type || "manual",
     sourceName: input.sourceName || existing?.sourceName || "",
     sourceUrl: input.sourceUrl || existing?.sourceUrl || "",
     sourceLinks: Array.isArray(input.sourceLinks) ? input.sourceLinks : existing?.sourceLinks || [],
     sourceCountry: input.sourceCountry || existing?.sourceCountry || "",
-    regionFocus: defaultRegionFocus(input.category || existing?.category, input.regionFocus || existing?.regionFocus),
+    regionFocus,
     autoProvider: input.autoProvider || existing?.autoProvider || "",
     autoSourceId: input.autoSourceId || existing?.autoSourceId || "",
     trendingScore: Number(input.trendingScore ?? existing?.trendingScore ?? 0),
-    mediaUrl: media ? media.mediaUrl : existing?.mediaUrl || "",
-    originalMediaUrl: media ? media.originalMediaUrl : existing?.originalMediaUrl || existing?.mediaUrl || "",
+    mediaUrl: resolvedMediaUrl,
+    originalMediaUrl: resolvedOriginalMediaUrl,
     legacyMediaUrl: media
       ? existing?.originalMediaUrl || existing?.mediaUrl || existing?.legacyMediaUrl || ""
       : existing?.legacyMediaUrl || "",
-    mediaType: media ? media.mediaType : input.mediaType || existing?.mediaType || "",
+    mediaType: resolvedMediaType,
     mediaName: media ? media.mediaName : existing?.mediaName || "",
     posterUrl: media ? media.posterUrl : existing?.posterUrl || "",
-    imageCreditName: input.imageCreditName || existing?.imageCreditName || "",
-    imageCreditUrl: input.imageCreditUrl || existing?.imageCreditUrl || "",
+    imageCreditName: input.imageCreditName || existing?.imageCreditName || fallbackHero?.imageCreditName || "",
+    imageCreditUrl: input.imageCreditUrl || existing?.imageCreditUrl || fallbackHero?.imageCreditUrl || "",
     publishedAt,
     sitePublishedAt,
     updatedAt,
-    readTime: estimateReadTime(input.content),
-    coverStyle: getCoverStyle(input.category || existing?.category),
+    readTime: estimateReadTime(resolvedContent),
+    coverStyle: getCoverStyle(category),
     featured: typeof input.featured === "boolean" ? input.featured : base.featured,
     workflowStatus,
     reviewNotes: input.reviewNotes ?? existing?.reviewNotes ?? "",
@@ -532,7 +677,7 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
     seoTitle: normalizeStoredText(input.seoTitle || existing?.seoTitle || title).trim(),
     metaDescription: normalizeStoredText(input.metaDescription || existing?.metaDescription || input.excerpt || existing?.excerpt || "").trim(),
     tags: Array.isArray(input.tags) ? input.tags : existing?.tags || [],
-    imageAlt: normalizeStoredText(input.imageAlt || existing?.imageAlt || title).trim()
+    imageAlt: resolvedImageAlt
   });
 }
 

@@ -8,6 +8,7 @@ const { v2: cloudinary } = require("cloudinary");
 
 const ROOT_DIR = process.cwd();
 const REPORTS_DIR = path.join(ROOT_DIR, "reports");
+const LOCAL_POSTS_PATH = path.join(ROOT_DIR, "data", "posts.json");
 const POSTS_PUBLIC_ID = "century-blog/data/posts";
 const BACKUP_FOLDER = "century-blog/backups";
 
@@ -691,6 +692,9 @@ async function writePostsStore(posts) {
       unique_filename: false,
       format: "json"
     });
+
+    await fsp.mkdir(path.dirname(LOCAL_POSTS_PATH), { recursive: true });
+    await fsp.writeFile(LOCAL_POSTS_PATH, JSON.stringify(posts, null, 2), "utf8");
   } finally {
     await fsp.unlink(tempPath).catch(() => undefined);
   }
@@ -715,10 +719,19 @@ function buildRewriteSchema() {
 function validateAuthorityRewriteOutput(post, rewritten) {
   let content = normalizeMarkdownContent(stripInstructionLeakage(rewritten.content || ""));
   let words = countWords(content);
-  let title = trimLength(rewritten.title || post.title, 140);
-  let seoTitle = trimLength(rewritten.seoTitle || title, 160);
-  let metaDescription = trimLength(rewritten.metaDescription || post.metaDescription || post.excerpt, 160);
-  let excerpt = trimLength(rewritten.excerpt || post.excerpt, 260);
+  let title = trimLength(
+    stripInstructionLeakage(rewritten.title || rewritten.seoTitle || post.seoTitle || post.title),
+    140
+  );
+  let seoTitle = trimLength(
+    stripInstructionLeakage(rewritten.seoTitle || rewritten.title || post.seoTitle || title),
+    160
+  );
+  let metaDescription = trimLength(
+    stripInstructionLeakage(rewritten.metaDescription || post.metaDescription || post.excerpt),
+    160
+  );
+  let excerpt = trimLength(stripInstructionLeakage(rewritten.excerpt || post.excerpt), 260);
   const imageAlt = trimLength(rewritten.imageAlt || post.imageAlt || title, 180);
   const requiredHeadings = [
     "## Introduction",
@@ -737,11 +750,11 @@ function validateAuthorityRewriteOutput(post, rewritten) {
   ];
 
   if (hasInstructionLeakage(title) || buildTitleFlags(title).length) {
-    title = trimLength(post.title || title, 140);
+    title = trimLength(stripInstructionLeakage(post.seoTitle || rewritten.seoTitle || post.title || title), 140);
   }
 
   if (hasInstructionLeakage(seoTitle) || buildTitleFlags(seoTitle).length) {
-    seoTitle = trimLength(title, 160);
+    seoTitle = trimLength(stripInstructionLeakage(title), 160);
   }
 
   if (hasInstructionLeakage(excerpt) || excerpt.length < 90) {
@@ -818,61 +831,55 @@ function getValidationErrorMessage(error) {
   return String(error?.message || error || "").trim();
 }
 
+const INSTRUCTION_LEAK_PATTERNS = [
+  /keep similar/i,
+  /maybe improved/i,
+  /\bseo title\b/i,
+  /\bmeta description\b/i,
+  /\bimage alt\b/i,
+  /\bmain keyword\b/i,
+  /return only/i,
+  /do not invent/i,
+  /current\s*title:?/i,
+  /instructions:/i,
+  /preferredwords/i,
+  /expansionmode/i,
+  /word count/i,
+  /must be markdown/i,
+  /include sections/i,
+  /now content:/i,
+  /need to expand/i,
+  /should be strong/i,
+  /not clickbait/i,
+  /something like/i,
+  /authority style/i,
+  /let'?s draft/i,
+  /let'?s approximate/i,
+  /short\.\s*now craft content/i,
+  /be careful not to invent/i,
+  /^title:\s*/im,
+  /^seo_title:\s*/im,
+  /^meta_description:\s*/im,
+  /^excerpt:\s*/im,
+  /^image_alt:\s*/im,
+  /^content:\s*/im
+];
+
 function hasInstructionLeakage(value = "") {
-  const normalized = String(value || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
+  const raw = String(value || "");
+  const normalized = raw.replace(/\s+/g, " ").trim();
 
   if (!normalized) {
     return false;
   }
 
-  return [
-    "keep similar",
-    "maybe improved",
-    "seo title",
-    "meta description",
-    "image alt",
-    "main keyword",
-    "return only",
-    "do not invent",
-    "currenttitle",
-    "instructions:",
-    "preferredwords",
-    "expansionmode",
-    "word count",
-    "must be markdown",
-    "include sections",
-    "now content:",
-    "need to expand"
-  ].some((phrase) => normalized.includes(phrase));
+  return INSTRUCTION_LEAK_PATTERNS.some((pattern) => pattern.test(raw) || pattern.test(normalized));
 }
 
 function stripInstructionLeakage(value = "") {
-  const patterns = [
-    /keep similar/i,
-    /maybe improved/i,
-    /seo title/i,
-    /meta description/i,
-    /image alt/i,
-    /main keyword/i,
-    /return only/i,
-    /do not invent/i,
-    /currenttitle/i,
-    /instructions:/i,
-    /preferredwords/i,
-    /expansionmode/i,
-    /word count/i,
-    /must be markdown/i,
-    /include sections/i,
-    /now content:/i,
-    /need to expand/i
-  ];
-
   return String(value || "")
     .split(/\r?\n/)
-    .filter((line) => !patterns.some((pattern) => pattern.test(line)))
+    .filter((line) => !INSTRUCTION_LEAK_PATTERNS.some((pattern) => pattern.test(line)))
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -1078,6 +1085,21 @@ function buildAuthorityRecoveryTopUp(post, stage = 2) {
   return ((recovery[category] && recovery[category][stage]) || recovery["daily-gist"][stage] || []).join("\n\n");
 }
 
+function buildAuthorityLengthRescue(post, remainingWords = 0) {
+  const title = trimLength(stripMarkdown(post?.title || "this story"), 120);
+  const category = String(post?.category || "").trim().toLowerCase();
+  const nigeriaLine =
+    category === "nigeria"
+      ? `For readers in Nigeria, the most useful test after ${title} is whether the underlying issue changes decisions, expectations, trust, or day-to-day planning in a meaningful way.`
+      : `For Nigerian readers, the lasting value in ${title} comes from understanding how a wider development could still affect local expectations, choices, or public conversation.`;
+
+  return [
+    `A final authority reading of ${title} should leave readers with more than a recap. It should leave them with a clearer sense of what the issue reveals, what assumptions deserve caution, and which follow-up developments are likely to matter most after the first wave of reaction passes.`,
+    nigeriaLine,
+    `That is the standard Century Blog should keep chasing: explain the headline, slow the noise down, and give readers enough context to make better judgments the next time a similar issue appears.`
+  ].join("\n\n");
+}
+
 function ensureMinimumAuthorityLength(post, content = "", startingWords = 0, minimumWords = 2000) {
   let updated = normalizeMarkdownContent(content);
   let words = startingWords || countWords(updated);
@@ -1098,6 +1120,11 @@ function ensureMinimumAuthorityLength(post, content = "", startingWords = 0, min
     }
 
     updated = normalizeMarkdownContent(`${updated}\n\n${supplement}`);
+    words = countWords(updated);
+  }
+
+  if (words < minimumWords) {
+    updated = normalizeMarkdownContent(`${updated}\n\n${buildAuthorityLengthRescue(post, minimumWords - words)}`);
     words = countWords(updated);
   }
 
@@ -1257,8 +1284,8 @@ async function rewriteWithGroq(post, allPosts) {
   let workingArticle = post.content;
 
   for (const candidate of candidates) {
-    let forcePromptOnlyFormat = candidate.provider === "groq";
-    let maxOutputTokens = candidate.provider === "groq" ? 4400 : 6800;
+    let forcePromptOnlyFormat = false;
+    let maxOutputTokens = candidate.provider === "groq" ? 3600 : 6800;
 
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const systemPrompt = revisionNotes.length
@@ -1340,14 +1367,14 @@ async function rewriteWithGroq(post, allPosts) {
           maxOutputTokens > 3000 &&
           attempt < 5
         ) {
-          maxOutputTokens = Math.max(3400, maxOutputTokens - 400);
+          maxOutputTokens = Math.max(3000, maxOutputTokens - 300);
           console.log(`Groq token budget too large for ${post.slug}. Retrying with max_output_tokens=${maxOutputTokens} on attempt ${attempt + 1}...`);
           continue;
         }
 
         if (response.status === 429 && attempt < 5) {
           const waitMatch = String(errorText || "").match(/try again in\s+([\d.]+)s/i);
-          const waitMs = waitMatch ? Math.ceil(Number(waitMatch[1]) * 1000) + 1500 : attempt * 8000;
+          const waitMs = waitMatch ? Math.ceil(Number(waitMatch[1]) * 1000) + 2500 : attempt * 12000;
           console.log(`Rate limited on ${candidate.provider}. Waiting ${waitMs}ms before retry ${attempt + 1}...`);
           await sleep(waitMs);
           continue;
@@ -1359,10 +1386,31 @@ async function rewriteWithGroq(post, allPosts) {
 
       const payload = await response.json();
       const responseText = getResponseText(payload);
-      const parsed =
-        candidate.provider === "groq" && !useStructuredFormat
-          ? extractDelimitedRewrite(responseText)
-          : extractJsonPayload(responseText);
+      let parsed;
+
+      try {
+        parsed =
+          candidate.provider === "groq" && !useStructuredFormat
+            ? extractDelimitedRewrite(responseText)
+            : extractJsonPayload(responseText);
+      } catch (error) {
+        revisionNotes = [
+          "The previous draft was malformed or incomplete. Return the full article in the exact required format with all required fields present.",
+          getValidationErrorMessage(error)
+        ].filter(Boolean);
+
+        if (attempt >= 5) {
+          lastError = error;
+          break;
+        }
+
+        if (candidate.provider === "groq" && !forcePromptOnlyFormat) {
+          forcePromptOnlyFormat = true;
+        }
+
+        console.log(`Format retry ${attempt + 1} for ${post.slug}: ${revisionNotes[1] || revisionNotes[0]}`);
+        continue;
+      }
 
       const rewritten = {
         title: trimLength(parsed.title || post.title, 140),
@@ -1409,7 +1457,19 @@ async function runRewriteMode(posts, args) {
 
   if (args.only.length) {
     const allow = new Set(args.only);
-    targets = targets.filter((row) => allow.has(row.slug));
+    targets = publishedPosts
+      .filter((post) => allow.has(post.slug))
+      .map((post) => rows.find((row) => row.slug === post.slug) || {
+        title: post.title,
+        slug: post.slug,
+        status: "IMPROVE",
+        reason: "manual-rewrite-request",
+        words: countWords(post.content || ""),
+        type: post.type || "manual",
+        category: post.category,
+        url: `${SITE_URL}/news/${post.slug}`,
+        actionTaken: "Queued for authority rewrite."
+      });
   }
 
   if (args.limit > 0) {
@@ -1584,6 +1644,12 @@ function parseManualApplyPayload(raw) {
   return entry;
 }
 
+function normalizeWorkflowStatus(value, fallback = "published") {
+  const normalized = String(value || "").trim().toLowerCase();
+  const allowed = new Set(["draft", "pending_review", "approved", "published", "rejected", "scheduled"]);
+  return allowed.has(normalized) ? normalized : fallback;
+}
+
 async function runApplyMode(posts, args) {
   if (!args.input) {
     throw new Error("apply mode requires a JSON file path via --input.");
@@ -1634,6 +1700,8 @@ async function runApplyMode(posts, args) {
     const metaDescription = trimLength(entry.metaDescription || post.metaDescription || post.excerpt, 160);
     const excerpt = trimLength(entry.excerpt || post.excerpt, 260);
     const imageAlt = trimLength(entry.imageAlt || post.imageAlt || title, 180);
+    const workflowStatus = normalizeWorkflowStatus(entry.workflowStatus, post.workflowStatus || "published");
+    const reviewNotes = entry.reviewNotes !== undefined ? String(entry.reviewNotes || "") : post.reviewNotes || "";
 
     postMap.set(slug, {
       ...post,
@@ -1649,6 +1717,8 @@ async function runApplyMode(posts, args) {
       sourceUrl: entry.sourceUrl || post.sourceUrl || "",
       sourceLinks,
       content,
+      workflowStatus,
+      reviewNotes,
       readTime: estimateReadTime(content),
       updatedAt: new Date().toISOString()
     });

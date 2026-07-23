@@ -1,7 +1,8 @@
 import { isPersistentStorageReady } from "@/lib/cloudinary";
-import { createAutoPost, getPosts } from "@/lib/posts-store";
-import { getAutomationSettings, markAutomationRun } from "@/lib/automation-store";
+import { createAutoPost, findSimilarPost, getAllPosts } from "@/lib/posts-store";
+import { getAutomationSettings, markAutomationFailure, markAutomationRun } from "@/lib/automation-store";
 import { saveAutoDraft } from "@/lib/auto-drafts-store";
+import { evergreenAuthorityTopics } from "@/lib/evergreen-topics";
 import { categoryMeta, isValidCategory, normalizeMarkdownContent, slugify } from "@/lib/site";
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY || "";
@@ -83,11 +84,11 @@ const WEAK_TITLE_PATTERNS = [
   /\bwhat it means\b/i,
   /\beverything you need to know\b/i,
   /\bfull story\b/i,
-  /^\s*why\b/i,
   /\bexplained\b/i
 ];
 const NIGERIA_FALLBACK_QUERY = "Nigeria OR Lagos OR Abuja OR naira OR Super Eagles";
 const GLOBAL_FALLBACK_QUERY = "world news OR global economy OR technology OR politics";
+const EVERGREEN_PROVIDER = "evergreen";
 
 function stripHtml(value) {
   return String(value || "")
@@ -106,6 +107,20 @@ function sentenceCase(value) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function sleep(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function getRetryDelayFromErrorText(errorText = "", fallbackMs = 12000) {
+  const waitMatch = String(errorText || "").match(/try again in\s+([\d.]+)s/i);
+
+  if (waitMatch) {
+    return Math.ceil(Number(waitMatch[1]) * 1000) + 2000;
+  }
+
+  return fallbackMs;
+}
+
 function mapTopicToCategory(article) {
   const haystack = `${article.title} ${article.description} ${article.sourceName} ${article.section}`.toLowerCase();
 
@@ -113,11 +128,15 @@ function mapTopicToCategory(article) {
     return "sports";
   }
 
-  if (/tech|startup|ai|software|cyber|digital|gadget/.test(haystack)) {
+  if (/\bgovernor\b|\bsenate\b|\bminister\b|\bpolice\b|\barrest\b|\bcourt\b|\bcampaign\b|\bassembly\b|\bapc\b|\bpdp\b|\blabour party\b|\btinubu\b|\batiku\b|\bpeter obi\b|\binec\b/.test(haystack) && article.regionFocus === "nigeria") {
+    return "nigeria";
+  }
+
+  if (/\btech\b|\bstartup\b|\bai\b|artificial intelligence|\bsoftware\b|\bcyber(?:security)?\b|\bdigital\b|\bgadget\b|\bapp\b|\bapps\b|\bdevice\b|\bfintech\b|\bopenai\b|\bgoogle\b|\bmicrosoft\b|\bmeta\b/.test(haystack)) {
     return "tech";
   }
 
-  if (/market|stock|inflation|economy|naira|finance|business|trade|bank/.test(haystack)) {
+  if (/market|stock|inflation|economy|naira|finance|business|trade|bank|crude|oil|fuel|energy|petrol|diesel|gas/.test(haystack)) {
     return "business";
   }
 
@@ -135,6 +154,10 @@ function mapTopicToCategory(article) {
 
   if (/lifestyle|fashion|wellness|relationship|travel|culture/.test(haystack)) {
     return "lifestyle";
+  }
+
+  if (/\btrump\b|\biran\b|\bisrael\b|\bgaza\b|\bukraine\b|\brussia\b|\bchina\b|\beurope\b|\bdiplomac|ceasefire|foreign affairs|global conflict|white house|kremlin/.test(haystack)) {
+    return "world";
   }
 
   if (/nigeria|abuja|lagos|port harcourt|kano|ibadan/.test(haystack) || article.regionFocus === "nigeria") {
@@ -160,6 +183,23 @@ function createExcerpt(article) {
 function trimToLength(value, maxLength) {
   const text = String(value || "").trim();
   return text.length > maxLength ? `${text.slice(0, maxLength - 3).trim()}...` : text;
+}
+
+function truncateForPrompt(value, maxLength = 1800) {
+  return trimToLength(
+    String(value || "")
+      .replace(/\s+/g, " ")
+      .trim(),
+    maxLength
+  );
+}
+
+function isEvergreenAuthorityArticle(article) {
+  return String(article?.autoProvider || "").trim().toLowerCase() === EVERGREEN_PROVIDER;
+}
+
+function getEvergreenSourceId(topicId = "") {
+  return `${EVERGREEN_PROVIDER}:${String(topicId || "").trim()}`;
 }
 
 function countWords(value) {
@@ -199,19 +239,6 @@ function hasInstructionLeakage(value) {
   ].some((phrase) => normalized.includes(phrase));
 }
 
-function groqSupportsStructuredRewrite(model = "") {
-  return /^openai\/gpt-oss-(20b|120b)$/i.test(String(model || "").trim());
-}
-
-function isGroqStructuredFailure(status, errorText = "") {
-  if (Number(status) !== 400) {
-    return false;
-  }
-
-  const normalized = String(errorText || "").toLowerCase();
-  return normalized.includes("json_validate_failed") || normalized.includes("failed to validate json");
-}
-
 function usesWeakTitlePattern(value) {
   const text = String(value || "").trim();
   return WEAK_TITLE_PATTERNS.some((pattern) => pattern.test(text));
@@ -236,15 +263,26 @@ function extractSentences(value) {
 }
 
 function buildSourceSummary(article) {
-  return [
+  const evergreenMode = isEvergreenAuthorityArticle(article);
+  const sourceSummary = [
     article.description,
-    article.content,
-    `${article.sourceName} reported the story on ${new Date(article.publishedAt).toLocaleString("en-NG", {
+    article.content
+  ];
+
+  if (!evergreenMode && article.sourceName) {
+    sourceSummary.push(`${article.sourceName} reported the story on ${new Date(article.publishedAt).toLocaleString("en-NG", {
       day: "numeric",
       month: "short",
       year: "numeric"
-    })}.`,
-    article.sourceUrl ? `Primary source link: ${article.sourceUrl}` : ""
+    })}.`);
+  }
+
+  if (article.sourceUrl) {
+    sourceSummary.push(`Primary source link: ${article.sourceUrl}`);
+  }
+
+  return [
+    ...sourceSummary
   ]
     .flatMap((value) => extractSentences(value).slice(0, 2))
     .filter(Boolean)
@@ -276,12 +314,70 @@ function getCategoryWritingRule(category) {
   return rules[category] || rules.nigeria;
 }
 
+function getCategoryReaderAngle(category) {
+  const angles = {
+    business: "Business coverage becomes more useful when it explains pressure on prices, jobs, trade, confidence, and everyday financial decisions instead of stopping at the headline.",
+    sports: "Sports coverage earns trust when it explains the stakes, the performance context, and why the moment matters to supporters beyond a quick result recap.",
+    tech: "Technology coverage is strongest when it separates hype from practical use, shows the adoption barrier clearly, and explains what changes for ordinary users.",
+    health: "Health coverage should stay calm, precise, and grounded in verified information that helps readers make safer decisions without panic.",
+    nigeria: "Nigeria coverage should connect the update to daily life, public conversation, and the institutions, costs, or choices readers actually care about.",
+    world: "World coverage should bring distant developments closer by explaining what changes on the ground and why the story matters to Nigerian readers too.",
+    education: "Education coverage matters most when it clarifies deadlines, opportunities, pressure points, and the decisions students, parents, and schools have to make.",
+    entertainment: "Entertainment coverage improves when it moves beyond noise and explains cultural significance, career momentum, audience reaction, and industry meaning.",
+    lifestyle: "Lifestyle coverage should stay practical, grounded, and genuinely useful for readers trying to improve routines, judgment, or everyday wellbeing.",
+    "daily-gist": "Culture and trending coverage should still offer clear context, verification, and reader value instead of drifting into empty hype."
+  };
+
+  return angles[category] || angles.nigeria;
+}
+
+function getCategoryImpactFocus(category) {
+  const focus = {
+    business: "costs, business confidence, and money decisions",
+    sports: "fan expectations, competitive stakes, and the wider sporting conversation",
+    tech: "digital behaviour, adoption, and practical use",
+    health: "public understanding, safety, and daily choices",
+    nigeria: "public reaction, local relevance, and real-world consequences",
+    world: "global context, local relevance, and what Nigerian readers should watch",
+    education: "students, families, schools, and practical decision-making",
+    entertainment: "audience interest, cultural meaning, and industry implications",
+    lifestyle: "daily routines, judgement, and practical life decisions",
+    "daily-gist": "public conversation, verification, and cultural relevance"
+  };
+
+  return focus[category] || focus.nigeria;
+}
+
+function isLowValueSourceArticle(article) {
+  const haystack = [
+    article?.title,
+    article?.description,
+    article?.content,
+    article?.sourceName,
+    article?.sourceUrl
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!haystack) {
+    return false;
+  }
+
+  return /request for applications|call for applications|grant opportunity|grant programme|grant program|application deadline|deadline:|open call|call for proposals|submit your application|scholarship application|advertorial|sponsored content|partner content|press release|fundsforngos|prnewswire|businesswire|globenewswire|accesswire/.test(haystack);
+}
+
 function scoreSourceArticle(article) {
   let score = 0;
   const reasons = [];
   const description = String(article.description || "").trim();
   const content = String(article.content || "").trim();
   const title = String(article.title || "").trim();
+
+  if (isLowValueSourceArticle(article)) {
+    reasons.push("low-value-source-pattern");
+    return { score: -10, reasons };
+  }
 
   if (title.length >= 30 && !CLICKBAIT_PATTERNS.some((pattern) => pattern.test(title))) {
     score += 1;
@@ -410,18 +506,376 @@ function buildSecondaryKeywords(article, category) {
   ].filter(Boolean);
 }
 
-function buildArticleContent(article) {
+function createMarkdownLink({ title, href }) {
+  return `[${title}](${href})`;
+}
+
+function buildInternalLinkTargets(category, relatedLinks = []) {
+  const links = [];
+  const seen = new Set();
+
+  function pushLink(title, href) {
+    const normalizedHref = String(href || "").trim();
+
+    if (!title || !normalizedHref || seen.has(normalizedHref)) {
+      return;
+    }
+
+    seen.add(normalizedHref);
+    links.push({ title, href: normalizedHref });
+  }
+
+  for (const link of relatedLinks) {
+    pushLink(link.title, link.href);
+  }
+
+  pushLink(`${categoryMeta[category]?.label || "Century Blog"} category`, `/category/${category}`);
+  pushLink("Century Blog homepage", "/");
+  pushLink("Century Blog archive", "/blog");
+
+  return links.slice(0, 5);
+}
+
+function joinMarkdownLinks(links) {
+  const rendered = links.map(createMarkdownLink);
+
+  if (rendered.length <= 1) {
+    return rendered[0] || "";
+  }
+
+  if (rendered.length === 2) {
+    return `${rendered[0]} and ${rendered[1]}`;
+  }
+
+  return `${rendered.slice(0, -1).join(", ")}, and ${rendered[rendered.length - 1]}`;
+}
+
+function cleanSourceBrief(value) {
+  return String(value || "")
+    .replace(/\[\+\d+\s+chars\]/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getAuthorityTitleAngle(category) {
+  const angles = {
+    business: "Why It Matters for Readers and Businesses",
+    sports: "Why It Matters for Fans",
+    tech: "What It Means for Everyday Users",
+    health: "What Readers Should Know",
+    education: "What Students and Families Should Know",
+    entertainment: "Why It Matters Now",
+    lifestyle: "What Readers Can Learn",
+    nigeria: "Why It Matters in Nigeria",
+    world: "Why It Matters",
+    "daily-gist": "Why It Matters"
+  };
+
+  return angles[category] || "Why It Matters";
+}
+
+function normalizeAuthorityTitle(title, category = "") {
+  const baseTitle = String(title || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!baseTitle) {
+    return "";
+  }
+
+  const replacement = getAuthorityTitleAngle(category);
+
+  return baseTitle
+    .replace(/\s*[:\-]\s*everything you need to know\b/i, `: ${replacement}`)
+    .replace(/\s*[:\-]\s*what it means\b/i, `: ${replacement}`)
+    .replace(/\s*[:\-]\s*full story\b/i, `: ${replacement}`)
+    .replace(/\s*[:\-]\s*explained\b/i, `: ${replacement}`)
+    .replace(/\s+explained\b/i, `: ${replacement}`)
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function buildAuthoritySeoTitle(article) {
+  const category = isValidCategory(article?.category) ? article.category : mapTopicToCategory(article || {});
+  const title = trimToLength(normalizeAuthorityTitle(article?.title, category), 120);
+  return trimToLength(title.includes("Century Blog") ? title : `${title} | Century Blog`, 160);
+}
+
+function buildAuthorityMetaDescription(article, category) {
+  const description = sentenceCase(cleanSourceBrief(article?.description || article?.title));
+  const impactFocus = getCategoryImpactFocus(category);
+  return trimToLength(
+    `${description} Century Blog explains the context, ${impactFocus}, and what readers should watch next.`,
+    160
+  );
+}
+
+function buildAuthorityExcerpt(article, category) {
+  const description = sentenceCase(cleanSourceBrief(article?.description || article?.title));
+  const categoryAngle = getCategoryReaderAngle(category);
+  return trimToLength(
+    `${description} This Century Blog explainer adds context, the Nigerian angle, and the practical meaning for readers. ${categoryAngle}`,
+    280
+  );
+}
+
+function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
   const title = article.title;
-  const sourceName = article.sourceName || "international wires";
   const description = stripHtml(article.description || article.content || article.title);
   const context = stripHtml(article.content || article.description || article.title);
   const nigeriaImpactLine = article.regionFocus === "nigeria"
-    ? "For readers in Nigeria, the immediate question is how the development could affect daily life, public trust, household finances, education, security, or policy choices."
-    : "For readers in Nigeria, the useful angle is whether an international development like this could influence prices, jobs, technology access, travel, diplomacy, or wider public debate.";
+    ? "For readers in Nigeria, the practical question is how this issue shapes daily decisions, family planning, work, study, safety, spending, or long-term confidence."
+    : "For readers in Nigeria, the useful test is whether this wider issue changes daily decisions, costs, opportunities, trust, or access in ways that are easy to miss at first glance.";
   const africaImpactLine =
     article.regionFocus === "nigeria"
-      ? "The African angle matters too, because developments inside Nigeria often shape regional politics, markets, migration decisions, and investor confidence."
-      : "The African angle matters because global events often influence trade, investment, migration, security calculations, and consumer costs across the continent.";
+      ? "The African angle matters because ideas, pressure points, and social habits often travel quickly across borders even when the original issue feels local."
+      : "The African angle matters because a global issue rarely stays abstract for long once it touches trade, migration, education, media habits, work, or consumer behaviour across the continent.";
+  const categoryAngle = getCategoryReaderAngle(category);
+  const introFocusLine =
+    "It focuses on the warning signs people miss, the habits that shape outcomes over time, and the practical checks that make better decisions easier when life gets busy.";
+  const summaryLine =
+    "Readers need a practical guide that moves beyond the headline version of the topic and explains what usually goes wrong, what helps, and what to do next.";
+  const nigeriaSummaryLine =
+    article.regionFocus === "nigeria"
+      ? "For Nigerian readers, the key question is how this issue affects everyday confidence, safety, planning, work, study, or spending."
+      : "For Nigerian readers, the useful angle is whether this issue changes daily choices, pressure points, or opportunities in ways that are easy to overlook.";
+  const africaSummaryLine =
+    article.regionFocus === "nigeria"
+      ? "Across Africa, similar social pressures and information habits often mean the same issue appears in slightly different local forms."
+      : "Across Africa, the broader lesson is that global shifts often become local realities through prices, attention, work patterns, and public expectations.";
+  const coreIssueLine =
+    "At the centre of this topic is a repeated pattern: people face a real pressure, move too quickly, and make choices before context has fully caught up with urgency.";
+  const faqCoreIssueLine =
+    "The core issue is how readers can recognise the pattern earlier, respond more calmly, and make decisions that still make sense after the first wave of pressure passes.";
+  const faqNigeriaLine =
+    article.regionFocus === "nigeria"
+      ? "Readers in Nigeria should care because the issue can shape routine choices around trust, safety, spending, study, work, or household planning."
+      : "Readers in Nigeria should care because global issues often become local through cost, access, opportunity, digital behaviour, or public conversation.";
+  const faqAfricaLine =
+    article.regionFocus === "nigeria"
+      ? "Yes. Similar information pressures and behavioural patterns show up across African countries, even when the local details differ."
+      : "Yes. The wider African angle matters because global patterns often reshape local realities through technology, trade, migration, and consumer behaviour.";
+  const linkTargets = buildInternalLinkTargets(category, relatedLinks);
+  const primaryLinks = linkTargets.slice(0, 3);
+  const linkedCoverageSentence = primaryLinks.length
+    ? `Readers who want a broader Century Blog reading path can continue with ${joinMarkdownLinks(primaryLinks)} for added context and related updates.`
+    : "Readers should compare the issue with related coverage, category explainers, and recent reports that show how the same theme appears in daily life.";
+  const tocItems = [
+    "Why this story matters",
+    "Context and background",
+    "What happened",
+    "Key facts readers should know",
+    "Why this matters for Nigeria",
+    "Wider African and global context",
+    "Expert insight and practical implications",
+    "What readers should watch next",
+    "Frequently asked questions",
+    "Conclusion"
+  ];
+
+  return [
+    "## Introduction",
+    "",
+    `${title} matters because it sits at the meeting point between public conversation and practical life. ${introFocusLine} The real value for readers is not only knowing the headline version of the topic, but understanding how it affects decisions people make at home, at work, in school, online, and inside their communities.`,
+    "",
+    `${nigeriaImpactLine} Century Blog's job in an evergreen explainer like this is to slow the subject down, remove the noise, and give readers a clearer map of what is really going on.`,
+    "",
+    `That matters because readers rarely encounter issues like this in a calm setting. They often meet them in the middle of busy routines, half-read posts, forwarded messages, pressure from work, or advice from people who sound certain but have not explained the bigger picture properly. A stronger evergreen article should correct that by offering practical clarity, not just a quick reaction.`,
+    "",
+    "## Executive summary",
+    "",
+    `- ${summaryLine}`,
+    `- ${nigeriaSummaryLine}`,
+    `- ${africaSummaryLine}`,
+    `- ${categoryAngle}`,
+    "- Readers benefit most when they focus on patterns, consequences, and practical choices rather than surface-level chatter.",
+    "- Long-term value comes from better judgment, clearer habits, and useful context that still holds up after the headline moment fades.",
+    "",
+    "## Table of contents",
+    "",
+    ...tocItems.map((item) => `- ${item}`),
+    "",
+    "## Why this story matters",
+    "",
+    `${title} deserves serious attention because people often underestimate how much apparently ordinary issues shape confidence, planning, and long-term outcomes. When readers only meet a topic through fragments, viral posts, or quick summaries, they may miss the pressure building underneath it.`,
+    "",
+    `That is where a stronger explainer becomes useful. ${summaryLine} Instead of treating the subject as background noise, readers need a fuller account of why it keeps showing up, who feels the effect first, and why the consequences often reach further than the original headline suggests.`,
+    "",
+    `The other reason this topic matters is trust. When readers feel confused, rushed, or overloaded, they are more likely to act on weak assumptions. That can lead to wasted money, damaged confidence, avoidable stress, poor planning, or a simple failure to notice what matters most. Clear editorial work reduces that risk by giving readers a framework they can return to even after the immediate conversation changes.`,
+    "",
+    "## Context and background",
+    "",
+    `${context} The background matters because evergreen subjects usually sit inside routines, habits, systems, and expectations that have been building for a long time. A reader who understands the pattern can respond better than a reader who only reacts to the loudest moment.`,
+    "",
+    `In editorial terms, this topic belongs to a wider conversation about trust, judgment, and everyday resilience. ${categoryAngle} Once that wider frame is visible, the article becomes more than a summary and starts doing the work a strong publication should do.`,
+    "",
+    "### Why this issue keeps returning",
+    "",
+    `Issues like this do not stay relevant by accident. They return because they sit inside familiar daily behaviour: the way people work, communicate, spend, study, shop, travel, compare information, or make quick decisions under pressure. Even when the surface details change, the underlying tension stays the same.`,
+    "",
+    "### Where readers usually feel the pressure first",
+    "",
+    `The first signs are often practical rather than dramatic. A person notices more confusion, more wasted effort, more uncertainty, more second-guessing, or more dependence on guesswork. By the time a bigger problem becomes visible, the weaker habits behind it may have been shaping decisions for a long time.`,
+    "",
+    "## What happened",
+    "",
+    `In an evergreen explainer, the most important development is not a single event but the underlying reality readers keep running into. ${coreIssueLine} The issue stays relevant because the same pressure appears again and again in slightly different forms.`,
+    "",
+    `That is why readers need more than tips without context. They need to see how the issue develops, why people misread it, what usually makes it worse, and what more careful judgment looks like in practice.`,
+    "",
+    `A typical pattern is easy to recognise. People begin with a real need, a real worry, or a real ambition. They then move too quickly because the environment rewards speed, imitation, or emotional reaction. At that point, weak information becomes more persuasive than careful thinking. The result is a decision that feels reasonable in the moment but becomes costly later.`,
+    "",
+    `That is the point of this explainer section: to make the pattern visible before the pressure peaks. Once readers can name the pattern, they can interrupt it. That is a more useful outcome than simply telling people to be careful after the damage has already started.`,
+    "",
+    "## Key facts readers should know",
+    "",
+    "- Everyday topics become costly when readers rely on urgency instead of verification.",
+    "- Context usually matters more than the first emotional reaction the topic creates.",
+    "- Practical habits, not dramatic one-off gestures, are what protect people over time.",
+    "- Small decisions repeated often usually shape outcomes more than a single dramatic mistake.",
+    "- Readers benefit when they compare claims, pause before acting, and look for process rather than hype.",
+    "- A useful explainer should leave people more capable, not simply more alarmed.",
+    "",
+    `Those facts matter because they pull the subject away from hype and back toward real usefulness. They also help readers judge future situations with more confidence, which is one of the strongest trust signals any newsroom can offer.`,
+    "",
+    `They also help readers recognise the difference between noise and signal. Noise is usually loud, rushed, and emotionally loaded. Signal is calmer, more specific, and easier to test against real life. The more often readers learn to choose signal over noise, the more valuable a publication becomes to them.`,
+    "",
+    "## Why this matters for Nigeria",
+    "",
+    `${nigeriaImpactLine} In Nigeria, many decisions are made under pressure: time pressure, money pressure, family pressure, information pressure, or pressure created by uncertainty. That makes practical, clearly written explainers especially valuable.`,
+    "",
+    `The Nigerian angle is not an afterthought here. It is central. Readers want to know whether the issue affects transport, digital life, study plans, customer trust, safety, household peace, or confidence in institutions. When journalism answers those questions directly, it becomes genuinely useful instead of decorative.`,
+    "",
+    `That local relevance becomes even more important because many readers navigate several pressures at once. They may be balancing work with side income, school with family expectations, or digital opportunities with unreliable information. A strong Nigerian reading of the topic therefore needs to explain consequences in plain language, not hide them behind abstract commentary.`,
+    "",
+    `Good local journalism also helps readers avoid imported assumptions. Advice that sounds sensible in another country may not fit Nigerian realities around cost, infrastructure, public services, social trust, or everyday work patterns. Context turns generic information into useful information.`,
+    "",
+    "## Wider African and global context",
+    "",
+    `${africaImpactLine} That broader context helps readers avoid a narrow reading of the issue. What looks like a local habit can sometimes reflect a bigger shift in work, media, technology, family life, or consumer behaviour across multiple countries.`,
+    "",
+    `Global comparison also helps explain what is structural and what is temporary. Readers should ask whether the issue is being driven by technology change, economic pressure, changing expectations, or a communication problem that appears in many places at once.`,
+    "",
+    `Across Africa, readers often face similar trade-offs: limited time, uneven information quality, strong word-of-mouth influence, and daily pressure to act quickly. That is why patterns that appear in one country often travel well across borders, even when the details look different on the surface.`,
+    "",
+    `A wider lens also prevents overreaction. Some issues are genuinely expanding and deserve early attention. Others simply appear bigger because social media accelerates repetition. The job of a careful explainer is to separate those possibilities so readers can keep a balanced view.`,
+    "",
+    "## Expert insight and practical implications",
+    "",
+    `A stronger editorial reading of this subject begins with one discipline: separating the surface signal from the underlying pattern. ${title} is not only about immediate reaction. It is about the systems, habits, and incentives that shape how people respond when they feel rushed, uncertain, hopeful, or distracted.`,
+    "",
+    `That insight matters because people often assume a problem will be solved by more attention alone. In reality, better outcomes usually come from better process. Readers need clear checks, calmer judgment, and a habit of asking harder questions before they commit time, trust, attention, or money.`,
+    "",
+    `Practical implications follow from that. Readers should slow down, compare information, notice recurring warning signs, and keep simple routines that make better decisions easier. The strongest takeaway is not perfection; it is steadier judgment built through repeatable habits.`,
+    "",
+    "### What stronger judgment looks like in practice",
+    "",
+    `Stronger judgment usually looks ordinary. It means asking where a claim came from, whether the message is trying to force speed, whether the promise sounds cleaner than real life, and whether the decision can wait long enough for proper checking. People often imagine good judgment as special intelligence, but it is usually the result of repeatable habits.`,
+    "",
+    "### Practical steps readers can use",
+    "",
+    "- Slow the timeline when a decision feels emotionally loaded or artificially urgent.",
+    "- Compare the claim with at least one more trustworthy source or direct channel.",
+    "- Write down the practical consequence before committing time, trust, money, or attention.",
+    "- Keep simple routines that reduce confusion the next time the same pattern appears.",
+    "",
+    `These steps matter because they convert awareness into action. That is where an authority-style article becomes genuinely useful: it helps readers change behaviour, not just nod along with a headline and move on.`,
+    "",
+    "## What readers should watch next",
+    "",
+    `Readers should watch how this issue evolves in everyday settings: online conversations, school decisions, workplace behaviour, family routines, buying habits, or public discussions. The next useful insight often comes from noticing repetition rather than waiting for drama.`,
+    "",
+    `They should also watch whether the people around them are becoming more careful or more reactive. Shifts in group behaviour often reveal whether a topic is being understood properly or merely repeated. When public conversation becomes noisier without becoming clearer, readers should treat that as a signal that more context is still needed.`,
+    "",
+    `Another useful question is what institutions, platforms, schools, employers, businesses, or communities do next. Strong responses usually involve clearer communication, more transparent expectations, and better habits that reduce avoidable confusion over time.`,
+    "",
+    linkedCoverageSentence,
+    "",
+    ...primaryLinks.map((link) => `- ${createMarkdownLink(link)}`),
+    "",
+    "## Frequently asked questions",
+    "",
+    "### What is the core issue behind this explainer?",
+    "",
+    `${faqCoreIssueLine}`,
+    "",
+    "### Why should readers in Nigeria care about it?",
+    "",
+    `${faqNigeriaLine}`,
+    "",
+    "### Does this topic affect daily life or only specialists?",
+    "",
+    "It affects everyday readers because decisions about trust, time, attention, safety, money, study, or work are rarely made in perfect conditions. Even when a topic sounds specialised at first, its effects usually show up through routine choices and everyday pressure.",
+    "",
+    "### Why do people often misunderstand issues like this?",
+    "",
+    "People usually meet them through fragments, quick opinions, or social pressure. That creates confidence before understanding, which is why context matters so much. A strong explainer slows that process down and gives readers a more reliable sequence for thinking through the issue.",
+    "",
+    "### What is the most useful habit readers can build here?",
+    "",
+    "Readers should learn to pause, verify, compare, and think about consequence before reacting. That single habit improves judgment across many different situations and helps people avoid being pushed into weak decisions by urgency alone.",
+    "",
+    "### Is there a wider African or global angle to consider?",
+    "",
+    `${faqAfricaLine}`,
+    "",
+    "### What should readers avoid when responding to this issue?",
+    "",
+    "They should avoid panic, blind forwarding, rushed assumptions, and decisions made only because other people sound certain. The loudest response is not always the most informed one, and confidence without context often creates avoidable mistakes.",
+    "",
+    "### What makes a trustworthy explainer different from empty advice?",
+    "",
+    "A trustworthy explainer connects the headline to real consequences, offers usable context, and respects uncertainty instead of pretending every answer is simple. It helps readers make sense of the issue after the first wave of attention has passed.",
+    "",
+    "### How can readers tell whether a claim deserves more caution?",
+    "",
+    "Claims deserve more caution when they rely on pressure, promise easy outcomes, remove important context, or make people feel they must act before thinking. Readers should treat speed and certainty as warning signs when clear evidence is missing.",
+    "",
+    "### Why do practical routines matter more than one-off motivation?",
+    "",
+    "Because most outcomes are shaped by repeated behaviour rather than rare heroic effort. A reader who has a simple process for checking claims, protecting attention, or reviewing choices is usually safer than a reader who only reacts strongly after a problem appears.",
+    "",
+    "### What should readers discuss with family, colleagues, or friends about this topic?",
+    "",
+    "They should discuss the warning signs, the easiest mistakes to make, and the practical checks everyone can use. Shared awareness strengthens individual judgment, especially in environments where information moves quickly from one person to another.",
+    "",
+    "## Conclusion",
+    "",
+    `${title} is worth understanding properly because the deeper pattern matters more than the noisy version people first encounter. When readers can see the warning signs, the local relevance, and the practical consequences clearly, they make stronger decisions.`,
+    "",
+    "That is the goal of this Century Blog explainer: not to overload readers with jargon, but to leave them calmer, better informed, and more capable of spotting what matters the next time the same issue appears in a new form.",
+    "",
+    "Authority is built when readers feel a publication has helped them think more clearly, not merely react more quickly. That is why evergreen journalism matters. It keeps paying readers back long after the first moment of attention has passed."
+  ].join("\n");
+}
+
+function buildAuthorityNewsContent(article, category, relatedLinks = []) {
+  const title = String(article?.title || "").trim();
+  const sourceName = String(article?.sourceName || "current reports").trim();
+  const description = sentenceCase(cleanSourceBrief(article?.description || article?.title));
+  const context = cleanSourceBrief(article?.content || article?.description || article?.title);
+  const categoryAngle = getCategoryReaderAngle(category);
+  const impactFocus = getCategoryImpactFocus(category);
+  const linkTargets = buildInternalLinkTargets(category, relatedLinks);
+  const primaryLinks = linkTargets.slice(0, 3);
+  const linkedCoverageSentence = primaryLinks.length
+    ? `Readers who want a stronger Century Blog reading path can continue with ${joinMarkdownLinks(primaryLinks)} for added context, category coverage, and related reporting.`
+    : "Readers should compare the story with other category coverage, broader archive pieces, and recent reports that help explain the same pressure from different angles.";
+  const nigeriaReaderAngle =
+    article.regionFocus === "nigeria"
+      ? "For readers in Nigeria, the immediate concern is how this development could influence daily decisions, confidence, costs, safety, study, work, or public expectations."
+      : "For readers in Nigeria, the practical question is whether this international development could influence costs, travel, digital behaviour, policy thinking, or wider public debate.";
+  const nigeriaReaderAngleAlt =
+    article.regionFocus === "nigeria"
+      ? "The Nigerian angle matters because local readers often feel the effects of a story through price pressure, institutional trust, security concerns, market mood, or family planning long before the issue feels fully settled."
+      : "The Nigerian angle matters because global stories often stop feeling distant once they affect prices, access, travel, business confidence, or the way institutions respond at home.";
+  const africaContextLine =
+    article.regionFocus === "nigeria"
+      ? "Across Africa, similar developments can ripple through markets, public mood, diplomacy, migration choices, and media conversation even when the first headline appears local."
+      : "Across Africa, global developments often become local realities through trade, energy pressure, public sentiment, technology dependence, and the practical choices people make every day.";
+  const verificationLine = article.sourceUrl
+    ? `Current public reporting from ${sourceName} suggests ${description.charAt(0).toLowerCase()}${description.slice(1)}.`
+    : `${description} is the central development readers need to understand before reacting too quickly.`;
   const sourceSection = article.sourceUrl
     ? [
         "",
@@ -446,14 +900,19 @@ function buildArticleContent(article) {
   return [
     "## Introduction",
     "",
-    `${title} is a story readers should pay attention to now because the immediate headline is only part of the picture. The deeper issue is what this development could change for institutions, markets, families, public debate, or long-term decision-making. ${nigeriaImpactLine}`,
+    `${title} matters because headline momentum rarely tells readers enough on its own. ${verificationLine} The bigger value lies in understanding what changed, which pressure point it exposes, and why that matters for people trying to make sound decisions in the middle of a fast-moving conversation.`,
+    "",
+    `${nigeriaReaderAngle} Strong journalism does more than repeat the first update. It explains the background, separates the confirmed point from the public reaction, and shows readers where the practical consequences are likely to surface first.`,
+    "",
+    `${categoryAngle} That approach helps the article feel less like a recycled summary and more like a useful briefing readers can rely on after the first burst of attention fades.`,
     "",
     "## Executive summary",
     "",
-    `- ${description}.`,
-    `- ${nigeriaImpactLine}`,
-    `- ${africaImpactLine}`,
-    "- Readers should focus on verified facts, practical consequences, and what developments to watch next.",
+    `- ${description}`,
+    `- ${nigeriaReaderAngleAlt}`,
+    `- ${africaContextLine}`,
+    `- The most useful reading of this story focuses on ${impactFocus} rather than noise, speculation, or social-media acceleration.`,
+    "- Readers should watch what becomes confirmed, what institutions say next, and whether the early interpretation still holds after more details emerge.",
     "",
     "## Table of contents",
     "",
@@ -461,55 +920,89 @@ function buildArticleContent(article) {
     "",
     "## Why this story matters",
     "",
-    `${title} matters because it is not only a headline about a single event. It sits inside a bigger chain of consequences that readers are likely to feel through public discussion, market behaviour, institutional response, or practical day-to-day decision-making.`,
+    `${title} deserves attention because the public meaning of a story is rarely limited to the event itself. The real significance usually appears in the response: who reacts, what pressure builds, what confidence changes, and which practical decisions become harder or easier afterward.`,
     "",
-    `${description} ${nigeriaImpactLine}`,
+    `That is especially true when a topic touches ${impactFocus}. Readers are not only asking what happened. They are asking whether the development changes risk, opportunity, cost, trust, or expectations in a way that could affect daily life or institutional behaviour.`,
+    "",
+    `Stories like this also shape public judgment. When early reactions become louder than verified context, readers can end up acting on mood instead of evidence. A useful explainer helps slow that process down and replaces reflex with clearer understanding.`,
     "",
     "## Context and background",
     "",
-    `${context} The first version of a fast-moving story often carries the biggest emotional force, but it rarely carries the full explanation. The background usually reveals whether the development is part of a longer pattern, a one-off disruption, or a sign of deeper pressure building underneath the surface.`,
+    `${context} That first report matters, but it becomes more useful when readers place it inside a wider frame. The background often reveals whether the update is part of a longer buildup, a predictable escalation, a policy turning point, or a warning sign that had been visible before the headline became mainstream.`,
     "",
-    "That context is especially useful when the issue touches politics, business, education, health, technology, or security, because those are the stories where timing alone does not explain why readers should care. Background turns a fast update into something people can actually understand.",
+    `Context is where weak summaries usually fail. They tell readers that an event happened, but they do not show why the event matters now, why the same issue may have been building for some time, or why some audiences feel the pressure faster than others.`,
+    "",
+    `This is also where source discipline matters. Early reporting can be accurate about the immediate trigger while still leaving major questions unresolved. That does not make the reporting useless. It simply means readers need to understand the difference between the first confirmed development and the deeper meaning that only becomes clearer as more evidence arrives.`,
+    "",
+    `${categoryAngle} Once that frame is visible, the story becomes more understandable and easier to judge on substance rather than emotion alone.`,
     "",
     "## What happened",
     "",
-    `According to reporting from ${sourceName}, the core development is that ${description.charAt(0).toLowerCase()}${description.slice(1)}. That summary is useful, but it only answers the first question. Readers also need clarity on what changed, who moved first, what evidence is already public, and what still depends on confirmation or follow-up reporting.`,
+    `${verificationLine} That is the part of the story readers can hold onto first. The next step is to understand the sequence around it: what prompted the development, how institutions or affected groups responded, and what remains uncertain enough to require careful follow-up.`,
     "",
-    "In stories like this, the difference between noise and useful reporting often comes down to sequence. What happened first, what reaction followed, and what remains unresolved are usually the details that shape how seriously the public takes the story.",
+    `In fast-moving reporting, sequence matters more than noise. A dramatic headline can create urgency, but useful reporting asks harder questions. Did the development escalate quickly or gradually? Was there prior warning? Has an official response already begun? Are people reacting to a confirmed change, or to what they fear may happen next?`,
     "",
-    "That is why a clear timeline matters. A single update can sound dramatic at first, but its real meaning becomes sharper when readers can see whether the development is escalating, stabilising, or already prompting formal response from the people involved.",
+    `Those questions are important because they shape how seriously readers should interpret the story. A development may signal structural weakness, a temporary disruption, or a turning point with wider consequences. Good coverage does not pretend to know more than the evidence allows, but it does help readers see which possibilities deserve the closest attention.`,
+    "",
+    `That is why this article treats the initial report as a starting point, not the finished picture. The most responsible reading is one that stays alert to verification, context, and the difference between immediate reaction and durable consequence.`,
     "",
     "## Key facts readers should know",
     "",
-    "- The headline alone does not explain the full impact.",
-    "- Verified reporting matters more than viral interpretation.",
-    "- Readers should separate confirmed developments from commentary or speculation.",
+    "- The headline captures the immediate development, but not the full meaning of the story.",
+    "- Early reporting is most useful when readers pair it with context and follow-up confirmation.",
+    "- Public reaction often moves faster than reliable interpretation.",
+    "- The strongest reading of the story usually comes from consequence, not from drama alone.",
+    "- Nigerian readers should look for the local effect, not only the international framing.",
+    "- Source visibility matters because it helps readers check claims rather than inherit assumptions.",
+    "",
+    `Those facts matter because they protect readers from one of the biggest problems in modern news consumption: acting too quickly on incomplete context. A better habit is to separate the clearly reported point from the layer of opinion, fear, celebration, or speculation that forms around it.`,
+    "",
+    `That habit does not slow understanding down in a harmful way. It strengthens it. Readers become better at spotting signal, recognising uncertainty honestly, and deciding what deserves close attention over the next few hours or days.`,
     "",
     "## Why this matters for Nigeria",
     "",
-    nigeriaImpactLine,
+    `${nigeriaReaderAngle} ${nigeriaReaderAngleAlt}`,
     "",
-    "Even when a story appears foreign or sector-specific, the Nigerian angle can show up through prices, policy thinking, trade exposure, technology access, education pathways, investment sentiment, or public mood.",
+    `Even when the story appears international or sector-specific, the Nigerian effect can show up through transport costs, business planning, education decisions, investor mood, digital access, public conversation, or confidence in the ability of institutions to respond under pressure. That local relevance is what turns a distant update into a story readers should genuinely care about.`,
+    "",
+    `Nigerian readers also benefit from a reading that avoids imported assumptions. A solution, risk, or public reaction that makes sense in another country may land very differently in Nigeria because of cost realities, infrastructure gaps, policy history, or the way information spreads through local networks and social habits.`,
+    "",
+    `That is why local context is not decorative. It is editorially necessary. Without it, readers may understand the headline but still miss the actual significance for life, work, safety, planning, or trust at home.`,
     "",
     "## Wider African and global context",
     "",
-    africaImpactLine,
+    `${africaContextLine} The broader frame helps readers judge whether this story reflects a local disruption, a regional pattern, or a global pressure point with longer consequences.`,
     "",
-    "Global comparison can also help readers judge whether the issue reflects a local disruption, a regional pattern, or a broader international trend with wider consequences.",
+    `A wider lens is useful because it reduces both panic and narrowness. Some stories deserve close attention because they reveal a deeper international trend. Others become overstated because the same reactions echo across platforms without adding much evidence. Comparing the local angle with the broader pattern helps readers see which kind of story they are dealing with.`,
+    "",
+    `This approach also improves judgment about what happens next. When readers understand how similar developments have affected other places, they become better at interpreting official statements, market responses, public mood, and the kinds of changes that may follow after the first round of headlines.`,
     "",
     "## Expert insight and practical implications",
     "",
-    "The deeper issue is usually not the headline alone, but the pressure around it. Readers should ask whether the development points to a structural problem, a temporary disruption, or a turning point. That question matters because stories with real staying power tend to reveal weakness or change in systems, not just drama in a single moment.",
+    `The strongest editorial reading of this story begins with one question: what pressure does this development expose? In many news events, the headline is only the visible surface. The more important issue is whether the story reveals strain inside markets, institutions, diplomacy, public trust, safety planning, or everyday routines.`,
     "",
-    "For Nigerian readers, analysis becomes useful when it moves from summary to consequence. Does this affect costs, jobs, schools, health decisions, investor confidence, civic trust, or social behaviour? Does it point to a wider regional pattern? Does it expose a gap between public messaging and lived reality? Those are the questions that give the story weight.",
+    `That matters because readers often consume updates at the speed of reaction, not the speed of understanding. A publication earns trust by helping them bridge that gap. Instead of chasing intensity, the article should show where the uncertainty sits, what consequence seems most credible, and why the next official or practical response may matter more than the initial noise.`,
     "",
-    "This is also the point where credibility matters most. Readers are better served by cautious interpretation than exaggerated certainty. Where details are still developing, it is more honest to note what is known, what is disputed, and what must still be confirmed by official statements or clearer evidence.",
+    `For Nigerian readers, the practical layer is especially important. People want to know whether the story changes costs, access, confidence, work decisions, mobility, policy attention, or the behaviour of institutions that affect daily life. When reporting answers those questions clearly, it stops feeling abstract and starts feeling useful.`,
+    "",
+    "### Questions readers should keep in mind",
+    "",
+    "- What part of the story is fully reported, and what part still needs clearer confirmation?",
+    "- Which group feels the effect first: consumers, institutions, markets, workers, students, or families?",
+    "- Does the development point to a short-term disruption or a deeper structural pressure?",
+    "- What local consequence should Nigerian readers watch most closely over the next few updates?",
+    "",
+    `These questions improve judgment because they shift attention from headline heat to practical meaning. That is usually the difference between weak aggregation and a stronger authority-style piece.`,
     "",
     "## What readers should watch next",
     "",
-    "The next stage of the story will likely be shaped by verification, response, and fallout. Readers should watch for updated statements, confirmed figures, policy moves, institutional reaction, market response, or public pressure depending on the category of the story.",
+    `The next phase of the story will likely be shaped by confirmation, response, and consequence. Readers should watch for updated statements, clearer evidence, official reaction, market interpretation, policy movement, or institutional decisions that either strengthen or weaken the first reading of the story.`,
     "",
-    "The strongest follow-up reporting will not just repeat the original headline. It will show what changed after the attention arrived, which institutions responded, and whether the first wave of public interpretation was actually correct.",
+    `They should also pay attention to what changes after the initial attention spike. Strong follow-up reporting will usually show whether the story moved beyond symbolism and produced visible effects on behaviour, confidence, public debate, or operational decisions.`,
+    "",
+    linkedCoverageSentence,
+    "",
+    ...primaryLinks.map((link) => `- ${createMarkdownLink(link)}`),
     "",
     "## Frequently asked questions",
     "",
@@ -519,37 +1012,55 @@ function buildArticleContent(article) {
     "",
     "### Why should readers in Nigeria pay attention?",
     "",
-    nigeriaImpactLine,
+    `${nigeriaReaderAngleAlt}`,
     "",
     "### Does this story have wider African relevance?",
     "",
-    africaImpactLine,
+    `${africaContextLine}`,
     "",
     "### Are all the details fully confirmed yet?",
     "",
-    "Not always. Fast-moving stories often begin with partial information, so readers should watch for verified updates and official clarification.",
+    "Not always. Fast-moving stories often begin with a clear trigger but incomplete context, which is why follow-up reporting and official clarification remain important.",
     "",
-    "### What is the most important fact readers should keep in mind?",
+    "### What is the most useful question readers should ask next?",
     "",
-    "The headline matters, but the practical consequence usually matters more than the first burst of attention.",
+    "They should ask what practical consequence is most likely to follow from the development, and whether later evidence supports the first public interpretation.",
     "",
-    "### Could this development affect prices, jobs, or public policy?",
+    "### Could this development affect prices, jobs, policy, or public confidence?",
     "",
-    "It could, depending on the sector involved. That is why follow-up reporting and official responses are important.",
+    `It could, especially in stories tied to ${impactFocus}. That is why consequence matters more than the first wave of commentary.`,
     "",
-    "### Why do source links matter in stories like this?",
+    "### Why do visible source links matter in coverage like this?",
     "",
-    "They help readers separate verified reporting from recycled claims, speculation, or misleading summaries.",
+    "They help readers distinguish verified reporting from recycled claims, selective summaries, and speculation that may spread faster than evidence.",
     "",
-    "### What should readers watch next?",
+    "### What should readers watch most closely now?",
     "",
-    "Readers should watch for policy changes, institutional response, clearer data, and whether the early reaction is supported by later evidence.",
+    "They should watch for updated reporting, official response, clearer evidence, and signs that the issue is either stabilising, escalating, or taking on broader local consequences.",
     "",
     "## Conclusion",
     "",
-    `${title} is worth following closely because the real value of the story lies in what it changes for readers, institutions, or wider public life. The headline may pull attention first, but the consequence is what gives it lasting meaning.`,
+    `${title} is worth following because the lasting value of the story lies in what it changes for readers, institutions, markets, or public understanding. The headline may attract attention first, but the consequence is what determines whether the development truly matters.`,
+    "",
+    `Century Blog's role is to keep that consequence clear. When readers can see the context, the Nigerian angle, and the most credible next questions in one place, they are better equipped to judge the story on substance instead of noise.`,
     ...sourceSection
   ].join("\n");
+}
+
+function buildArticleContent(article) {
+  const evergreenMode = isEvergreenAuthorityArticle(article);
+  const category = isValidCategory(article?.category) ? article.category : mapTopicToCategory(article);
+  const relatedLinks = Array.isArray(article?._relatedCenturyBlogLinks)
+    ? article._relatedCenturyBlogLinks
+    : Array.isArray(article?._existingPosts)
+      ? buildRelatedLinks(article, article._existingPosts)
+      : [];
+
+  if (evergreenMode) {
+    return buildEvergreenAuthorityContent(article, category, relatedLinks);
+  }
+
+  return buildAuthorityNewsContent(article, category, relatedLinks);
 }
 
 async function fetchJson(url, options = {}) {
@@ -809,6 +1320,192 @@ function withSourceFallback(filteredArticles, allArticles) {
   return allArticles.slice(0, Math.max(1, Math.min(3, allArticles.length)));
 }
 
+function createEmptyNewsCandidateResult(reason = "no-news-slots") {
+  return {
+    candidates: [],
+    diagnostics: {
+      providers: [],
+      totals: {
+        nigeriaRaw: 0,
+        globalRaw: 0,
+        nigeriaQualified: 0,
+        globalQualified: 0,
+        selected: 0
+      },
+      reason
+    }
+  };
+}
+
+function normalizeEvergreenTopic(topic) {
+  const category = isValidCategory(topic?.category) ? topic.category : "daily-gist";
+  const regionFocus = topic?.regionFocus === "global" ? "global" : "nigeria";
+
+  return {
+    title: String(topic?.title || "").trim(),
+    description: String(topic?.description || "").trim(),
+    content: String(topic?.content || "").trim(),
+    sourceName: "",
+    sourceUrl: "",
+    sourceCountry: String(topic?.sourceCountry || (regionFocus === "global" ? "Global" : "Nigeria")).trim(),
+    regionFocus,
+    section: categoryMeta[category]?.label || "Features",
+    autoProvider: EVERGREEN_PROVIDER,
+    autoSourceId: getEvergreenSourceId(topic?.id),
+    mediaUrl: "",
+    mediaType: "image/jpeg",
+    category
+  };
+}
+
+function getPublishedCategorySnapshot(posts = []) {
+  const counts = new Map();
+  const latestTimestamps = new Map();
+
+  for (const post of posts) {
+    if (String(post?.workflowStatus || "published") !== "published") {
+      continue;
+    }
+
+    const category = isValidCategory(post?.category) ? post.category : "daily-gist";
+    counts.set(category, Number(counts.get(category) || 0) + 1);
+
+    const publishedAt = new Date(
+      post?.sitePublishedAt ||
+      post?.publishedAt ||
+      post?.updatedAt ||
+      post?.createdAt ||
+      ""
+    ).getTime();
+
+    if (Number.isFinite(publishedAt) && publishedAt > Number(latestTimestamps.get(category) || 0)) {
+      latestTimestamps.set(category, publishedAt);
+    }
+  }
+
+  return { counts, latestTimestamps };
+}
+
+function pickBalancedEvergreenTopics(topics = [], posts = [], requestedSlots = 0) {
+  if (!Array.isArray(topics) || !topics.length || requestedSlots <= 0) {
+    return [];
+  }
+
+  const { counts, latestTimestamps } = getPublishedCategorySnapshot(posts);
+  const orderedTopics = [...topics].sort((left, right) => {
+    const leftCategory = isValidCategory(left?.category) ? left.category : "daily-gist";
+    const rightCategory = isValidCategory(right?.category) ? right.category : "daily-gist";
+    const countDelta = Number(counts.get(leftCategory) || 0) - Number(counts.get(rightCategory) || 0);
+
+    if (countDelta !== 0) {
+      return countDelta;
+    }
+
+    const leftLatest = Number(latestTimestamps.get(leftCategory) || 0);
+    const rightLatest = Number(latestTimestamps.get(rightCategory) || 0);
+
+    if (leftLatest !== rightLatest) {
+      return leftLatest - rightLatest;
+    }
+
+    if ((left?.regionFocus || "") !== (right?.regionFocus || "")) {
+      return left?.regionFocus === "nigeria" ? -1 : 1;
+    }
+
+    return String(left?.title || "").localeCompare(String(right?.title || ""), "en", { sensitivity: "base" });
+  });
+  const selected = [];
+  const usedCategories = new Set();
+
+  for (const topic of orderedTopics) {
+    if (selected.length >= requestedSlots) {
+      break;
+    }
+
+    const category = isValidCategory(topic?.category) ? topic.category : "daily-gist";
+
+    if (usedCategories.has(category)) {
+      continue;
+    }
+
+    usedCategories.add(category);
+    selected.push(topic);
+  }
+
+  if (selected.length >= requestedSlots) {
+    return selected;
+  }
+
+  for (const topic of orderedTopics) {
+    if (selected.length >= requestedSlots) {
+      break;
+    }
+
+    if (selected.includes(topic)) {
+      continue;
+    }
+
+    selected.push(topic);
+  }
+
+  return selected;
+}
+
+export async function fetchEvergreenAuthorityCandidates(settings = null, options = {}) {
+  const activeSettings = settings || await getAutomationSettings();
+  const evergreenEnabled = activeSettings.evergreenAutoPostingEnabled !== false;
+  const requestedSlots = Math.max(
+    0,
+    Number(options.maxPostsPerRun ?? activeSettings.evergreenPostsPerRun ?? 1)
+  );
+
+  if (!evergreenEnabled || requestedSlots === 0) {
+    return {
+      candidates: [],
+      diagnostics: {
+        enabled: evergreenEnabled,
+        topicBankSize: evergreenAuthorityTopics.length,
+        availableTopics: evergreenAuthorityTopics.length,
+        selected: 0
+      }
+    };
+  }
+
+  const existingPosts = Array.isArray(options.existingPosts) ? options.existingPosts : await getAllPosts();
+  const availableTopics = evergreenAuthorityTopics.filter((topic) => {
+    const normalizedTopic = normalizeEvergreenTopic(topic);
+    return !findSimilarPost(
+      {
+        title: normalizedTopic.title,
+        autoSourceId: normalizedTopic.autoSourceId,
+        type: "auto"
+      },
+      existingPosts
+    );
+  });
+  const selectedTopics = pickBalancedEvergreenTopics(availableTopics, existingPosts, requestedSlots);
+  const nowIso = new Date().toISOString();
+  const candidates = await Promise.all(
+    selectedTopics.map((topic) =>
+      buildCandidate({
+        ...normalizeEvergreenTopic(topic),
+        publishedAt: nowIso,
+        _existingPosts: existingPosts
+      })
+    )
+  );
+
+  return {
+    candidates,
+    diagnostics: {
+      enabled: true,
+      topicBankSize: evergreenAuthorityTopics.length,
+      availableTopics: availableTopics.length,
+      selected: candidates.length
+    }
+  };
+}
+
 function getResponseText(payload) {
   if (typeof payload?.output_text === "string" && payload.output_text.trim()) {
     return payload.output_text.trim();
@@ -861,88 +1558,6 @@ function getAiRewriteProvider() {
 
 function isOpenAiRewriteEnabled() {
   return Boolean(getAiRewriteProvider());
-}
-
-function buildRewriteJsonSchema() {
-  return {
-    type: "object",
-    additionalProperties: false,
-    required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
-    properties: {
-      title: { type: "string" },
-      seoTitle: { type: "string" },
-      metaDescription: { type: "string" },
-      excerpt: { type: "string" },
-      content: { type: "string" },
-      category: {
-        type: "string",
-        enum: ["nigeria", "world", "business", "sports", "tech", "entertainment", "health", "lifestyle", "education", "daily-gist"]
-      },
-      author: { type: "string" },
-      unsplashImages: {
-        type: "object",
-        additionalProperties: false,
-        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3", "supportingImage4"],
-        properties: {
-          featuredImage: {
-            type: "object",
-            additionalProperties: false,
-            required: ["searchQuery", "altText", "filename", "placement"],
-            properties: {
-              searchQuery: { type: "string" },
-              altText: { type: "string" },
-              filename: { type: "string" },
-              placement: { type: "string" }
-            }
-          },
-          supportingImage1: {
-            type: "object",
-            additionalProperties: false,
-            required: ["searchQuery", "altText", "filename", "placement"],
-            properties: {
-              searchQuery: { type: "string" },
-              altText: { type: "string" },
-              filename: { type: "string" },
-              placement: { type: "string" }
-            }
-          },
-          supportingImage2: {
-            type: "object",
-            additionalProperties: false,
-            required: ["searchQuery", "altText", "filename", "placement"],
-            properties: {
-              searchQuery: { type: "string" },
-              altText: { type: "string" },
-              filename: { type: "string" },
-              placement: { type: "string" }
-            }
-          },
-          supportingImage3: {
-            type: "object",
-            additionalProperties: false,
-            required: ["searchQuery", "altText", "filename", "placement"],
-            properties: {
-              searchQuery: { type: "string" },
-              altText: { type: "string" },
-              filename: { type: "string" },
-              placement: { type: "string" }
-            }
-          },
-          supportingImage4: {
-            type: "object",
-            additionalProperties: false,
-            required: ["searchQuery", "altText", "filename", "placement"],
-            properties: {
-              searchQuery: { type: "string" },
-              altText: { type: "string" },
-              filename: { type: "string" },
-              placement: { type: "string" }
-            }
-          }
-        }
-      }
-    }
-  };
 }
 
 function getAiRewriteConfig() {
@@ -1091,7 +1706,13 @@ function getUnexpectedNumericClaims(article, candidateContent) {
   const sourceClaims = extractNumericClaims(
     [article?.title, article?.description, article?.content, article?.sourceName].filter(Boolean).join(" ")
   );
-  const candidateClaims = [...extractNumericClaims(candidateContent)];
+  const candidateClaims = [
+    ...extractNumericClaims(
+      String(candidateContent || "")
+        .replace(/\[[^\]]+]\((?:https?:\/\/|\/)[^)]+\)/gi, " ")
+        .replace(/https?:\/\/\S+/gi, " ")
+    )
+  ];
   return candidateClaims.filter((claim) => !sourceClaims.has(claim));
 }
 
@@ -1355,6 +1976,7 @@ function evaluateCandidateQuality(article, candidate) {
   }
 
   const unexpectedNumericClaims = getUnexpectedNumericClaims(article, content);
+  const evergreenMode = isEvergreenAuthorityArticle(article);
   const suspiciousUnexpectedClaims = unexpectedNumericClaims.filter((claim) =>
     /[%$£€₦]|percent|billion|million|trillion|\bbn\b|\bm\b|\bk\b/i.test(claim)
   );
@@ -1363,7 +1985,7 @@ function evaluateCandidateQuality(article, candidate) {
     reasons.push("unsupported-numeric-claims");
     blockingReasons.push("unsupported-numeric-claims");
     score -= 3;
-  } else if (unexpectedNumericClaims.length >= 3) {
+  } else if (!evergreenMode && unexpectedNumericClaims.length >= 3) {
     reasons.push("too-many-new-numeric-claims");
     blockingReasons.push("too-many-new-numeric-claims");
     score -= 2;
@@ -1400,165 +2022,130 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     };
   }
 
+  const evergreenMode = isEvergreenAuthorityArticle(article);
   const systemPrompt = [
-    "Century Blog is a premium digital publication covering Nigeria and the world through trustworthy, deeply researched journalism and practical explainers.",
-    "Write as a senior journalist, investigations editor, SEO lead, and fact-checking team working together. Never mention AI.",
-    "Return only valid JSON with these keys: title, seoTitle, metaDescription, excerpt, content, category, author, unsplashImages.",
-    "Map the editorial SEO package into the app fields: title, seoTitle, metaDescription, excerpt, category, author, and markdown content.",
-    "Content must be 100% original, written for humans first, SEO second, neutral in tone, fact-led, balanced, and useful.",
-    "Use clear British English. Avoid filler, cliches, hype, clickbait, gossip-heavy framing, and robotic transitions.",
-    "Do not copy or closely paraphrase other sites. Do not invent facts, quotes, reactions, statistics, case studies, workshop details, business figures, or expert opinions.",
-    "Treat the provided source material as the verified reporting pack. Use only claims clearly supported by it. If a detail is uncertain, use cautious wording.",
-    "The final article body must be 2,000 to 3,200 words in Markdown.",
-    "Write short paragraphs of 2 to 4 sentences, varied sentence length, strong flow, and no duplicated ideas.",
-    "The title must be human, trustworthy, search-friendly, and specific. Avoid weak patterns such as 'what it means', 'why ...', 'everything you need to know', 'full story', or 'explained'.",
-    "The seoTitle must remain under 60 characters where realistically possible while still sounding natural and keyword-rich.",
-    "The metaDescription must be 150 to 160 characters and compelling without sensationalism.",
-    "The excerpt must be concise, professional, and suitable for homepage cards.",
-    "Write the content using this exact H2 structure in order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
-    "Inside ## Executive summary, include 3 to 6 bullet points.",
-    "Inside ## Table of contents, include a clean bullet list of the major sections that follow.",
-    "Inside ## Frequently asked questions, provide 8 to 12 concise factual FAQs using ### question headings.",
-    "Every major section must add genuine value through explanation, real-world context, expert-style insight, and practical implications for readers.",
-    "The opening paragraph must answer the core issue quickly and explain why readers should care.",
-    "Include a strong Nigerian perspective where relevant and, when useful, connect the issue to Africa and wider global context.",
-    "Recommend natural internal links within the article body using the provided Century Blog URLs. Add at least 3 internal links when relevant.",
-    "When a real source URL is provided, add a final ## Sources section with at least one Markdown bullet link using the provided source name and URL.",
-    "Use ## for main headings and ### for subheadings where helpful. Use bullet points with -, numbered lists with 1. 2. 3., and never use HTML tags.",
-    "Naturally include the focus keyword in the title, SEO title, meta description, and opening paragraph without keyword stuffing.",
-    "The unsplashImages value must include featuredImage plus supportingImage1, supportingImage2, supportingImage3, and supportingImage4. Each must include searchQuery, altText, filename, and placement.",
-    "Use image search terms that fit a premium editorial article: realistic, practical, and relevant to the subject. Avoid vague generic image suggestions.",
-    "If revision notes are present, repair and expand the existing draft instead of restarting blindly.",
-    "Never leak instructions, prompt wording, or editorial notes into the title, seoTitle, metaDescription, excerpt, or content."
+    "Century Blog is a premium publication for Nigerian and global readers.",
+    "Return only valid JSON with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages.",
+    "Write in clear British English with a human newsroom tone. Be original, neutral, useful, and search-friendly. Never mention AI.",
+    "Avoid clickbait, filler, copied phrasing, invented facts, invented quotes, invented reactions, and unsupported statistics.",
+    evergreenMode
+      ? "Treat the brief as an evergreen authority explainer, not breaking news. Do not pretend there is a single news outlet behind it."
+      : "Use only claims supported by the source brief. If a detail is uncertain, use cautious wording.",
+    "The article body must be two thousand to three thousand two hundred words in Markdown.",
+    "Use this exact H2 order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
+    "Executive summary needs three to six bullet points. FAQ needs eight to twelve ### questions. Add at least three natural internal links from the provided Century Blog URLs. Add ## Sources only when a real source URL is provided.",
+    "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output.",
+    "unsplashImages must include featuredImage, supportingImage1, supportingImage2, supportingImage3, and supportingImage4 with searchQuery, altText, filename, and placement."
   ].join(" ");
 
   const primaryKeyword = buildPrimaryKeyword(article);
   const secondaryKeywords = buildSecondaryKeywords(article, baseCandidate.category);
+  const promptDescription = truncateForPrompt(article.description, 900);
+  const promptSourceContent = truncateForPrompt(article.content, evergreenMode ? 1800 : 2400);
+  const promptCurrentDraft = revisionNotes.length
+    ? truncateForPrompt(baseCandidate.content, 2600)
+    : "";
 
   const userPrompt = JSON.stringify({
     publication: "Century Blog",
+    assignmentType: evergreenMode ? "evergreen authority explainer" : "timely authority news analysis",
     topic: article.title,
     targetAudience: buildTargetAudience(article),
+    category: baseCandidate.category,
+    regionPriority: article.regionFocus,
     primaryKeyword,
     secondaryKeywords,
-    tone: "Professional, clear, engaging, natural",
-    regionPriority: article.regionFocus,
-    suggestedCategory: baseCandidate.category,
-    sourceName: article.sourceName,
-    sourceUrl: article.sourceUrl,
-    sourceCountry: article.sourceCountry,
-    sensitiveTopic: isSensitiveAutoCandidate(article, baseCandidate.category),
-    requiresSourcesSection: Boolean(article.sourceUrl),
     relatedCenturyBlogLinks: relatedLinks,
     categoryWritingRule: getCategoryWritingRule(baseCandidate.category),
     nigeriaRelevance: getNigeriaRelevance(article, baseCandidate.category),
     sourceSummary: buildSourceSummary(article),
-    storyAngleQuestions: [
-      "Why should readers care right now?",
-      "What happened?",
-      "Why does it matter now?",
-      "What does it mean for readers in Nigeria or globally?",
-      "What should readers watch next?"
-    ],
-    factGuardrails: {
-      useOnlySourceBackedSpecifics: true,
-      banInventedMetricsAndNamedExamples: true,
-      preferCautiousWordingWhenEvidenceIsThin: true
-    },
+    sourceName: article.sourceName,
+    sourceUrl: article.sourceUrl,
     title: article.title,
-    description: article.description,
-    sourceContent: article.content,
-    currentDraft: baseCandidate.content,
-    publishedAt: article.publishedAt,
+    description: promptDescription,
+    brief: promptSourceContent,
+    currentDraft: promptCurrentDraft,
     revisionNotes
   });
 
   try {
     const groqFormats =
-      aiConfig.provider === "groq" && groqSupportsStructuredRewrite(aiConfig.model)
-        ? ["structured", "prompt-json"]
-        : aiConfig.provider === "groq"
-          ? ["prompt-json"]
-          : ["default"];
+      aiConfig.provider === "groq"
+        ? ["prompt-json"]
+        : ["default"];
 
     let parsed = null;
-    let lastGroqError = null;
 
     for (const formatMode of groqFormats) {
       const requestBody =
-        aiConfig.provider === "groq" && formatMode === "structured"
+        aiConfig.provider === "groq"
           ? {
               model: aiConfig.model,
-              instructions: systemPrompt,
+              instructions: `${systemPrompt} Return only a valid JSON object with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages. Do not return markdown fences or commentary outside the JSON object.`,
               input: userPrompt,
-              reasoning: {
-                effort: "low"
-              },
-              text: {
-                format: {
-                  type: "json_schema",
-                  name: "century_blog_rewrite",
-                  strict: true,
-                  schema: buildRewriteJsonSchema()
-                }
-              },
-              max_output_tokens: 6800,
-              temperature: 0.35
+              max_output_tokens: 4200,
+              temperature: 0.25
             }
-          : aiConfig.provider === "groq"
-            ? {
-                model: aiConfig.model,
-                instructions: `${systemPrompt} Return only a valid JSON object with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages. Do not return markdown fences or commentary outside the JSON object.`,
-                input: userPrompt,
-                reasoning: {
-                  effort: "low"
+          : {
+              model: aiConfig.model,
+              store: false,
+              input: [
+                {
+                  role: "system",
+                  content: [{ type: "input_text", text: systemPrompt }]
                 },
-                max_output_tokens: 6800,
-                temperature: 0.35
-              }
-            : {
-                model: aiConfig.model,
-                store: false,
-                input: [
-                  {
-                    role: "system",
-                    content: [{ type: "input_text", text: systemPrompt }]
-                  },
-                  {
-                    role: "user",
-                    content: [{ type: "input_text", text: userPrompt }]
-                  }
-                ]
-              };
+                {
+                  role: "user",
+                  content: [{ type: "input_text", text: userPrompt }]
+                }
+              ]
+            };
 
-      const response = await fetch(aiConfig.endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${aiConfig.apiKey}`
-        },
-        body: JSON.stringify(requestBody)
-      });
+      for (let requestAttempt = 0; requestAttempt < 3; requestAttempt += 1) {
+        const response = await fetch(aiConfig.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${aiConfig.apiKey}`
+          },
+          body: JSON.stringify(requestBody)
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
+        if (!response.ok) {
+          const errorText = String(await response.text()).slice(0, 320);
 
-        if (formatMode === "structured" && isGroqStructuredFailure(response.status, errorText)) {
-          lastGroqError = new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
-          console.warn(`[auto-news] ${aiConfig.provider} structured rewrite fallback triggered for ${article.slug || article.title}.`);
-          continue;
+          if (response.status === 429 && requestAttempt < 2) {
+            const waitMs = getRetryDelayFromErrorText(errorText, (requestAttempt + 1) * 15000);
+            console.warn(`[auto-news] ${aiConfig.provider} rewrite rate limited. Waiting ${waitMs}ms before retry ${requestAttempt + 2}.`);
+            await sleep(waitMs);
+            continue;
+          }
+
+          throw new Error(`${aiConfig.provider} rewrite failed with status ${response.status}${errorText ? `: ${errorText}` : ""}`);
         }
 
-        throw new Error(`${aiConfig.provider} rewrite failed with status ${response.status}`);
+        const payload = await response.json();
+
+        try {
+          parsed = extractJsonPayload(getResponseText(payload));
+          break;
+        } catch (error) {
+          if (requestAttempt >= 2) {
+            throw error;
+          }
+
+          console.warn(`[auto-news] ${aiConfig.provider} rewrite returned malformed JSON. Retrying ${requestAttempt + 2}/3.`);
+          await sleep((requestAttempt + 1) * 4000);
+        }
       }
 
-      const payload = await response.json();
-      parsed = extractJsonPayload(getResponseText(payload));
-      break;
+      if (parsed) {
+        break;
+      }
     }
 
     if (!parsed) {
-      throw lastGroqError || new Error(`${aiConfig.provider} rewrite did not return usable content.`);
+      throw new Error(`${aiConfig.provider} rewrite did not return usable content.`);
     }
 
     const category = isValidCategory(parsed.category) ? parsed.category : baseCandidate.category;
@@ -1618,13 +2205,42 @@ async function reviseCandidateWithAi(article, candidate, qualityReport) {
     revisionNotes: [
       "Repair the article so it fully passes the content requirements before publication.",
       `Current quality issues: ${qualityReport.reasons.join(", ")}.`,
-      "Keep the authority structure exact, expand the current draft instead of restarting, and improve originality, usefulness, sourcing visibility, and local relevance without sounding robotic."
+      "Expand the current draft instead of restarting, keep the authority structure exact, and ensure the final article clears two thousand words with stronger section depth.",
+      "Do not add any new number, percentage, currency figure, ranking, date, timeline, or statistic unless it is already supported by the provided source brief.",
+      "Strengthen the introduction, what happened, wider context, expert insight, and what readers should watch next with cautious, useful explanation rather than filler."
     ],
     relatedLinks: candidate?._relatedCenturyBlogLinks || []
   });
 }
 
+function shouldPreferQualityReport(nextReport, currentReport) {
+  if (!currentReport) {
+    return true;
+  }
+
+  if (Boolean(nextReport?.passed) !== Boolean(currentReport?.passed)) {
+    return Boolean(nextReport?.passed);
+  }
+
+  const nextBlockingCount = Array.isArray(nextReport?.blockingReasons) ? nextReport.blockingReasons.length : 0;
+  const currentBlockingCount = Array.isArray(currentReport?.blockingReasons) ? currentReport.blockingReasons.length : 0;
+
+  if (nextBlockingCount !== currentBlockingCount) {
+    return nextBlockingCount < currentBlockingCount;
+  }
+
+  const nextScore = Number(nextReport?.score || 0);
+  const currentScore = Number(currentReport?.score || 0);
+
+  if (nextScore !== currentScore) {
+    return nextScore > currentScore;
+  }
+
+  return Number(nextReport?.wordCount || 0) > Number(currentReport?.wordCount || 0);
+}
+
 async function rewriteCandidateWithAi(article, baseCandidate, relatedLinks = []) {
+  const baseQualityReport = evaluateCandidateQuality(article, baseCandidate);
   const initialCandidate = await generateAiCandidate(article, baseCandidate, { relatedLinks });
   let currentCandidate = initialCandidate;
   let qualityReport = evaluateCandidateQuality(article, initialCandidate);
@@ -1648,34 +2264,60 @@ async function rewriteCandidateWithAi(article, baseCandidate, relatedLinks = [])
     failedAttempts: attemptedRuns.filter((item) => item && item.succeeded === false).length,
     error: successfulRun ? "" : latestAttempt.error || ""
   });
+  let selectedCandidate = currentCandidate;
+  let selectedQualityReport = qualityReport;
+  const shouldUseLocalFallback = !qualityReport.passed && shouldPreferQualityReport(baseQualityReport, qualityReport);
 
-  if (!rewriteMeta.succeeded) {
-    qualityReport = appendQualityReason(qualityReport, "rewrite-required", { blocking: true });
+  if (shouldUseLocalFallback) {
+    selectedCandidate = baseCandidate;
+    selectedQualityReport = baseQualityReport;
+    rewriteMeta.status = rewriteMeta.attempted ? "fallback-local-authority-draft" : "local-authority-draft";
   }
 
-  if (rewriteMeta.attempted && !rewriteMeta.succeeded) {
-    qualityReport = appendQualityReason(qualityReport, "rewrite-failed", { blocking: true });
+  const canPublishWithoutRewrite = selectedQualityReport.passed && rewriteMeta.succeeded;
+
+  if (!rewriteMeta.succeeded && !canPublishWithoutRewrite) {
+    selectedQualityReport = appendQualityReason(selectedQualityReport, "rewrite-required", { blocking: true });
+  }
+
+  if (rewriteMeta.attempted && !rewriteMeta.succeeded && !canPublishWithoutRewrite) {
+    selectedQualityReport = appendQualityReason(selectedQualityReport, "rewrite-failed", { blocking: true });
   }
 
   return {
-    ...currentCandidate,
-    qualityReport,
+    ...selectedCandidate,
+    qualityReport: selectedQualityReport,
     rewriteMeta
   };
 }
 
 async function buildCandidate(article) {
-  const category = mapTopicToCategory(article);
+  const evergreenMode = isEvergreenAuthorityArticle(article);
+  const category = isValidCategory(article?.category) ? article.category : mapTopicToCategory(article);
+  const normalizedTitle = normalizeAuthorityTitle(article?.title, category) || String(article?.title || "").trim();
   const relatedLinks = buildRelatedLinks(article, article._existingPosts || []);
+  const authorityExcerpt = evergreenMode
+    ? createExcerpt(article)
+    : buildAuthorityExcerpt(article, category);
+  const authorityMetaDescription = evergreenMode
+    ? createExcerpt(article)
+    : buildAuthorityMetaDescription(article, category);
+  const authoritySeoTitle = evergreenMode
+    ? normalizedTitle
+    : buildAuthoritySeoTitle(article);
 
   const baseCandidate = {
-    title: article.title,
-    seoTitle: article.title,
-    metaDescription: createExcerpt(article),
-    excerpt: createExcerpt(article),
+    title: normalizedTitle,
+    seoTitle: authoritySeoTitle,
+    metaDescription: authorityMetaDescription,
+    excerpt: authorityExcerpt,
     content: buildArticleContent(article),
     category,
-    author: article.regionFocus === "nigeria" ? "Century Blog Nigeria Desk" : "Century Blog Global Desk",
+    author: isEvergreenAuthorityArticle(article)
+      ? "Century Blog Editorial Team"
+      : article.regionFocus === "nigeria"
+        ? "Century Blog Nigeria Desk"
+        : "Century Blog Global Desk",
     type: "auto",
     sourceName: article.sourceName,
     sourceUrl: article.sourceUrl,
@@ -1689,28 +2331,40 @@ async function buildCandidate(article) {
     imageCreditUrl: article.mediaUrl ? article.sourceUrl : "",
     mediaType: article.mediaType || "image/jpeg",
     publishedAt: article.publishedAt,
-    imageAlt: article.title,
+    imageAlt: normalizedTitle,
     _relatedCenturyBlogLinks: relatedLinks
   };
 
   const rewrittenCandidate = await rewriteCandidateWithAi(article, baseCandidate, relatedLinks);
   const imageQuery = rewrittenCandidate._featuredImageQuery || deriveImageSearchQuery(article, rewrittenCandidate);
   const image = await resolveImage(article, imageQuery);
-  const qualityReport = rewrittenCandidate.qualityReport || evaluateCandidateQuality(article, rewrittenCandidate);
-
-  return {
+  const finalCandidate = {
     ...rewrittenCandidate,
     content: sanitizeGeneratedArticleContent(rewrittenCandidate.content),
     mediaUrl: image.mediaUrl,
     imageCreditName: image.imageCreditName,
-    imageCreditUrl: image.imageCreditUrl,
+    imageCreditUrl: image.imageCreditUrl
+  };
+  const qualityReport = evaluateCandidateQuality(article, finalCandidate);
+
+  return {
+    ...finalCandidate,
     qualityReport,
     rewriteMeta: rewrittenCandidate.rewriteMeta || rewrittenCandidate._aiRewriteMeta || createAiRewriteMeta()
   };
 }
 
-export async function fetchAutomatedNewsCandidates(settings = null) {
+export async function fetchAutomatedNewsCandidates(settings = null, options = {}) {
   const activeSettings = settings || await getAutomationSettings();
+  const maxPostsPerRun = Math.max(
+    0,
+    Number(options.maxPostsPerRun ?? activeSettings.maxPostsPerRun ?? 2)
+  );
+
+  if (maxPostsPerRun === 0) {
+    return createEmptyNewsCandidateResult();
+  }
+
   const [newsApiNigeria, newsApiGlobal, gNewsNigeria, gNewsGlobal] = await Promise.all([
     fetchNewsApiStories("nigeria").catch(() => ({ articles: [], diagnostics: { provider: "newsapi", regionFocus: "nigeria", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } })),
     fetchNewsApiStories("global").catch(() => ({ articles: [], diagnostics: { provider: "newsapi", regionFocus: "global", enabled: true, requests: [{ ok: false, count: 0, error: "request-failed" }] } })),
@@ -1736,9 +2390,12 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
   const selectedArticles = chooseArticles(
     withSourceFallback(filteredNigeriaArticles, nigeriaArticles),
     withSourceFallback(filteredGlobalArticles, globalArticles),
-    activeSettings
+    {
+      ...activeSettings,
+      maxPostsPerRun
+    }
   );
-  const existingPosts = await getPosts();
+  const existingPosts = Array.isArray(options.existingPosts) ? options.existingPosts : await getAllPosts();
   const candidates = await Promise.all(
     selectedArticles.map((article) =>
       buildCandidate({
@@ -1765,6 +2422,11 @@ export async function fetchAutomatedNewsCandidates(settings = null) {
 
 export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const settings = await getAutomationSettings();
+  const totalSlots = Math.max(1, Number(settings.maxPostsPerRun || 2));
+  const evergreenSlots = settings.evergreenAutoPostingEnabled === false
+    ? 0
+    : Math.min(totalSlots, Math.max(0, Number(settings.evergreenPostsPerRun ?? 1)));
+  const newsSlots = Math.max(0, totalSlots - evergreenSlots);
 
   if (!force && !settings.autoPostingEnabled) {
     const skipped = {
@@ -1778,23 +2440,41 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     return skipped;
   }
 
-  const candidateResult = await fetchAutomatedNewsCandidates(settings);
-  const candidates = candidateResult.candidates;
-  const diagnostics = candidateResult.diagnostics;
+  const existingPosts = await getAllPosts();
+  const [evergreenResult, newsResult] = await Promise.all([
+    fetchEvergreenAuthorityCandidates(settings, {
+      existingPosts,
+      maxPostsPerRun: evergreenSlots
+    }),
+    fetchAutomatedNewsCandidates(settings, {
+      existingPosts,
+      maxPostsPerRun: newsSlots
+    })
+  ]);
+  const candidates = [...evergreenResult.candidates, ...newsResult.candidates];
+  const diagnostics = {
+    evergreen: evergreenResult.diagnostics,
+    news: newsResult.diagnostics
+  };
 
   if (!candidates.length) {
-    const providerFailures = diagnostics.providers
+    const providerFailures = (newsResult.diagnostics?.providers || [])
       .flatMap((provider) => provider.requests || [])
       .filter((request) => !request.ok)
       .length;
-    const qualifiedCount = Number(diagnostics.totals?.nigeriaQualified || 0) + Number(diagnostics.totals?.globalQualified || 0);
+    const qualifiedCount =
+      Number(newsResult.diagnostics?.totals?.nigeriaQualified || 0) +
+      Number(newsResult.diagnostics?.totals?.globalQualified || 0);
+    const evergreenAvailable = Number(evergreenResult.diagnostics?.availableTopics || 0);
     const empty = {
       status: "idle",
-      message: providerFailures
-        ? "Automation ran, but the news providers did not return usable stories."
-        : qualifiedCount
-          ? "Automation found stories, but none were selected for publishing."
-          : "Automation ran, but no fresh qualifying articles were available from the configured providers.",
+      message: evergreenSlots > 0 && evergreenAvailable === 0
+        ? "Automation ran, but the evergreen authority topic bank is fully used and no fresh qualifying news stories were available."
+        : providerFailures
+          ? "Automation ran, but the news providers did not return usable stories and no evergreen topic was available to publish."
+          : qualifiedCount
+            ? "Automation found stories, but none were selected for publishing."
+            : "Automation ran, but no fresh qualifying articles or unused evergreen authority topics were available.",
       publishedCount: 0,
       createdPosts: [],
       skippedPosts: [],
@@ -1807,6 +2487,8 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const createdPosts = [];
   const skippedPosts = [];
   const draftedPosts = [];
+  let evergreenPublishedCount = 0;
+  let newsPublishedCount = 0;
 
   for (const candidate of candidates) {
     if (!candidate.qualityReport?.passed) {
@@ -1827,6 +2509,11 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
 
     if (result.created) {
       createdPosts.push(result.post);
+      if (String(candidate.autoProvider || "").trim().toLowerCase() === EVERGREEN_PROVIDER) {
+        evergreenPublishedCount += 1;
+      } else {
+        newsPublishedCount += 1;
+      }
     } else {
       skippedPosts.push({
         title: candidate.title,
@@ -1841,17 +2528,31 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const summary = {
     status: createdPosts.length ? "success" : "idle",
     message: createdPosts.length
-      ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"}.`
+      ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"} (${evergreenPublishedCount} evergreen, ${newsPublishedCount} news).`
       : `Automation ran, but nothing was published. Duplicates: ${duplicateCount}. Drafted for review: ${draftCount}.`,
     publishedCount: createdPosts.length,
     createdPosts,
     draftedPosts,
     skippedPosts,
-    diagnostics
+    diagnostics,
+    evergreenPublishedCount,
+    newsPublishedCount
   };
 
   await markAutomationRun(summary);
   return summary;
+}
+
+export async function runAutomatedNewsIngestionSafely(options = {}) {
+  try {
+    return await runAutomatedNewsIngestion(options);
+  } catch (error) {
+    console.error("[automation] run failed", {
+      message: error?.message || "Automation run failed."
+    });
+    await markAutomationFailure(error, "Automation run failed.").catch(() => undefined);
+    throw error;
+  }
 }
 
 export function getAutomationProviderSummary() {
@@ -1867,7 +2568,8 @@ export function getAutomationProviderSummary() {
     storageReady: isPersistentStorageReady(),
     rewriteProvider: aiConfig?.provider || "",
     rewriteModel: aiConfig?.model || "",
-    openAiModel: OPENAI_REWRITE_MODEL
+    openAiModel: OPENAI_REWRITE_MODEL,
+    evergreenTopicCount: evergreenAuthorityTopics.length
   };
 }
 

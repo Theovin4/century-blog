@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getSiteUrl } from "@/lib/site";
 
 const siteUrl = getSiteUrl();
+const siteHost = new URL(siteUrl).host;
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -12,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/dashboard/", "/api", "/api/"]
       }
     ],
-    sitemap: `${siteUrl}/sitemap.xml`
+    host: siteHost,
+    sitemap: [`${siteUrl}/sitemap.xml`, `${siteUrl}/news-sitemap.xml`]
   };
 }

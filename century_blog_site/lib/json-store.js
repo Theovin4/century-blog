@@ -11,7 +11,7 @@ import {
   writeCloudinaryJson
 } from "@/lib/cloudinary";
 
-const STORE_CACHE_TTL_MS = 5000;
+const STORE_CACHE_TTL_MS = 120000;
 const storeCache = new Map();
 
 function getCacheKey(localFilePath, publicId) {
@@ -42,6 +42,15 @@ function setCachedPayload(cacheKey, value) {
     value: clonePayload(value),
     expiresAt: Date.now() + STORE_CACHE_TTL_MS
   });
+}
+
+async function syncLocalMirror(localFilePath, payload) {
+  try {
+    await fs.mkdir(path.dirname(localFilePath), { recursive: true });
+    await fs.writeFile(localFilePath, JSON.stringify(payload, null, 2), "utf8");
+  } catch {
+    // Ignore mirror sync failures on read-only runtimes.
+  }
 }
 
 function getItemKey(item, index) {
@@ -77,6 +86,10 @@ function getItemTimestamp(item) {
 
 function isPostsStore(publicId, localFilePath) {
   return String(publicId || "").includes("/posts") || /posts\.json$/i.test(String(localFilePath || ""));
+}
+
+function isBuildPhase() {
+  return process.env.NEXT_PHASE === "phase-production-build" || process.env.npm_lifecycle_event === "build";
 }
 
 function isStaleLocalPostsPayload(payload) {
@@ -124,16 +137,19 @@ function mergePayloads(primary, secondary) {
     !Array.isArray(primary) &&
     !Array.isArray(secondary)
   ) {
-    return { ...primary, ...secondary };
+    const preferSecondary = getItemTimestamp(secondary) >= getItemTimestamp(primary);
+    return preferSecondary ? { ...primary, ...secondary } : { ...secondary, ...primary };
   }
 
   return primary ?? secondary;
 }
 
 function normalizeStoreOptions(options) {
+  const deliveryType = String(options?.deliveryType || "upload").trim() || "upload";
   return {
-    deliveryType: String(options?.deliveryType || "upload").trim() || "upload",
-    migrateLegacyUpload: options?.migrateLegacyUpload !== false
+    deliveryType,
+    migrateLegacyUpload: options?.migrateLegacyUpload !== false,
+    cacheBustRemoteRead: options?.cacheBustRemoteRead === true || deliveryType === "authenticated"
   };
 }
 
@@ -146,9 +162,23 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue, opti
     return cached;
   }
 
+  if (publicId && isPostsStore(publicId, localFilePath) && isBuildPhase()) {
+    try {
+      const file = await fs.readFile(localFilePath, "utf8");
+      const parsed = JSON.parse(file);
+      setCachedPayload(cacheKey, parsed);
+      return clonePayload(parsed);
+    } catch {
+      // Fall through to remote storage if the local build mirror is unavailable.
+    }
+  }
+
   if (publicId && isCloudinaryConfigured()) {
     try {
-      let remote = await readCloudinaryJson(publicId, { deliveryType: storeOptions.deliveryType });
+      let remote = await readCloudinaryJson(publicId, {
+        deliveryType: storeOptions.deliveryType,
+        cacheBust: storeOptions.cacheBustRemoteRead
+      });
 
       if (remote === null && storeOptions.deliveryType !== "upload" && storeOptions.migrateLegacyUpload) {
         const legacyRemote = await readCloudinaryJson(publicId, { deliveryType: "upload" });
@@ -167,6 +197,7 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue, opti
 
       if (remote !== null) {
         if (requiresPersistentRemoteStorage()) {
+          await syncLocalMirror(localFilePath, remote);
           setCachedPayload(cacheKey, remote);
           return clonePayload(remote);
         }
@@ -175,9 +206,11 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue, opti
           const file = await fs.readFile(localFilePath, "utf8");
           const local = JSON.parse(file);
           const merged = mergePayloads(remote, local);
+          await syncLocalMirror(localFilePath, merged);
           setCachedPayload(cacheKey, merged);
           return clonePayload(merged);
         } catch {
+          await syncLocalMirror(localFilePath, remote);
           setCachedPayload(cacheKey, remote);
           return clonePayload(remote);
         }

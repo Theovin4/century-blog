@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { filterIndexablePosts } from "@/lib/content-quality";
-import { getPosts } from "@/lib/posts-store";
+import { filterNewsSitemapPosts } from "@/lib/content-quality";
+import { getPostSummaries } from "@/lib/posts-store";
 import { getSiteUrl, normalizeStoredText } from "@/lib/site";
 
 function escapeXml(value) {
@@ -12,7 +12,7 @@ function escapeXml(value) {
     .replace(/'/g, "&apos;");
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 900;
 
 function toIsoDate(value) {
   const date = new Date(value || "");
@@ -33,25 +33,19 @@ function renderNewsUrl(siteUrl, post) {
 
 export async function GET() {
   const siteUrl = getSiteUrl();
-  const cutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
-  const posts = filterIndexablePosts(await getPosts().catch(() => []))
+  const cutoff = Date.now() - (2 * 24 * 60 * 60 * 1000);
+  const posts = filterNewsSitemapPosts(await getPostSummaries().catch(() => []))
     .filter((post) => post?.slug)
     .filter((post) => new Date(post.sitePublishedAt || post.publishedAt || post.updatedAt).getTime() >= cutoff)
     .slice(0, 1000);
 
-  const fallbackPosts = posts.length
-    ? posts
-    : filterIndexablePosts(await getPosts().catch(() => []))
-        .filter((post) => post?.slug)
-        .slice(0, 25);
-
-  const xmlEntries = fallbackPosts.map((post) => renderNewsUrl(siteUrl, post)).join("");
+  const xmlEntries = posts.map((post) => renderNewsUrl(siteUrl, post)).join("");
   const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${xmlEntries}</urlset>`;
 
   return new NextResponse(xml, {
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Cache-Control": "no-store, max-age=0",
+      "Cache-Control": "public, s-maxage=900, stale-while-revalidate=86400",
       "X-Robots-Tag": "index, follow"
     }
   });

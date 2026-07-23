@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { runAutomatedNewsIngestion } from "@/lib/auto-news";
+import { runAutomatedNewsIngestionSafely } from "@/lib/auto-news";
+import { markAutomationFailure } from "@/lib/automation-store";
 import { getPersistentStorageErrorMessage, isPersistentStorageReady } from "@/lib/cloudinary";
 import { getCurrentUser, hasPermission } from "@/lib/editorial";
 import { ensurePostsBackup, publishDueScheduledPosts } from "@/lib/posts-store";
@@ -40,15 +41,29 @@ async function handleRun(request, force = false) {
   }
 
   try {
+    console.info("[automation] run requested", {
+      force,
+      isAdmin,
+      isSecretAllowed
+    });
     const backup = await ensurePostsBackup({ maxAgeHours: 24 });
     const scheduledPublishedCount = await publishDueScheduledPosts();
-    const result = await runAutomatedNewsIngestion({ force: force || isAdmin });
+    const result = await runAutomatedNewsIngestionSafely({ force: force || isAdmin });
+    console.info("[automation] run completed", {
+      status: result?.status || "idle",
+      publishedCount: Number(result?.publishedCount || 0),
+      scheduledPublishedCount
+    });
     return NextResponse.json({
       ...result,
       backup,
       scheduledPublishedCount
     });
   } catch (error) {
+    console.error("[automation] route failed", {
+      message: error?.message || "Automation run failed."
+    });
+    await markAutomationFailure(error, "Automation run failed before publishing.").catch(() => undefined);
     return NextResponse.json({ message: error.message || "Automation run failed." }, { status: 500 });
   }
 }
