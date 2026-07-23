@@ -111,6 +111,16 @@ function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+async function mapSequential(items, mapper) {
+  const results = [];
+
+  for (const item of items) {
+    results.push(await mapper(item));
+  }
+
+  return results;
+}
+
 function getRetryDelayFromErrorText(errorText = "", fallbackMs = 12000) {
   const waitMatch = String(errorText || "").match(/try again in\s+([\d.]+)s/i);
 
@@ -1485,14 +1495,12 @@ export async function fetchEvergreenAuthorityCandidates(settings = null, options
   });
   const selectedTopics = pickBalancedEvergreenTopics(availableTopics, existingPosts, requestedSlots);
   const nowIso = new Date().toISOString();
-  const candidates = await Promise.all(
-    selectedTopics.map((topic) =>
-      buildCandidate({
-        ...normalizeEvergreenTopic(topic),
-        publishedAt: nowIso,
-        _existingPosts: existingPosts
-      })
-    )
+  const candidates = await mapSequential(selectedTopics, (topic) =>
+    buildCandidate({
+      ...normalizeEvergreenTopic(topic),
+      publishedAt: nowIso,
+      _existingPosts: existingPosts
+    })
   );
 
   return {
@@ -2396,13 +2404,11 @@ export async function fetchAutomatedNewsCandidates(settings = null, options = {}
     }
   );
   const existingPosts = Array.isArray(options.existingPosts) ? options.existingPosts : await getAllPosts();
-  const candidates = await Promise.all(
-    selectedArticles.map((article) =>
-      buildCandidate({
-        ...article,
-        _existingPosts: existingPosts
-      })
-    )
+  const candidates = await mapSequential(selectedArticles, (article) =>
+    buildCandidate({
+      ...article,
+      _existingPosts: existingPosts
+    })
   );
 
   return {
@@ -2441,16 +2447,17 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   }
 
   const existingPosts = await getAllPosts();
-  const [evergreenResult, newsResult] = await Promise.all([
-    fetchEvergreenAuthorityCandidates(settings, {
-      existingPosts,
-      maxPostsPerRun: evergreenSlots
-    }),
-    fetchAutomatedNewsCandidates(settings, {
-      existingPosts,
-      maxPostsPerRun: newsSlots
-    })
-  ]);
+  const evergreenResult = await fetchEvergreenAuthorityCandidates(settings, {
+    existingPosts,
+    maxPostsPerRun: evergreenSlots
+  });
+  const postsAfterEvergreen = evergreenResult.candidates.length
+    ? await getAllPosts()
+    : existingPosts;
+  const newsResult = await fetchAutomatedNewsCandidates(settings, {
+    existingPosts: postsAfterEvergreen,
+    maxPostsPerRun: newsSlots
+  });
   const candidates = [...evergreenResult.candidates, ...newsResult.candidates];
   const diagnostics = {
     evergreen: evergreenResult.diagnostics,

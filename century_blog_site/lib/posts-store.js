@@ -361,7 +361,7 @@ async function readPostSummariesSource() {
 
 async function writePostsSource(posts) {
   await writeJsonStore(localFilePath, publicId, normalizeFeaturedPosts(posts).map(sanitizePost));
-  revalidateTag(POSTS_CACHE_TAG);
+  revalidateTag(POSTS_CACHE_TAG, "max");
 }
 
 export async function ensurePostsBackup({ maxAgeHours = 24, force = false } = {}) {
