@@ -287,7 +287,7 @@ export function getIndexingAssessment(postOrSlug) {
     };
   }
 
-  if (isAutoPost && wordCount < 2000) {
+  if (isAutoPost && wordCount < 1800) {
     return {
       indexable: false,
       reason: "auto-post-needs-authority-rewrite",

@@ -19,8 +19,8 @@ const AI_REWRITE_PROVIDER = String(
 
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
-const MIN_ARTICLE_WORDS = 2000;
-const MAX_ARTICLE_WORDS = 3400;
+const MIN_ARTICLE_WORDS = 1800;
+const MAX_ARTICLE_WORDS = 2400;
 const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
   "## Introduction",
@@ -2085,7 +2085,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     evergreenMode
       ? "Treat the brief as an evergreen authority explainer, not breaking news. Do not pretend there is a single news outlet behind it."
       : "Use only claims supported by the source brief. If a detail is uncertain, use cautious wording.",
-    "The article body must be two thousand to three thousand two hundred words in Markdown.",
+    "The article body must be between one thousand eight hundred and two thousand four hundred words in Markdown.",
     "Use this exact H2 order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
     "Executive summary needs three to six bullet points. FAQ needs eight to twelve ### questions. Add at least three natural internal links from the provided Century Blog URLs. Add ## Sources only when a real source URL is provided.",
     "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output.",
@@ -2137,7 +2137,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
               model: aiConfig.model,
               instructions: `${systemPrompt} Return only a valid JSON object with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages. Do not return markdown fences or commentary outside the JSON object.`,
               input: userPrompt,
-              max_output_tokens: 4200,
+              max_output_tokens: 3300,
               temperature: 0.25
             }
           : {
@@ -2155,7 +2155,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
               ]
             };
 
-      for (let requestAttempt = 0; requestAttempt < 3; requestAttempt += 1) {
+      for (let requestAttempt = 0; requestAttempt < 2; requestAttempt += 1) {
         const response = await fetch(aiConfig.endpoint, {
           method: "POST",
           headers: {
@@ -2474,10 +2474,11 @@ export async function fetchAutomatedNewsCandidates(settings = null, options = {}
 
 export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const settings = await getAutomationSettings();
-  const totalSlots = Math.max(1, Number(settings.maxPostsPerRun || 2));
-  const evergreenSlots = settings.evergreenAutoPostingEnabled === false
+  const totalSlots = 1;
+  const isEvergreenDay = new Date().getUTCDate() % 2 === 0;
+  const evergreenSlots = settings.evergreenAutoPostingEnabled === false || !isEvergreenDay
     ? 0
-    : Math.min(totalSlots, Math.max(0, Number(settings.evergreenPostsPerRun ?? 1)));
+    : 1;
   const newsSlots = Math.max(0, totalSlots - evergreenSlots);
 
   if (!force && !settings.autoPostingEnabled) {
@@ -2500,9 +2501,10 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const postsAfterEvergreen = evergreenResult.candidates.length
     ? await getAllPosts()
     : existingPosts;
+  const effectiveNewsSlots = newsSlots || (evergreenSlots > 0 && evergreenResult.candidates.length === 0 ? 1 : 0);
   const newsResult = await fetchAutomatedNewsCandidates(settings, {
     existingPosts: postsAfterEvergreen,
-    maxPostsPerRun: newsSlots
+    maxPostsPerRun: effectiveNewsSlots
   });
   const candidates = [...evergreenResult.candidates, ...newsResult.candidates];
   const diagnostics = {

@@ -10,7 +10,7 @@ const defaultSettings = {
   fetchIntervalHours: 2,
   nigeriaShareTarget: 0.7,
   globalShareTarget: 0.3,
-  maxPostsPerRun: 2,
+  maxPostsPerRun: 1,
   evergreenAutoPostingEnabled: true,
   evergreenPostsPerRun: 1,
   lastRunAt: "",
@@ -27,7 +27,8 @@ function normalizeSettings(settings) {
     fetchIntervalHours: Math.max(1, Number(settings?.fetchIntervalHours || defaultSettings.fetchIntervalHours)),
     nigeriaShareTarget: Number(settings?.nigeriaShareTarget || defaultSettings.nigeriaShareTarget),
     globalShareTarget: Number(settings?.globalShareTarget || defaultSettings.globalShareTarget),
-    maxPostsPerRun: Math.max(1, Number(settings?.maxPostsPerRun || defaultSettings.maxPostsPerRun)),
+    // One authority article per day stays within the rewrite provider's token budget.
+    maxPostsPerRun: 1,
     evergreenAutoPostingEnabled: settings?.evergreenAutoPostingEnabled !== false,
     evergreenPostsPerRun: Math.max(0, Number(settings?.evergreenPostsPerRun ?? defaultSettings.evergreenPostsPerRun)),
     lastRunAt: String(settings?.lastRunAt || ""),
