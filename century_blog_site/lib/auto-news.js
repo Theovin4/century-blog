@@ -20,7 +20,7 @@ const AI_REWRITE_PROVIDER = String(
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
 const MIN_ARTICLE_WORDS = 1800;
-const MAX_ARTICLE_WORDS = 2400;
+const MAX_ARTICLE_WORDS = 2200;
 const MAX_REWRITE_ATTEMPTS = 3;
 const REQUIRED_HEADINGS = [
   "## Introduction",
@@ -2085,7 +2085,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     evergreenMode
       ? "Treat the brief as an evergreen authority explainer, not breaking news. Do not pretend there is a single news outlet behind it."
       : "Use only claims supported by the source brief. If a detail is uncertain, use cautious wording.",
-    "The article body must be between one thousand eight hundred and two thousand four hundred words in Markdown.",
+    "The article body must be between one thousand eight hundred and two thousand two hundred words in Markdown.",
     "Use this exact H2 order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
     "Executive summary needs three to six bullet points. FAQ needs eight to twelve ### questions. Add at least three natural internal links from the provided Century Blog URLs. Add ## Sources only when a real source URL is provided.",
     "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output.",
@@ -2170,7 +2170,8 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                   }
                 }
               },
-              max_output_tokens: 3300,
+              reasoning: { effort: "low" },
+              max_output_tokens: 3800,
               temperature: 0.25
             }
           : {
