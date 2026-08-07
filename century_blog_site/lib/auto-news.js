@@ -2135,8 +2135,41 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
         aiConfig.provider === "groq"
           ? {
               model: aiConfig.model,
-              instructions: `${systemPrompt} Return only a valid JSON object with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages. Do not return markdown fences or commentary outside the JSON object.`,
+              instructions: systemPrompt,
               input: userPrompt,
+              text: {
+                format: {
+                  type: "json_schema",
+                  name: "century_blog_article",
+                  strict: true,
+                  schema: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      seoTitle: { type: "string" },
+                      metaDescription: { type: "string" },
+                      excerpt: { type: "string" },
+                      content: { type: "string" },
+                      category: { type: "string" },
+                      author: { type: "string" },
+                      unsplashImages: {
+                        type: "object",
+                        properties: {
+                          featuredImage: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
+                          supportingImage1: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
+                          supportingImage2: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
+                          supportingImage3: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
+                          supportingImage4: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false }
+                        },
+                        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3", "supportingImage4"],
+                        additionalProperties: false
+                      }
+                    },
+                    required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
+                    additionalProperties: false
+                  }
+                }
+              },
               max_output_tokens: 3300,
               temperature: 0.25
             }
