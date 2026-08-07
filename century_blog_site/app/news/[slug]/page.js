@@ -7,6 +7,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AdPlaceholder } from "@/components/site/AdPlaceholder";
+import { AdSenseScript } from "@/components/site/AdSenseScript";
 import { AudienceGrowthPanel } from "@/components/site/AudienceGrowthPanel";
 import { PostEngagement } from "@/components/site/PostEngagement";
 import { PostShareBar } from "@/components/site/PostShareBar";
@@ -554,6 +555,7 @@ export default async function PostPage({ params }) {
 
   return (
     <main className="page-shell article-shell">
+      {indexingAssessment.indexable ? <AdSenseScript /> : null}
       <article className="article">
         <div className={`article-hero ${post.coverStyle}`}>
           <nav className="article-breadcrumbs" aria-label="Breadcrumb">

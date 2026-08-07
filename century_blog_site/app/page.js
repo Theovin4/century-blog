@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AudienceGrowthPanel } from "@/components/site/AudienceGrowthPanel";
 import { AdPlaceholder } from "@/components/site/AdPlaceholder";
+import { AdSenseScript } from "@/components/site/AdSenseScript";
 import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
@@ -149,6 +150,7 @@ export default async function HomePage({ searchParams }) {
 
   return (
     <main className="page-shell">
+      <AdSenseScript />
       <section className="hero-grid">
         <div className="hero-copy">
           <div className="brand-lockup">

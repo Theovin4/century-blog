@@ -73,7 +73,27 @@ const BOILERPLATE_PATTERNS = [
   /for everyday readers, the practical insight is simple: look for the consequence, not just the noise/i,
   /the clearest takeaway is that .* matters because it combines timing with consequence/i,
   /fast headlines create momentum, but careful reading creates understanding/i,
-  /the smartest way to track this story is to watch for confirmed statements/i
+  /the smartest way to track this story is to watch for confirmed statements/i,
+  /Century Blog's job in an evergreen explainer like this is to slow the subject down/i,
+  /The issue stays relevant because the same pressure appears again and again/i,
+  /Authority is built when readers feel a publication has helped them think more clearly/i,
+  /That is where a stronger explainer becomes useful/i,
+  /A stronger editorial reading of this subject begins with one discipline/i
+];
+const EDITORIAL_INSTRUCTION_PATTERNS = [
+  /^\s*(?:Explain|Cover|Discuss|Explore|Focus on|Guide readers through|Show how|Tie the piece|Keep the (?:piece|article|advice|tone)|Build a reader-first)\b[^\n]{30,}/im,
+  /\b(?:do not invent|return only valid json|revision notes|current quality issues|insert (?:a|the) source|source needed before publication)\b/i,
+  /^\s*#{1,3}\s*(?:Subheading|Heading|Section title)\s*$/im
+];
+const MALFORMED_CONTENT_PATTERNS = [
+  /##\s+Subheading/i,
+  /\bGa significant amounteeting\b/i,
+  /\b(?:lorem ipsum|TBD|TODO|insert here)\b/i,
+  /(?:##\s+Conclusion\s*){2,}/i
+];
+const UNSUPPORTED_AUTHORITY_PATTERNS = [
+  /\*\*(?:economic analysts|policy scholars|industry analysts|financial institutions|policy advisers|experts?)\*\*\s+(?:say|note|argue|stress|suggest|believe|warn)/i,
+  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i
 ];
 const SOURCE_TRUNCATION_PATTERNS = [
   /\[\+\d+\s+chars\]/i,
@@ -247,6 +267,14 @@ function hasInstructionLeakage(value) {
     "revision notes",
     "story angle questions"
   ].some((phrase) => normalized.includes(phrase));
+}
+
+function containsUnsupportedAttribution(article, content) {
+  const sourceMaterial = `${article?.title || ""} ${article?.description || ""} ${article?.content || ""}`;
+
+  return UNSUPPORTED_AUTHORITY_PATTERNS.some((pattern) => (
+    pattern.test(content) && !pattern.test(sourceMaterial)
+  ));
 }
 
 function usesWeakTitlePattern(value) {
@@ -1816,6 +1844,24 @@ function evaluateCandidateQuality(article, candidate) {
     reasons.push("template-boilerplate");
     blockingReasons.push("template-boilerplate");
     score -= 3;
+  }
+
+  if (EDITORIAL_INSTRUCTION_PATTERNS.some((pattern) => pattern.test(content))) {
+    reasons.push("editorial-instruction-leakage");
+    blockingReasons.push("editorial-instruction-leakage");
+    score -= 4;
+  }
+
+  if (MALFORMED_CONTENT_PATTERNS.some((pattern) => pattern.test(content))) {
+    reasons.push("malformed-or-placeholder-content");
+    blockingReasons.push("malformed-or-placeholder-content");
+    score -= 4;
+  }
+
+  if (containsUnsupportedAttribution(article, content)) {
+    reasons.push("unsupported-authority-attribution");
+    blockingReasons.push("unsupported-authority-attribution");
+    score -= 4;
   }
 
   if (SOURCE_TRUNCATION_PATTERNS.some((pattern) => pattern.test(content))) {

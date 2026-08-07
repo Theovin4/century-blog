@@ -1,6 +1,6 @@
 import Script from "next/script";
 import "./globals.css";
-import { ADSENSE_ACCOUNT_META, ADSENSE_SCRIPT_SRC } from "@/lib/adsense";
+import { ADSENSE_ACCOUNT_META } from "@/lib/adsense";
 import { getSiteUrl, socialLinks } from "@/lib/site";
 
 const siteUrl = getSiteUrl();
@@ -122,19 +122,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://pagead2.googlesyndication.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="//pagead2.googlesyndication.com" />
-        <link rel="preconnect" href="https://googleads.g.doubleclick.net" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="//googleads.g.doubleclick.net" />
       </head>
       <body>
-        <Script
-          id="google-adsense"
-          async
-          src={ADSENSE_SCRIPT_SRC}
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
         {gaId ? (
           <>
             <Script

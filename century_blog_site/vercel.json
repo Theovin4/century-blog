@@ -18,10 +18,6 @@
     {
       "path": "/api/automation/run",
       "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/automation/run",
-      "schedule": "0 19 * * *"
     }
   ]
 }

@@ -29,7 +29,30 @@ const TEMPLATE_BODY_PATTERNS = [
   /Century Blog's job in an evergreen explainer like this is to slow the subject down/i,
   /The issue stays relevant because the same pressure appears again and again/i,
   /Authority is built when readers feel a publication has helped them think more clearly/i,
-  /For readers in Nigeria, the practical question is how this issue shapes daily decisions/i
+  /For readers in Nigeria, the practical question is how this issue shapes daily decisions/i,
+  /A stronger evergreen article should correct that by offering practical clarity/i,
+  /That is where a stronger explainer becomes useful/i,
+  /A stronger editorial reading of this subject begins with one discipline/i,
+  /The strongest takeaway is not perfection; it is steadier judgment/i,
+  /That is the goal of this Century Blog explainer/i
+];
+
+const EDITORIAL_INSTRUCTION_PATTERNS = [
+  /^\s*(?:Explain|Cover|Discuss|Explore|Focus on|Guide readers through|Show how|Tie the piece|Keep the (?:piece|article|advice|tone)|Build a reader-first)\b[^\n]{30,}/im,
+  /\b(?:do not invent|return only valid json|revision notes|current quality issues|insert (?:a|the) source|source needed before publication)\b/i,
+  /^\s*#{1,3}\s*(?:Subheading|Heading|Section title)\s*$/im
+];
+
+const MALFORMED_CONTENT_PATTERNS = [
+  /##\s+Subheading/i,
+  /\bGa significant amounteeting\b/i,
+  /\b(?:lorem ipsum|TBD|TODO|insert here)\b/i,
+  /(?:##\s+Conclusion\s*){2,}/i
+];
+
+const UNSUPPORTED_AUTHORITY_PATTERNS = [
+  /\*\*(?:economic analysts|policy scholars|industry analysts|financial institutions|policy advisers|experts?)\*\*\s+(?:say|note|argue|stress|suggest|believe|warn)/i,
+  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i
 ];
 
 const SOURCE_LINK_REQUIRED_PATTERNS = [
@@ -123,6 +146,21 @@ function hasTemplateBody(post) {
   return TEMPLATE_BODY_PATTERNS.some((pattern) => pattern.test(content));
 }
 
+function hasEditorialInstructionLeakage(post) {
+  const content = getRenderableContent(post);
+  return EDITORIAL_INSTRUCTION_PATTERNS.some((pattern) => pattern.test(content));
+}
+
+function hasMalformedContent(post) {
+  const content = getRenderableContent(post);
+  return MALFORMED_CONTENT_PATTERNS.some((pattern) => pattern.test(content));
+}
+
+function hasUnsupportedAuthorityClaims(post) {
+  const content = getRenderableContent(post);
+  return UNSUPPORTED_AUTHORITY_PATTERNS.some((pattern) => pattern.test(content));
+}
+
 function isEvergreenAuthorityPost(post) {
   return String(post?.autoProvider || "").trim().toLowerCase() === "evergreen";
 }
@@ -197,6 +235,30 @@ export function getIndexingAssessment(postOrSlug) {
     return {
       indexable: false,
       reason: "template-boilerplate",
+      wordCount
+    };
+  }
+
+  if (hasEditorialInstructionLeakage(post)) {
+    return {
+      indexable: false,
+      reason: "editorial-instruction-leakage",
+      wordCount
+    };
+  }
+
+  if (hasMalformedContent(post)) {
+    return {
+      indexable: false,
+      reason: "malformed-or-placeholder-content",
+      wordCount
+    };
+  }
+
+  if (hasUnsupportedAuthorityClaims(post)) {
+    return {
+      indexable: false,
+      reason: "unsupported-authority-attribution",
       wordCount
     };
   }
