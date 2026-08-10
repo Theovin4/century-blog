@@ -93,7 +93,10 @@ const MALFORMED_CONTENT_PATTERNS = [
 ];
 const UNSUPPORTED_AUTHORITY_PATTERNS = [
   /\*\*(?:economic analysts|policy scholars|industry analysts|financial institutions|policy advisers|experts?)\*\*\s+(?:say|note|argue|stress|suggest|believe|warn)/i,
-  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i
+  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i,
+  /\b(?:interviews?|surveys?|polling|fieldwork) (?:conducted|commissioned|carried out|undertaken) by Century Blog\b/i,
+  /\b(?:a|the) (?:pilot|study|survey|report|programme|program|initiative)\b[^.\n]{0,120}\b(?:found|reported|showed|recorded|reduced|increased|will launch|is set to launch)\b/i,
+  /\b(?:has|have) signalled plans to launch\b/i
 ];
 const SOURCE_TRUNCATION_PATTERNS = [
   /\[\+\d+\s+chars\]/i,
@@ -2082,6 +2085,8 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     "Return only valid JSON with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages.",
     "Write in clear British English with a human newsroom tone. Be original, neutral, useful, and search-friendly. Never mention AI.",
     "Avoid clickbait, filler, copied phrasing, invented facts, invented quotes, invented reactions, and unsupported statistics.",
+    "Never claim Century Blog conducted interviews, surveys, polling or fieldwork unless that reporting is explicitly present in the source brief. Never invent named programmes, pilots, grants, studies, launch plans or institutional responses.",
+    "Do not introduce any number, percentage, date, monetary amount or demographic claim that is absent from the supplied source material. When evidence is unavailable, omit the claim rather than qualifying or estimating it.",
     evergreenMode
       ? "Treat the brief as an evergreen authority explainer, not breaking news. Do not pretend there is a single news outlet behind it."
       : "Use only claims supported by the source brief. If a detail is uncertain, use cautious wording.",

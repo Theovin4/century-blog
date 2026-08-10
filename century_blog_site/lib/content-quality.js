@@ -52,7 +52,10 @@ const MALFORMED_CONTENT_PATTERNS = [
 
 const UNSUPPORTED_AUTHORITY_PATTERNS = [
   /\*\*(?:economic analysts|policy scholars|industry analysts|financial institutions|policy advisers|experts?)\*\*\s+(?:say|note|argue|stress|suggest|believe|warn)/i,
-  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i
+  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i,
+  /\b(?:interviews?|surveys?|polling|fieldwork) (?:conducted|commissioned|carried out|undertaken) by Century Blog\b/i,
+  /\b(?:a|the) (?:pilot|study|survey|report|programme|program|initiative)\b[^.\n]{0,120}\b(?:found|reported|showed|recorded|reduced|increased|will launch|is set to launch)\b/i,
+  /\b(?:has|have) signalled plans to launch\b/i
 ];
 
 const SOURCE_LINK_REQUIRED_PATTERNS = [
