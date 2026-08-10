@@ -2175,7 +2175,6 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                   }
                 }
               },
-              reasoning: { effort: "low" },
               max_output_tokens: 3800,
               temperature: 0.25
             }
