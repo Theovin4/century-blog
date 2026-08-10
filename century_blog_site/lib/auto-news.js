@@ -2130,7 +2130,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
   try {
     const groqFormats =
       aiConfig.provider === "groq"
-        ? ["prompt-json"]
+        ? ["structured", "prompt-json"]
         : ["default"];
 
     let parsed = null;
@@ -2140,14 +2140,18 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
         aiConfig.provider === "groq"
           ? {
               model: aiConfig.model,
-              instructions: systemPrompt,
+              instructions: formatMode === "prompt-json"
+                ? `${systemPrompt} Return one valid JSON object only, without markdown fences or commentary.`
+                : systemPrompt,
               input: userPrompt,
-              text: {
-                format: {
-                  type: "json_schema",
-                  name: "century_blog_article",
-                  strict: true,
-                  schema: {
+              ...(formatMode === "structured"
+                ? {
+                    text: {
+                      format: {
+                        type: "json_schema",
+                        name: "century_blog_article",
+                        strict: true,
+                        schema: {
                     type: "object",
                     properties: {
                       title: { type: "string" },
@@ -2172,9 +2176,11 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                     },
                     required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
                     additionalProperties: false
+                        }
+                      }
+                    }
                   }
-                }
-              },
+                : {}),
               max_output_tokens: 3800,
               temperature: 0.25
             }
@@ -2205,6 +2211,15 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
 
         if (!response.ok) {
           const errorText = String(await response.text()).slice(0, 320);
+
+          if (
+            formatMode === "structured" &&
+            response.status === 400 &&
+            /json_validate_failed|failed to validate json/i.test(errorText)
+          ) {
+            console.warn("[auto-news] Structured JSON failed. Retrying with plain JSON output.");
+            break;
+          }
 
           if (response.status === 429 && requestAttempt < 2) {
             const waitMs = getRetryDelayFromErrorText(errorText, (requestAttempt + 1) * 15000);
