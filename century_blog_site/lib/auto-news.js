@@ -21,7 +21,8 @@ const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
 const MIN_ARTICLE_WORDS = 1800;
 const MAX_ARTICLE_WORDS = 2200;
-const MAX_REWRITE_ATTEMPTS = 3;
+// Free-tier providers can reliably support one long-form request per scheduled run.
+const MAX_REWRITE_ATTEMPTS = 0;
 const REQUIRED_HEADINGS = [
   "## Introduction",
   "## Executive summary",
@@ -2082,7 +2083,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
   const evergreenMode = isEvergreenAuthorityArticle(article);
   const systemPrompt = [
     "Century Blog is a premium publication for Nigerian and global readers.",
-    "Return only valid JSON with the keys title, seoTitle, metaDescription, excerpt, content, category, author, and unsplashImages.",
+    "Return only valid JSON with the keys title, seoTitle, metaDescription, excerpt, content, category, and author.",
     "Write in clear British English with a human newsroom tone. Be original, neutral, useful, and search-friendly. Never mention AI.",
     "Avoid clickbait, filler, copied phrasing, invented facts, invented quotes, invented reactions, and unsupported statistics.",
     "Never claim Century Blog conducted interviews, surveys, polling or fieldwork unless that reporting is explicitly present in the source brief. Never invent named programmes, pilots, grants, studies, launch plans or institutional responses.",
@@ -2093,8 +2094,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     "The article body must be between one thousand eight hundred and two thousand two hundred words in Markdown.",
     "Use this exact H2 order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
     "Executive summary needs three to six bullet points. FAQ needs eight to twelve ### questions. Add at least three natural internal links from the provided Century Blog URLs. Add ## Sources only when a real source URL is provided.",
-    "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output.",
-    "unsplashImages must include featuredImage, supportingImage1, supportingImage2, supportingImage3, and supportingImage4 with searchQuery, altText, filename, and placement."
+    "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output."
   ].join(" ");
 
   const primaryKeyword = buildPrimaryKeyword(article);
@@ -2160,21 +2160,9 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
                       excerpt: { type: "string" },
                       content: { type: "string" },
                       category: { type: "string" },
-                      author: { type: "string" },
-                      unsplashImages: {
-                        type: "object",
-                        properties: {
-                          featuredImage: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
-                          supportingImage1: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
-                          supportingImage2: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
-                          supportingImage3: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false },
-                          supportingImage4: { type: "object", properties: { searchQuery: { type: "string" }, altText: { type: "string" }, filename: { type: "string" }, placement: { type: "string" } }, required: ["searchQuery", "altText", "filename", "placement"], additionalProperties: false }
-                        },
-                        required: ["featuredImage", "supportingImage1", "supportingImage2", "supportingImage3", "supportingImage4"],
-                        additionalProperties: false
-                      }
+                      author: { type: "string" }
                     },
-                    required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author", "unsplashImages"],
+                    required: ["title", "seoTitle", "metaDescription", "excerpt", "content", "category", "author"],
                     additionalProperties: false
                         }
                       }
