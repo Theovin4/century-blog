@@ -765,7 +765,7 @@ function validateAuthorityRewriteOutput(post, rewritten) {
     metaDescription = buildFallbackMetaDescription(title, content);
   }
 
-  content = ensureRequiredHeadings(post, content, requiredHeadings);
+  content = normalizeMarkdownContent(content);
   words = countWords(content);
 
   for (const heading of requiredHeadings) {
@@ -773,10 +773,6 @@ function validateAuthorityRewriteOutput(post, rewritten) {
       throw new Error(`Rewrite validation failed for ${post.slug}: missing heading ${heading}`);
     }
   }
-
-  ({ content, words } = ensureMinimumAuthorityLength(post, content, words, 2000));
-  content = softenUnsupportedNumericClaims(post, content);
-  words = countWords(content);
 
   if (words < 2000) {
     throw new Error(`Rewrite validation failed for ${post.slug}: article too short at ${words} words`);
@@ -796,6 +792,10 @@ function validateAuthorityRewriteOutput(post, rewritten) {
 
   if (hasInstructionLeakage(content)) {
     throw new Error(`Rewrite validation failed for ${post.slug}: content contains instruction leakage`);
+  }
+
+  if (hasUnsupportedReportingClaims(post, content)) {
+    throw new Error(`Rewrite validation failed for ${post.slug}: unsupported reporting or institutional claims`);
   }
 
   if (!metaDescription || metaDescription.length < 120) {
@@ -864,6 +864,26 @@ const INSTRUCTION_LEAK_PATTERNS = [
   /^image_alt:\s*/im,
   /^content:\s*/im
 ];
+
+const UNSUPPORTED_REPORTING_PATTERNS = [
+  /\b(?:interviews?|surveys?|polling|fieldwork) (?:conducted|commissioned|carried out|undertaken) by Century Blog\b/i,
+  /\b(?:a|the) (?:pilot|study|survey|report|programme|program|initiative)\b[^.\n]{0,120}\b(?:found|reported|showed|recorded|reduced|increased|will launch|is set to launch)\b/i,
+  /\b(?:has|have) signalled plans to launch\b/i,
+  /\b(?:experts|analysts|researchers|officials) (?:say|believe|warn|suggest|agree|note) that\b/i
+];
+
+function hasUnsupportedReportingClaims(post, content = "") {
+  const sourceMaterial = [
+    post?.title,
+    post?.excerpt,
+    post?.content,
+    post?.sourceName
+  ].filter(Boolean).join(" ");
+
+  return UNSUPPORTED_REPORTING_PATTERNS.some((pattern) => (
+    pattern.test(String(content || "")) && !pattern.test(sourceMaterial)
+  ));
+}
 
 function hasInstructionLeakage(value = "") {
   const raw = String(value || "");
@@ -1216,6 +1236,8 @@ async function rewriteWithGroq(post, allPosts) {
     "Return only valid JSON with title, seoTitle, metaDescription, excerpt, imageAlt, and content.",
     "Use clear British English, a human newsroom tone, and preserve factual accuracy.",
     "Do not invent quotes, statistics, interviews, or unverifiable details.",
+    "Never claim Century Blog conducted interviews, surveys, polling or fieldwork unless that reporting is explicitly present in the supplied article.",
+    "Never invent named programmes, pilots, grants, studies, launch plans or institutional responses.",
     "Do not introduce any new number, percentage, money figure, date, age, ranking, duration, or count unless it already appears in the provided material.",
     "Only use specific numbers, examples, reactions, or claims that are supported by the provided material.",
     "If a detail is not confirmed, leave it out or describe it cautiously.",
@@ -1483,8 +1505,12 @@ async function runRewriteMode(posts, args) {
     return;
   }
 
-  const backupUrl = await backupPostsStore(posts);
-  console.log(`Created safety backup: ${backupUrl || "backup-uploaded"}`);
+  if (!args.reportOnly) {
+    const backupUrl = await backupPostsStore(posts);
+    console.log(`Created safety backup: ${backupUrl || "backup-uploaded"}`);
+  } else {
+    console.log("Staging mode: production content will not be changed.");
+  }
 
   const postMap = new Map(posts.map((post) => [post.slug, post]));
   const rewrittenSlugs = new Set();
@@ -1494,6 +1520,18 @@ async function runRewriteMode(posts, args) {
     const post = postMap.get(target.slug);
 
     if (!post) {
+      continue;
+    }
+
+    const hasLinkedSource = Boolean(
+      post.sourceUrl ||
+      (Array.isArray(post.sourceLinks) && post.sourceLinks.some((item) => item?.url))
+    );
+
+    if (isSensitivePost(post) && !hasLinkedSource) {
+      const message = "Sensitive article has no verified source link; rewrite was not attempted.";
+      failures.push({ slug: target.slug, message });
+      console.warn(`Skipping ${target.slug}: ${message}`);
       continue;
     }
 
@@ -1550,6 +1588,17 @@ async function runRewriteMode(posts, args) {
 
   const updatedRows = buildReportRows(updatedPosts.filter((post) => String(post.workflowStatus || "published") === "published"));
   const report = await writeReportFiles(updatedRows, { mode: args.reportOnly ? "rewrite-report-only" : "rewrite", rewrittenSlugs });
+  let stagedPath = "";
+
+  if (args.reportOnly && rewrittenSlugs.size) {
+    await ensureReportsDir();
+    stagedPath = path.join(REPORTS_DIR, `staged-authority-rewrites-${getTimestampStamp()}.json`);
+    const stagedPosts = [...rewrittenSlugs]
+      .map((slug) => postMap.get(slug))
+      .filter(Boolean);
+    await fsp.writeFile(stagedPath, JSON.stringify(stagedPosts, null, 2), "utf8");
+  }
+
   console.log(`Rewrote ${rewrittenSlugs.size} posts.`);
   if (failures.length) {
     console.log(`Skipped ${failures.length} posts after retries failed.`);
@@ -1559,6 +1608,9 @@ async function runRewriteMode(posts, args) {
   }
   console.log(`Markdown report: ${report.markdownPath}`);
   console.log(`JSON report: ${report.jsonPath}`);
+  if (stagedPath) {
+    console.log(`Staged rewrites for editorial review: ${stagedPath}`);
+  }
 }
 
 async function runShowMode(posts, args) {
