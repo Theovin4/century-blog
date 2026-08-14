@@ -3,12 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { formatLongDate, getCategoryMeta, getDisplayMedia, pickFeaturedPost, sortPostsByRecency } from "@/lib/site";
-
-function hasPreferredHeroMedia(post) {
-  const media = getDisplayMedia(post, "feature");
-  return (media.kind === "image" || media.kind === "video") && !media.generated;
-}
+import { formatLongDate, getCategoryMeta, getDisplayMedia, sortPostsByRecency } from "@/lib/site";
 
 function buildRotationPool(posts) {
   const recentPosts = sortPostsByRecency(posts || []).slice(0, 5);
@@ -17,25 +12,11 @@ function buildRotationPool(posts) {
     return [];
   }
 
-  const mediaReadyPosts = recentPosts.filter(hasPreferredHeroMedia);
-  const fallbackPosts = recentPosts.filter((post) => !hasPreferredHeroMedia(post));
-  const primaryPool = mediaReadyPosts.length ? mediaReadyPosts : recentPosts;
-  const manuallyFeatured = primaryPool.find((post) => post.featured) || null;
-
-  if (manuallyFeatured) {
-    return [
-      manuallyFeatured,
-      ...primaryPool.filter((post) => post.slug !== manuallyFeatured.slug),
-      ...fallbackPosts.filter((post) => post.slug !== manuallyFeatured.slug)
-    ];
-  }
-
-  return mediaReadyPosts.length ? [...mediaReadyPosts, ...fallbackPosts] : recentPosts;
+  return recentPosts;
 }
 
 export function FeaturedStoryCarousel({ posts }) {
   const rotationPool = useMemo(() => buildRotationPool(posts), [posts]);
-  const fallbackPost = useMemo(() => pickFeaturedPost(posts), [posts]);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -51,7 +32,7 @@ export function FeaturedStoryCarousel({ posts }) {
   }, [rotationPool.length]);
 
   const safeIndex = rotationPool.length ? index % rotationPool.length : 0;
-  const featuredPost = rotationPool[safeIndex] || fallbackPost;
+  const featuredPost = rotationPool[safeIndex] || null;
 
   if (!featuredPost) {
     return null;
@@ -91,7 +72,7 @@ export function FeaturedStoryCarousel({ posts }) {
           <span className="pill">{getCategoryMeta(featuredPost.category).label}</span>
         </div>
         <p className="muted">
-          {formatLongDate(featuredPost.publishedAt)} | {featuredPost.readTime}
+          {formatLongDate(featuredPost.sitePublishedAt || featuredPost.publishedAt)} | {featuredPost.readTime}
         </p>
         <h2>{featuredPost.title}</h2>
         <p>{featuredPost.excerpt}</p>

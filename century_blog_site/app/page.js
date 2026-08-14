@@ -25,7 +25,7 @@ import {
   toAbsoluteUrl
 } from "@/lib/site";
 
-export const revalidate = 900;
+export const revalidate = 120;
 
 export const metadata = buildPageMetadata({
   title: "Century Blog",
@@ -87,7 +87,7 @@ export default async function HomePage({ searchParams }) {
   const recentPosts = sortPostsByRecency(posts);
   const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
   const visiblePosts = filteredPosts.length ? filteredPosts : recentPosts;
-  const heroPosts = prioritizePosts(visiblePosts).slice(0, 8);
+  const heroPosts = sortPostsByRecency(visiblePosts).slice(0, 5);
   const mostReadPosts = getMostReadPosts(prioritizedPosts, 5);
   const editorPicks = prioritizedPosts.filter((post) => !post.featured).slice(0, 3);
   const secondaryPosts = visiblePosts.slice(0, 18);
