@@ -20,7 +20,7 @@ const AI_REWRITE_PROVIDER = String(
 const NEWS_LOOKBACK_MS = 1000 * 60 * 60 * 72;
 const MIN_SOURCE_SCORE = 4;
 const MIN_ARTICLE_WORDS = 1800;
-const MAX_ARTICLE_WORDS = 2200;
+const MAX_ARTICLE_WORDS = 3200;
 // Free-tier providers can reliably support one long-form request per scheduled run.
 const MAX_REWRITE_ATTEMPTS = 0;
 const REQUIRED_HEADINGS = [
@@ -745,9 +745,13 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `${summaryLine} A fuller account shows why the issue keeps returning, who feels its effects first, and how the consequences can extend beyond the initial concern.`,
     "",
+    `The practical stakes are visible in the choices readers make next. A clear account should help people decide what deserves attention, what can wait, and which warning signs require a more careful response.`,
+    "",
     "## Context and background",
     "",
     `${context} The background matters because evergreen subjects usually sit inside routines, habits, systems, and expectations that have been building for a long time. A reader who understands the pattern can respond better than a reader who only reacts to the loudest moment.`,
+    "",
+    `Seen in that context, the subject is less about a single perfect choice and more about building a dependable process. That distinction helps readers adapt the guidance to their own circumstances rather than copying advice that may not fit.`,
     "",
     "### Why this issue keeps returning",
     "",
@@ -762,6 +766,8 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     `The central development is the underlying reality readers repeatedly encounter. ${coreIssueLine} Similar pressures can return in different forms, so recognising the pattern is more useful than reacting to one isolated moment.`,
     "",
     `That is why readers need more than tips without context. They need to see how the issue develops, why people misread it, what usually makes it worse, and what more careful judgment looks like in practice.`,
+    "",
+    `The turning point usually comes when convenience begins to hide risk or when urgency replaces a sensible check. Recognising that moment early gives readers more options and reduces the chance of an avoidable setback.`,
     "",
     `A typical pattern is easy to recognise. People begin with a real need, a real worry, or a real ambition. They then move too quickly because the environment rewards speed, imitation, or emotional reaction. At that point, weak information becomes more persuasive than careful thinking. The result is a decision that feels reasonable in the moment but becomes costly later.`,
     "",
@@ -784,6 +790,8 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `Good local journalism also helps readers avoid imported assumptions. Advice that sounds sensible in another country may not fit Nigerian realities around cost, infrastructure, public services, social trust, or everyday work patterns. Context turns generic information into useful information.`,
     "",
+    `Readers should therefore test each recommendation against local costs, available services, network reliability, household priorities, and the time required to follow through. A practical option is only useful when it can work under real Nigerian conditions.`,
+    "",
     "## Wider African and global context",
     "",
     `${africaImpactLine} That broader context helps readers avoid a narrow reading of the issue. What looks like a local habit can sometimes reflect a bigger shift in work, media, technology, family life, or consumer behaviour across multiple countries.`,
@@ -791,6 +799,8 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     `Global comparison also helps explain what is structural and what is temporary. Readers should ask whether the issue is being driven by technology change, economic pressure, changing expectations, or a communication problem that appears in many places at once.`,
     "",
     `A wider lens also prevents overreaction. Some issues are genuinely expanding and deserve early attention. Others simply appear bigger because social media accelerates repetition. The job of a careful explainer is to separate those possibilities so readers can keep a balanced view.`,
+    "",
+    `Comparison is most useful when it reveals which lessons travel well and which depend on local conditions. Readers can borrow sound principles from elsewhere while still adjusting the details to fit regulation, infrastructure, culture, and household realities.`,
     "",
     "## Expert insight and practical implications",
     "",
