@@ -664,7 +664,9 @@ function buildAuthorityExcerpt(article, category) {
 function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
   const title = article.title;
   const description = stripHtml(article.description || article.content || article.title);
-  const context = stripHtml(article.content || article.description || article.title);
+  // Editorial topic briefs can begin with imperative instructions. Keep those
+  // instructions out of the reader-facing article and use the public summary.
+  const context = stripHtml(article.description || article.title);
   const nigeriaImpactLine = article.regionFocus === "nigeria"
     ? "For readers in Nigeria, the practical question is how this issue shapes daily decisions, family planning, work, study, safety, spending, or long-term confidence."
     : "For readers in Nigeria, the useful test is whether this wider issue changes daily decisions, costs, opportunities, trust, or access in ways that are easy to miss at first glance.";
@@ -720,9 +722,9 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `${title} matters because it sits at the meeting point between public conversation and practical life. ${introFocusLine} The real value for readers is not only knowing the headline version of the topic, but understanding how it affects decisions people make at home, at work, in school, online, and inside their communities.`,
     "",
-    `${nigeriaImpactLine} Century Blog's job in an evergreen explainer like this is to slow the subject down, remove the noise, and give readers a clearer map of what is really going on.`,
+    `${nigeriaImpactLine} A useful guide should make the choices, trade-offs, and warning signs easier to understand.`,
     "",
-    `That matters because readers rarely encounter issues like this in a calm setting. They often meet them in the middle of busy routines, half-read posts, forwarded messages, pressure from work, or advice from people who sound certain but have not explained the bigger picture properly. A stronger evergreen article should correct that by offering practical clarity, not just a quick reaction.`,
+    `Readers often encounter the issue amid busy routines, half-read posts, forwarded messages, or advice that sounds certain without explaining the full picture. Practical context helps them assess the subject before acting.`,
     "",
     "## Executive summary",
     "",
@@ -741,15 +743,11 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `${title} deserves serious attention because people often underestimate how much apparently ordinary issues shape confidence, planning, and long-term outcomes. When readers only meet a topic through fragments, viral posts, or quick summaries, they may miss the pressure building underneath it.`,
     "",
-    `That is where a stronger explainer becomes useful. ${summaryLine} Instead of treating the subject as background noise, readers need a fuller account of why it keeps showing up, who feels the effect first, and why the consequences often reach further than the original headline suggests.`,
-    "",
-    `The other reason this topic matters is trust. When readers feel confused, rushed, or overloaded, they are more likely to act on weak assumptions. That can lead to wasted money, damaged confidence, avoidable stress, poor planning, or a simple failure to notice what matters most. Clear editorial work reduces that risk by giving readers a framework they can return to even after the immediate conversation changes.`,
+    `${summaryLine} A fuller account shows why the issue keeps returning, who feels its effects first, and how the consequences can extend beyond the initial concern.`,
     "",
     "## Context and background",
     "",
     `${context} The background matters because evergreen subjects usually sit inside routines, habits, systems, and expectations that have been building for a long time. A reader who understands the pattern can respond better than a reader who only reacts to the loudest moment.`,
-    "",
-    `In editorial terms, this topic belongs to a wider conversation about trust, judgment, and everyday resilience. ${categoryAngle} Once that wider frame is visible, the article becomes more than a summary and starts doing the work a strong publication should do.`,
     "",
     "### Why this issue keeps returning",
     "",
@@ -761,13 +759,11 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     "## What happened",
     "",
-    `In an evergreen explainer, the most important development is not a single event but the underlying reality readers keep running into. ${coreIssueLine} The issue stays relevant because the same pressure appears again and again in slightly different forms.`,
+    `The central development is the underlying reality readers repeatedly encounter. ${coreIssueLine} Similar pressures can return in different forms, so recognising the pattern is more useful than reacting to one isolated moment.`,
     "",
     `That is why readers need more than tips without context. They need to see how the issue develops, why people misread it, what usually makes it worse, and what more careful judgment looks like in practice.`,
     "",
     `A typical pattern is easy to recognise. People begin with a real need, a real worry, or a real ambition. They then move too quickly because the environment rewards speed, imitation, or emotional reaction. At that point, weak information becomes more persuasive than careful thinking. The result is a decision that feels reasonable in the moment but becomes costly later.`,
-    "",
-    `That is the point of this explainer section: to make the pattern visible before the pressure peaks. Once readers can name the pattern, they can interrupt it. That is a more useful outcome than simply telling people to be careful after the damage has already started.`,
     "",
     "## Key facts readers should know",
     "",
@@ -780,15 +776,11 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `Those facts matter because they pull the subject away from hype and back toward real usefulness. They also help readers judge future situations with more confidence, which is one of the strongest trust signals any newsroom can offer.`,
     "",
-    `They also help readers recognise the difference between noise and signal. Noise is usually loud, rushed, and emotionally loaded. Signal is calmer, more specific, and easier to test against real life. The more often readers learn to choose signal over noise, the more valuable a publication becomes to them.`,
-    "",
     "## Why this matters for Nigeria",
     "",
     `${nigeriaImpactLine} In Nigeria, many decisions are made under pressure: time pressure, money pressure, family pressure, information pressure, or pressure created by uncertainty. That makes practical, clearly written explainers especially valuable.`,
     "",
     `The Nigerian angle is not an afterthought here. It is central. Readers want to know whether the issue affects transport, digital life, study plans, customer trust, safety, household peace, or confidence in institutions. When journalism answers those questions directly, it becomes genuinely useful instead of decorative.`,
-    "",
-    `That local relevance becomes even more important because many readers navigate several pressures at once. They may be balancing work with side income, school with family expectations, or digital opportunities with unreliable information. A strong Nigerian reading of the topic therefore needs to explain consequences in plain language, not hide them behind abstract commentary.`,
     "",
     `Good local journalism also helps readers avoid imported assumptions. Advice that sounds sensible in another country may not fit Nigerian realities around cost, infrastructure, public services, social trust, or everyday work patterns. Context turns generic information into useful information.`,
     "",
@@ -798,13 +790,11 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `Global comparison also helps explain what is structural and what is temporary. Readers should ask whether the issue is being driven by technology change, economic pressure, changing expectations, or a communication problem that appears in many places at once.`,
     "",
-    `Across Africa, readers often face similar trade-offs: limited time, uneven information quality, strong word-of-mouth influence, and daily pressure to act quickly. That is why patterns that appear in one country often travel well across borders, even when the details look different on the surface.`,
-    "",
     `A wider lens also prevents overreaction. Some issues are genuinely expanding and deserve early attention. Others simply appear bigger because social media accelerates repetition. The job of a careful explainer is to separate those possibilities so readers can keep a balanced view.`,
     "",
     "## Expert insight and practical implications",
     "",
-    `A stronger editorial reading of this subject begins with one discipline: separating the surface signal from the underlying pattern. ${title} is not only about immediate reaction. It is about the systems, habits, and incentives that shape how people respond when they feel rushed, uncertain, hopeful, or distracted.`,
+    `The first discipline is separating the surface signal from the underlying pattern. ${title} concerns the systems, habits, and incentives that shape how people respond when they feel rushed, uncertain, hopeful, or distracted.`,
     "",
     `That insight matters because people often assume a problem will be solved by more attention alone. In reality, better outcomes usually come from better process. Readers need clear checks, calmer judgment, and a habit of asking harder questions before they commit time, trust, attention, or money.`,
     "",
@@ -821,13 +811,9 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "- Write down the practical consequence before committing time, trust, money, or attention.",
     "- Keep simple routines that reduce confusion the next time the same pattern appears.",
     "",
-    `These steps matter because they convert awareness into action. That is where an authority-style article becomes genuinely useful: it helps readers change behaviour, not just nod along with a headline and move on.`,
-    "",
     "## What readers should watch next",
     "",
     `Readers should watch how this issue evolves in everyday settings: online conversations, school decisions, workplace behaviour, family routines, buying habits, or public discussions. The next useful insight often comes from noticing repetition rather than waiting for drama.`,
-    "",
-    `They should also watch whether the people around them are becoming more careful or more reactive. Shifts in group behaviour often reveal whether a topic is being understood properly or merely repeated. When public conversation becomes noisier without becoming clearer, readers should treat that as a signal that more context is still needed.`,
     "",
     `Another useful question is what institutions, platforms, schools, employers, businesses, or communities do next. Strong responses usually involve clearer communication, more transparent expectations, and better habits that reduce avoidable confusion over time.`,
     "",
@@ -887,7 +873,7 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     "That is the goal of this Century Blog explainer: not to overload readers with jargon, but to leave them calmer, better informed, and more capable of spotting what matters the next time the same issue appears in a new form.",
     "",
-    "Authority is built when readers feel a publication has helped them think more clearly, not merely react more quickly. That is why evergreen journalism matters. It keeps paying readers back long after the first moment of attention has passed."
+    "The lasting value is a clearer process readers can use when the same pressure appears again in a different form."
   ].join("\n");
 }
 
