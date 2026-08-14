@@ -747,6 +747,8 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `The practical stakes are visible in the choices readers make next. A clear account should help people decide what deserves attention, what can wait, and which warning signs require a more careful response.`,
     "",
+    `It should also leave readers with a realistic next step they can apply without specialist knowledge, unnecessary expense, or rushed decisions.`,
+    "",
     "## Context and background",
     "",
     `${context} The background matters because evergreen subjects usually sit inside routines, habits, systems, and expectations that have been building for a long time. A reader who understands the pattern can respond better than a reader who only reacts to the loudest moment.`,
