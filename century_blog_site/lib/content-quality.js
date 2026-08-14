@@ -169,7 +169,10 @@ function isEvergreenAuthorityPost(post) {
 }
 
 function requiresSourceLink(post) {
-  const haystack = `${post?.title || ""} ${post?.excerpt || ""} ${getRenderableContent(post)}`;
+  // Related-story titles should not reclassify an otherwise non-sensitive
+  // article. Keep the article's own prose while excluding markdown link labels.
+  const articleContent = getRenderableContent(post).replace(/\[[^\]]+]\([^)]+\)/g, "");
+  const haystack = `${post?.title || ""} ${post?.excerpt || ""} ${articleContent}`;
   const category = String(post?.category || "").toLowerCase();
 
   return (
