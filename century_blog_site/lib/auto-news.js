@@ -810,7 +810,7 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `That insight matters because people often assume a problem will be solved by more attention alone. In reality, better outcomes usually come from better process. Readers need clear checks, calmer judgment, and a habit of asking harder questions before they commit time, trust, attention, or money.`,
     "",
-    `Practical implications follow from that. Readers should slow down, compare information, notice recurring warning signs, and keep simple routines that make better decisions easier. The strongest takeaway is not perfection; it is steadier judgment built through repeatable habits.`,
+    `Practical implications follow from that. Readers should slow down, compare information, notice recurring warning signs, and keep simple routines that make better decisions easier. Progress comes from steadier judgment built through repeatable habits, not from expecting perfect decisions.`,
     "",
     "### What stronger judgment looks like in practice",
     "",
@@ -883,7 +883,7 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     `${title} is worth understanding properly because the deeper pattern matters more than the noisy version people first encounter. When readers can see the warning signs, the local relevance, and the practical consequences clearly, they make stronger decisions.`,
     "",
-    "That is the goal of this Century Blog explainer: not to overload readers with jargon, but to leave them calmer, better informed, and more capable of spotting what matters the next time the same issue appears in a new form.",
+    "The practical result should be a reader who is calmer, better informed, and more capable of spotting what matters when the same issue appears in a new form.",
     "",
     "The lasting value is a clearer process readers can use when the same pressure appears again in a different form."
   ].join("\n");
