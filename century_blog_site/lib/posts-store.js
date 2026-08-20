@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
 import { revalidateTag, unstable_cache } from "next/cache";
-import { cache } from "react";
 import {
   ensureCloudinaryJsonBackup,
   getLatestCloudinaryJsonBackup,
@@ -337,8 +336,6 @@ function buildPostSummary(post) {
   };
 }
 
-const readMemoizedPostsSource = cache(async () => loadPostsSource());
-
 const readCachedPostSummariesSource = unstable_cache(
   async () => {
     const posts = await loadPostsSource();
@@ -352,7 +349,7 @@ const readCachedPostSummariesSource = unstable_cache(
 );
 
 async function readPostsSource() {
-  return readMemoizedPostsSource();
+  return loadPostsSource();
 }
 
 async function readPostSummariesSource() {
