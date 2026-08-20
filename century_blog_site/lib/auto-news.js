@@ -885,6 +885,8 @@ function buildEvergreenAuthorityContent(article, category, relatedLinks = []) {
     "",
     "The practical result should be a reader who is calmer, better informed, and more capable of spotting what matters when the same issue appears in a new form.",
     "",
+    "Readers can return to these checks before making a similar decision, adapting each step to their own priorities, resources, and local circumstances.",
+    "",
     "The lasting value is a clearer process readers can use when the same pressure appears again in a different form."
   ].join("\n");
 }
@@ -2089,7 +2091,7 @@ async function generateAiCandidate(article, baseCandidate, { revisionNotes = [],
     evergreenMode
       ? "Treat the brief as an evergreen authority explainer, not breaking news. Do not pretend there is a single news outlet behind it."
       : "Use only claims supported by the source brief. If a detail is uncertain, use cautious wording.",
-    "The article body must be between one thousand eight hundred and two thousand two hundred words in Markdown.",
+    "The article body must be between one thousand eight hundred and three thousand words in Markdown.",
     "Use this exact H2 order: ## Introduction, ## Executive summary, ## Table of contents, ## Why this story matters, ## Context and background, ## What happened, ## Key facts readers should know, ## Why this matters for Nigeria, ## Wider African and global context, ## Expert insight and practical implications, ## What readers should watch next, ## Frequently asked questions, ## Conclusion.",
     "Executive summary needs three to six bullet points. FAQ needs eight to twelve ### questions. Add at least three natural internal links from the provided Century Blog URLs. Add ## Sources only when a real source URL is provided.",
     "Keep the title specific and trustworthy. Keep the meta description between one hundred and fifty and one hundred and sixty characters. Never leak instructions into the output."
@@ -2392,9 +2394,7 @@ async function buildCandidate(article) {
   const authorityExcerpt = evergreenMode
     ? createExcerpt(article)
     : buildAuthorityExcerpt(article, category);
-  const authorityMetaDescription = evergreenMode
-    ? createExcerpt(article)
-    : buildAuthorityMetaDescription(article, category);
+  const authorityMetaDescription = buildAuthorityMetaDescription(article, category);
   const authoritySeoTitle = evergreenMode
     ? normalizedTitle
     : buildAuthoritySeoTitle(article);
