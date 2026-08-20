@@ -47,7 +47,7 @@ const emptyAutomation = {
   fetchIntervalHours: 2,
   nigeriaShareTarget: 0.7,
   globalShareTarget: 0.3,
-  maxPostsPerRun: 2,
+  maxPostsPerRun: 1,
   evergreenAutoPostingEnabled: true,
   evergreenPostsPerRun: 1,
   lastRunAt: "",
