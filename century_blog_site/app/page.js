@@ -7,7 +7,6 @@ import { FeaturedStoryCarousel } from "@/components/site/FeaturedStoryCarousel";
 import { PostFilters } from "@/components/site/PostFilters";
 import { PostCard } from "@/components/site/PostCard";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { filterIndexablePosts } from "@/lib/content-quality";
 import { getPostSummaries } from "@/lib/posts-store";
 import {
   getActiveCategories,
@@ -82,7 +81,9 @@ function StoryHighlightCard({ post, meta }) {
 export default async function HomePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const query = String(resolvedSearchParams?.q || "").trim();
-  const posts = filterIndexablePosts(await getPostSummaries());
+  // Published stories should remain visible to readers even while a separate
+  // indexing assessment keeps weaker pages out of search sitemaps.
+  const posts = await getPostSummaries();
   const prioritizedPosts = prioritizePosts(posts);
   const recentPosts = sortPostsByRecency(posts);
   const filteredPosts = sortPostsByRecency(filterPosts(recentPosts, { query }));
