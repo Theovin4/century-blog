@@ -2515,10 +2515,6 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   const settings = await getAutomationSettings();
   const totalSlots = 1;
   const isEvergreenDay = new Date().getUTCDate() % 2 === 0;
-  const evergreenSlots = settings.evergreenAutoPostingEnabled === false || !isEvergreenDay
-    ? 0
-    : 1;
-  const newsSlots = Math.max(0, totalSlots - evergreenSlots);
 
   if (!force && !settings.autoPostingEnabled) {
     const skipped = {
@@ -2533,19 +2529,49 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   }
 
   const existingPosts = await getAllPosts();
-  const evergreenResult = await fetchEvergreenAuthorityCandidates(settings, {
-    existingPosts,
-    maxPostsPerRun: evergreenSlots
-  });
-  const postsAfterEvergreen = evergreenResult.candidates.length
-    ? await getAllPosts()
-    : existingPosts;
-  const effectiveNewsSlots = newsSlots || (evergreenSlots > 0 && evergreenResult.candidates.length === 0 ? 1 : 0);
-  const newsResult = await fetchAutomatedNewsCandidates(settings, {
-    existingPosts: postsAfterEvergreen,
-    maxPostsPerRun: effectiveNewsSlots
-  });
-  const candidates = [...evergreenResult.candidates, ...newsResult.candidates];
+  const emptyEvergreenResult = {
+    candidates: [],
+    diagnostics: { provider: EVERGREEN_PROVIDER, availableTopics: 0, selected: 0 }
+  };
+  const emptyNewsResult = createEmptyNewsCandidateResult();
+  let evergreenResult = emptyEvergreenResult;
+  let newsResult = emptyNewsResult;
+
+  // Alternate the preferred format, then use the other format only when the
+  // preferred candidate cannot pass the publication gate. This keeps output
+  // varied without allowing a failed rewrite to leave the daily slot empty.
+  if (isEvergreenDay && settings.evergreenAutoPostingEnabled !== false) {
+    evergreenResult = await fetchEvergreenAuthorityCandidates(settings, {
+      existingPosts,
+      maxPostsPerRun: totalSlots
+    });
+
+    if (!evergreenResult.candidates.some((candidate) => candidate.qualityReport?.passed)) {
+      newsResult = await fetchAutomatedNewsCandidates(settings, {
+        existingPosts,
+        maxPostsPerRun: totalSlots
+      });
+    }
+  } else {
+    newsResult = await fetchAutomatedNewsCandidates(settings, {
+      existingPosts,
+      maxPostsPerRun: totalSlots
+    });
+
+    if (
+      settings.evergreenAutoPostingEnabled !== false &&
+      !newsResult.candidates.some((candidate) => candidate.qualityReport?.passed)
+    ) {
+      evergreenResult = await fetchEvergreenAuthorityCandidates(settings, {
+        existingPosts,
+        maxPostsPerRun: totalSlots
+      });
+    }
+  }
+
+  const candidates = isEvergreenDay
+    ? [...evergreenResult.candidates, ...newsResult.candidates]
+    : [...newsResult.candidates, ...evergreenResult.candidates];
   const diagnostics = {
     evergreen: evergreenResult.diagnostics,
     news: newsResult.diagnostics
@@ -2562,7 +2588,7 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     const evergreenAvailable = Number(evergreenResult.diagnostics?.availableTopics || 0);
     const empty = {
       status: "idle",
-      message: evergreenSlots > 0 && evergreenAvailable === 0
+      message: settings.evergreenAutoPostingEnabled !== false && evergreenAvailable === 0
         ? "Automation ran, but the evergreen authority topic bank is fully used and no fresh qualifying news stories were available."
         : providerFailures
           ? "Automation ran, but the news providers did not return usable stories and no evergreen topic was available to publish."
@@ -2585,6 +2611,10 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
   let newsPublishedCount = 0;
 
   for (const candidate of candidates) {
+    if (createdPosts.length >= totalSlots) {
+      break;
+    }
+
     if (!candidate.qualityReport?.passed) {
       const savedDraft = await saveAutoDraft({
         ...candidate,
