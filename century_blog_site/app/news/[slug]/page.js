@@ -695,7 +695,6 @@ export default async function PostPage({ params }) {
           {internalLinkTargets.length ? (
             <aside className="source-box source-box--internal">
               <span className="eyebrow">Continue Reading</span>
-              <p>Continue with related Century Blog stories, topic pages, and the strongest follow-up coverage connected to this article.</p>
               <ul className="source-box__list">
                 {internalLinkTargets.map((item) => (
                   <li key={`footer-${item.href}`} className="source-box__list-item">
@@ -716,17 +715,16 @@ export default async function PostPage({ params }) {
       <PostEngagement slug={post.slug} initialEngagement={engagement} />
       <PostShareBar post={post} />
       <AudienceGrowthPanel
-        eyebrow="Stay With The Story"
-        title="Get the next important update before it disappears from the timeline"
-        description={`Use the Century Briefing for selected coverage across ${categoryMeta.label.toLowerCase()} and the rest of Century Blog, then continue with stronger follow-up reporting in this topic area.`}
+        eyebrow="Century Briefing"
+        title="Get the next important update"
+        description={`Selected ${categoryMeta.label.toLowerCase()} stories and essential headlines by email.`}
         actions={[
           { href: `/category/${post.category}`, label: `More in ${categoryMeta.label}` },
           internalLinkTargets[2]
-            ? { href: internalLinkTargets[2].href, label: "Read another related story", variant: "secondary" }
-            : { href: "/blog", label: "Browse latest coverage", variant: "secondary" },
-          { href: "/blog", label: "Open the full archive", variant: "secondary" }
+            ? { href: internalLinkTargets[2].href, label: "Related story", variant: "secondary" }
+            : { href: "/blog", label: "Latest stories", variant: "secondary" },
+          { href: "/blog", label: "All stories", variant: "secondary" }
         ]}
-        note="Century Blog focuses on readable follow-up reporting, practical context, and cleaner article journeys for readers on mobile and desktop."
       />
       <SiteFooter showSocial={false} />
 

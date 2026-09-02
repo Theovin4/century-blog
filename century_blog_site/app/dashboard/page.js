@@ -36,14 +36,10 @@ export default async function DashboardPage() {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Admin Dashboard</span>
-              <p className="brand-copy__tag">Manage stories, uploads, and publishing flow</p>
+              <p className="brand-copy__tag">Editorial workspace</p>
             </div>
           </div>
           <h1>Publish to Century Blog</h1>
-          <p>
-            Create new posts, keep the homepage fresh, and manage your editorial flow from one
-            place.
-          </p>
         </div>
 
         {currentUser ? <DashboardShell initialPosts={posts} currentUser={currentUser} /> : <LoginForm />}

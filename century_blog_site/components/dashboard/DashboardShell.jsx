@@ -889,16 +889,16 @@ export function DashboardShell({ initialPosts, currentUser }) {
       const isLivePost = isLiveWorkflowStatus(data.workflowStatus);
       const successText =
         data.workflowStatus === "pending_review"
-          ? "Post submitted for review successfully."
+          ? "Post submitted for review."
           : data.workflowStatus === "draft"
-            ? "Draft saved successfully."
+            ? "Draft saved."
             : data.workflowStatus === "scheduled"
-              ? "Scheduled post saved successfully."
+              ? "Scheduled post saved."
               : data.workflowStatus === "rejected"
                 ? "Post saved as rejected."
                 : isEditing
-                  ? "Post updated successfully."
-                  : "Post published successfully.";
+                  ? "Post updated."
+                  : "Post published.";
       const successPost = data;
 
       if (draft.autoDraftId && data.workflowStatus === "published") {
@@ -922,12 +922,12 @@ export function DashboardShell({ initialPosts, currentUser }) {
             : data.workflowStatus === "draft"
               ? "Draft saved"
               : data.workflowStatus === "scheduled"
-                ? "Post scheduled successfully"
+                ? "Post scheduled"
                 : isLivePost
                   ? isEditing
                     ? "Post updated and live"
                     : "Post published and live"
-                  : "Post saved successfully",
+                  : "Post saved",
         text:
           data.workflowStatus === "pending_review"
             ? "The article is waiting in the approval queue. You can continue writing another piece right away."
@@ -939,7 +939,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                   ? isEditing
                     ? "Your update is saved. Open the post to confirm the final public result, or keep writing another piece right away."
                     : "Your new story is live on the website. You can open it now or continue with a fresh draft immediately."
-                  : "The post was saved successfully.",
+                  : "Post saved.",
         href: isLivePost ? getLivePostPath(successPost) : undefined,
         actionLabel: isLivePost ? "View live post" : undefined
       });
@@ -1024,9 +1024,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
           return post;
         })
       );
-      setMessage("Featured story updated successfully.");
+      setMessage("Featured story updated.");
       setToast({
-        text: "Featured story updated successfully.",
+        text: "Featured story updated.",
         href: getLivePostPath(data),
         actionLabel: "Open featured story"
       });
@@ -1065,8 +1065,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
         href: "/",
         actionLabel: "View homepage"
       });
-      setMessage("Post deleted successfully.");
-      setToast({ text: "Post deleted successfully.", href: "/", actionLabel: "View homepage" });
+      setMessage("Post deleted.");
+      setToast({ text: "Post deleted.", href: "/", actionLabel: "View homepage" });
       await Promise.all([
         refreshOverview().catch(() => undefined),
         refreshUsers().catch(() => undefined),
@@ -1175,7 +1175,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       setPosts((current) => [data, ...current]);
       setAutoDrafts((current) => current.filter((draftItem) => String(draftItem.id) !== String(draftId)));
       setToast({
-        text: "Draft published successfully.",
+        text: "Draft published.",
         href: getLivePostPath(data),
         actionLabel: "View live post"
       });
@@ -1364,9 +1364,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Editorial Overview</span>
-            <h2>Dashboard analytics and review queue</h2>
+            <h2>Overview</h2>
           </div>
-          <p>Track submissions, published output, recent moderation activity, and team performance without leaving the dashboard.</p>
         </div>
           <div className="automation-panel__grid">
             <div className="automation-panel__card">
@@ -1425,9 +1424,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <span className="eyebrow">Automation Control</span>
             <h2>Auto publishing engine</h2>
           </div>
-          <p>
-            Authority evergreen explainers now run morning and evening, while qualifying Nigeria and world updates can still fill the remaining publishing slots.
-          </p>
+          <p>One quality-checked story daily at 08:00 WAT.</p>
         </div>
         <div className="automation-panel__grid">
           <div className="automation-panel__card">
@@ -1456,7 +1453,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </div>
           <div className="automation-panel__card">
             <strong>Schedule</strong>
-            <span>08:00 / 20:00 WAT</span>
+            <span>08:00 WAT daily</span>
           </div>
         </div>
         <div className="automation-panel__providers">
@@ -1498,7 +1495,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             {activeAction === "run-automation" ? "Running now..." : "Run now"}
           </button>
         </div>
-        {!automationLoaded ? <p className="automation-panel__note">Loading automation details...</p> : null}
+        {!automationLoaded ? <p className="automation-panel__note">Loading...</p> : null}
         {automationSettings.lastRunMessage ? <p className="automation-panel__note">{automationSettings.lastRunMessage}</p> : null}
       </section>
       ) : null}
@@ -1508,9 +1505,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Auto Draft Review</span>
-            <h2>Weak auto posts held for review</h2>
+            <h2>Held drafts</h2>
           </div>
-          <p>Anything that fails the stronger quality gate now lands here instead of going live. Review, publish manually, or discard it before your next AdSense submission.</p>
+          <p>Review, publish, or discard drafts that did not pass the quality gate.</p>
         </div>
         <div className="dashboard-post-list">
           {autoDrafts.map((draftItem) => (
@@ -1550,7 +1547,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
               </div>
             </article>
           ))}
-          {!autoDrafts.length ? <p className="empty-state">No weak auto drafts are waiting for review right now.</p> : null}
+          {!autoDrafts.length ? <p className="empty-state">No held drafts.</p> : null}
         </div>
       </section>
       ) : null}
@@ -1560,9 +1557,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Approval Queue</span>
-              <h2>Pending editorial review</h2>
+              <h2>Pending review</h2>
             </div>
-            <p>Moderators can submit drafts here for approval. Admins can open the post in the editor, refine it, and publish when ready.</p>
           </div>
           <div className="dashboard-post-list">
             {pendingReviewPosts.map((post) => (
@@ -1583,7 +1579,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                 </div>
               </article>
             ))}
-            {!pendingReviewPosts.length ? <p className="empty-state">No posts are waiting for approval right now.</p> : null}
+            {!pendingReviewPosts.length ? <p className="empty-state">No posts awaiting approval.</p> : null}
           </div>
         </section>
       ) : null}
@@ -1696,7 +1692,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                 required
               />
               <span className="editor-form__hint">
-                Use Markdown only. Keep one blank line between paragraphs, use ## and ### for headings, avoid HTML tags like &lt;p&gt; or &lt;br&gt;, and use Add image to place images inside the article body. Long-form posts are supported up to {MAX_POST_CONTENT_LENGTH.toLocaleString()} characters.
+                Markdown supported. Use ## for sections and Add image for inline media. Maximum {MAX_POST_CONTENT_LENGTH.toLocaleString()} characters.
               </span>
               <span className="editor-form__hint">
                 Content length: {draft.content.length.toLocaleString()} / {MAX_POST_CONTENT_LENGTH.toLocaleString()} characters
@@ -1707,7 +1703,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
               <div className="editor-live-preview">
                 <div className="editor-live-preview__header">
                   <strong>Live preview</strong>
-                  <span>Markdown renders exactly like the public post page.</span>
+                  <span>Public article format</span>
                 </div>
                 <div className="editor-live-preview__body blog-content">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownPreviewComponents}>{previewContent}</ReactMarkdown>
@@ -1717,7 +1713,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
               <div className="editor-live-preview editor-live-preview--compact">
                 <div className="editor-live-preview__header">
                   <strong>Preview hidden</strong>
-                  <span>Open it only when you want to inspect formatting before posting.</span>
+                  <span>Use Preview to check formatting.</span>
                 </div>
               </div>
             )}
@@ -1740,16 +1736,16 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </label>
 
           <div className="dashboard-warning dashboard-warning--soft">
-            Only title, excerpt, and content are required for the fastest workflow. Century Blog now pre-fills SEO, author, image alt text, tags, and other editorial details automatically. Open advanced settings only when you want to override them.
+            Title, excerpt, and content are required. SEO and editorial details are filled automatically.
           </div>
 
           <section className="editorial-checklist-panel" aria-labelledby="editorial-checklist-title">
             <div className="editorial-checklist-panel__header">
               <div>
                 <span className="eyebrow">Editorial Checklist</span>
-                <h3 id="editorial-checklist-title">Pre-publication quality signals</h3>
+                <h3 id="editorial-checklist-title">Quality check</h3>
               </div>
-              <p>This is a warning-only newsroom checklist. Use it to catch thin copy, missing links, weak metadata, or trust gaps before publishing.</p>
+              <p>Warnings do not block publishing.</p>
             </div>
 
             <div className="editorial-checklist-panel__stats">
@@ -1761,7 +1757,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
             {editorialChecklist.needsAuthorityLength ? (
               <p className="editor-form__hint">
-                This draft reads like an evergreen or authority-style article, so the 1,500-word depth target matters more here than it would for a short news update.
+                Authority articles should reach the 1,500-word depth target.
               </p>
             ) : null}
 
@@ -1794,11 +1790,11 @@ export function DashboardShell({ initialPosts, currentUser }) {
             open={showAdvancedFields}
             onToggle={(event) => setShowAdvancedFields(event.currentTarget.open)}
           >
-            <summary>Advanced SEO, source, and publishing settings</summary>
+            <summary>Advanced settings</summary>
 
             {sourceWarningVisible ? (
               <p className="dashboard-warning">
-                This looks like a sensitive story. Add verified source links where available so the published article carries stronger trust and sourcing.
+                Sensitive topic: add verified sources where available.
               </p>
             ) : null}
 
@@ -1951,7 +1947,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </label>
 
           <p className="editor-form__hint">
-            Upload one featured image or video. Images can be up to 8MB and videos up to 20MB. If you skip media, Century Blog will generate a branded cover so the post still looks complete across the homepage and article page.
+            Images: 8MB maximum. Videos: 20MB maximum. A branded cover is generated when no media is uploaded.
           </p>
 
           {previewUrl ? (
@@ -2004,11 +2000,6 @@ export function DashboardShell({ initialPosts, currentUser }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>{isAdmin ? "Editorial posts" : "Your posts"}</h2>
-            <p>
-              {isAdmin
-                ? "Review, edit, feature, and manage published, drafted, and submitted stories here. Auto-fetched posts remain clearly labelled."
-                : "Create, update, and track your own drafts and submissions here."}
-            </p>
           </div>
 
           <div className="filter-bar__chips filter-bar__chips--secondary">
@@ -2108,7 +2099,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
               </article>
               );
             })}
-            {!visiblePosts.length ? <p className="empty-state">No posts matched this dashboard filter.</p> : null}
+            {!visiblePosts.length ? <p className="empty-state">No posts found.</p> : null}
           </div>
         </aside>
       </div>
@@ -2118,9 +2109,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Moderator Management</span>
-              <h2>Team accounts and permissions</h2>
+              <h2>Team</h2>
             </div>
-            <p>Create, update, suspend, or soft-disable editorial accounts while keeping the super admin protected.</p>
           </div>
 
           <form className="editor-form" onSubmit={handleUserSubmit}>
@@ -2175,7 +2165,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
           </form>
 
           <div className="dashboard-post-list">
-            {!usersLoaded ? <p className="empty-state">Loading team accounts...</p> : null}
+            {!usersLoaded ? <p className="empty-state">Loading...</p> : null}
             {usersLoaded ? users.map((user) => (
               <article key={user.id} className="dashboard-post-card">
                 <div className="dashboard-post-card__labels">
@@ -2205,9 +2195,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Activity Log</span>
-              <h2>Moderator and admin activity</h2>
+              <h2>Activity</h2>
             </div>
-            <p>Search recent logins, article updates, approvals, role changes, and other editorial actions.</p>
           </div>
           <div className="editor-form__split">
             <label>
@@ -2221,7 +2210,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             </div>
           </div>
           <div className="dashboard-post-list">
-            {!logsLoaded ? <p className="empty-state">Activity logs load only when requested, so the dashboard opens faster.</p> : null}
+            {!logsLoaded ? <p className="empty-state">Load logs to view recent activity.</p> : null}
             {logsLoaded ? activityLogs.map((log) => (
               <article key={log.id} className="dashboard-post-card">
                 <div className="dashboard-post-card__labels">
@@ -2234,7 +2223,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                 </p>
               </article>
             )) : null}
-            {logsLoaded && !activityLogs.length ? <p className="empty-state">No activity logs matched your search yet.</p> : null}
+            {logsLoaded && !activityLogs.length ? <p className="empty-state">No activity found.</p> : null}
           </div>
         </section>
       ) : null}

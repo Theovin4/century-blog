@@ -37,8 +37,8 @@ export function NewsletterForm() {
     startTransition(() => {
       setMessage(
         data.destination === "substack"
-          ? "Subscription captured and forwarded to Century Blog on Substack."
-          : "You have been added to the Century Briefing list."
+          ? "Subscription confirmed on Substack."
+          : "You're subscribed."
       );
     });
   }
@@ -53,7 +53,7 @@ export function NewsletterForm() {
       {error ? <p className="form-error">{error}</p> : null}
       <div className="stack-form__actions">
         <button type="submit" className="button button-primary" disabled={isPending}>
-          {isPending ? "Saving..." : "Join Century Briefing"}
+          {isPending ? "Subscribing..." : "Subscribe"}
         </button>
         {substackUrl ? (
           <a href={substackUrl} target="_blank" rel="noreferrer" className="button button-secondary">

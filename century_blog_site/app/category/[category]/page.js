@@ -140,23 +140,8 @@ export default async function CategoryPage({ params, searchParams }) {
         </Link>
         <span className="eyebrow">Category</span>
         <h1 className="category-page__title">{meta.label}</h1>
-        <p className="hero-text">
-          {meta.description} Explore recent Century Blog reporting, analysis, and practical context across {meta.label.toLowerCase()} stories in one organised archive.
-        </p>
-        <div className="category-summary-grid">
-          <div className="category-summary-card">
-            <span className="pill">Coverage</span>
-            <p>{filteredPosts.length} indexable stories are currently available in this section.</p>
-          </div>
-          <div className="category-summary-card">
-            <span className="pill">Browse</span>
-            <p>Use the filters below to refine recent stories without leaving the public category archive.</p>
-          </div>
-          <div className="category-summary-card">
-            <span className="pill">Latest</span>
-            <p>Fresh articles are shown in clean publishing order so readers and search engines can find the newest strong coverage quickly.</p>
-          </div>
-        </div>
+        <p className="hero-text">{meta.description}</p>
+        <p className="muted">{filteredPosts.length} stories</p>
       </section>
 
       <PostFilters
@@ -171,9 +156,8 @@ export default async function CategoryPage({ params, searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Top Stories</span>
-              <h2>Featured coverage in {meta.label}</h2>
+              <h2>Featured in {meta.label}</h2>
             </div>
-            <p>These are the most valuable stories currently leading this section.</p>
           </div>
           <div className="article-related__links">
             {featuredPosts.map((post) => (
@@ -193,10 +177,10 @@ export default async function CategoryPage({ params, searchParams }) {
           ))}
         </div>
         {filteredPosts.length === 0 ? (
-          <p className="empty-state">No posts matched this category filter yet.</p>
+          <p className="empty-state">No stories found.</p>
         ) : null}
         {!paginatedPosts.length && featuredPosts.length ? (
-          <p className="empty-state">This section is currently led by the featured stories above.</p>
+          <p className="empty-state">See the featured stories above.</p>
         ) : null}
         {listPosts.length > pageSize ? (
           <div className="pagination-row">
@@ -223,16 +207,15 @@ export default async function CategoryPage({ params, searchParams }) {
 
       <AudienceGrowthPanel
         eyebrow={`${meta.label} Updates`}
-        title={`Stay on top of ${meta.label.toLowerCase()} stories without checking back all day`}
-        description={`Use the Century Briefing to follow stronger ${meta.label.toLowerCase()} coverage, then move into related reporting through the main blog archive and today's homepage headlines.`}
+        title={`Get ${meta.label.toLowerCase()} updates`}
+        description="Selected stories delivered by email."
         actions={[
           featuredPosts[0]
-            ? { href: `/news/${featuredPosts[0].slug}`, label: "Read the lead story" }
-            : { href: "/", label: "See home headlines" },
-          { href: "/blog", label: "Browse latest coverage", variant: "secondary" },
-          { href: "/", label: "Return to homepage", variant: "secondary" }
+            ? { href: `/news/${featuredPosts[0].slug}`, label: "Read lead story" }
+            : { href: "/", label: "Home" },
+          { href: "/blog", label: "All stories", variant: "secondary" },
+          { href: "/", label: "Home", variant: "secondary" }
         ]}
-        note={`This section is organised to help readers and search engines find stronger ${meta.label.toLowerCase()} coverage quickly.`}
       />
 
       <SiteFooter />

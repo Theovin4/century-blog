@@ -29,12 +29,9 @@ export default async function BlogPage({ searchParams }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Blog</span>
-            <h1>Latest stories from Century Blog</h1>
+            <h1>Latest stories</h1>
           </div>
-          <p>
-            Explore the stronger public archive of Century Blog stories across Nigeria, world,
-            business, sports, technology, entertainment, health, lifestyle, education, and daily gist.
-          </p>
+          <p>News, analysis, and practical explainers from Century Blog.</p>
         </div>
 
         <div style={{ display: "grid", gap: "1rem" }}>
@@ -53,7 +50,7 @@ export default async function BlogPage({ searchParams }) {
           ))}
         </div>
         {visiblePosts.length === 0 ? (
-          <p className="empty-state">No indexable stories are available in the public archive yet.</p>
+          <p className="empty-state">No stories available.</p>
         ) : null}
         {posts.length > pageSize ? (
           <div className="pagination-row">
@@ -78,15 +75,14 @@ export default async function BlogPage({ searchParams }) {
         ) : null}
       </section>
       <AudienceGrowthPanel
-        eyebrow="Reader Growth"
-        title="Follow Century Blog beyond a single visit"
-        description="Get the Century Briefing for selected Nigeria and global updates, then keep exploring through the homepage, key sections, and the strongest recent stories."
+        eyebrow="Century Briefing"
+        title="Get selected stories by email"
+        description="Nigeria and global updates, chosen for relevance."
         actions={[
-          { href: "/", label: "Return to homepage" },
-          { href: "/category/nigeria", label: "Follow Nigeria stories", variant: "secondary" },
-          { href: "/category/sports", label: "Follow sports coverage", variant: "secondary" }
+          { href: "/", label: "Home" },
+          { href: "/category/nigeria", label: "Nigeria", variant: "secondary" },
+          { href: "/category/sports", label: "Sports", variant: "secondary" }
         ]}
-        note="This archive is designed for deeper browsing, cleaner catch-up reading, and stronger internal discovery."
         showSocial
       />
       <SiteFooter />

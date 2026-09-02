@@ -167,18 +167,13 @@ export default async function HomePage({ searchParams }) {
             </div>
             <div className="brand-copy">
               <span className="eyebrow eyebrow-brand">Century Blog</span>
-              <p className="brand-copy__tag">Nigeria-first reporting on world news, business, sports, technology, entertainment, health, lifestyle, and daily gist.</p>
+              <p className="brand-copy__tag">Nigeria-first news and useful global context.</p>
             </div>
           </div>
           <h1>Breaking Nigeria news, global updates, and stories that matter</h1>
-          <div className="hero-highlights" aria-label="Century Blog highlights">
-            <span className="hero-highlight">Breaking Nigeria and world headlines</span>
-            <span className="hero-highlight">Clear business, tech, health, and lifestyle coverage</span>
-            <span className="hero-highlight">Fast mobile-friendly reading experience</span>
-          </div>
           <div className="hero-actions">
             <a href="#latest" className="button button-primary">
-              Read Latest News Now
+              Read latest
             </a>
             <Link href="/about" className="button button-secondary">
               About Century Blog
@@ -193,9 +188,8 @@ export default async function HomePage({ searchParams }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Browse Sections</span>
-            <h2>Follow the topics you care about most</h2>
+            <h2>Browse by topic</h2>
           </div>
-          <p>Jump straight into the sections readers explore most, from Nigeria headlines and business updates to sports, technology, health, lifestyle, and daily gist.</p>
         </div>
         <PostFilters query={query} category="" action="/" categories={activeCategories} />
       </section>
@@ -204,9 +198,8 @@ export default async function HomePage({ searchParams }) {
         <div className="section-header">
           <div>
             <span className="eyebrow">Latest Headlines</span>
-            <h2>Latest breaking news and fresh stories</h2>
+            <h2>Latest stories</h2>
           </div>
-          <p>The newest reports and breaking updates from Nigeria and beyond, shown in true publishing order so readers see the freshest stories first.</p>
         </div>
 
         <div className="post-grid">
@@ -215,7 +208,7 @@ export default async function HomePage({ searchParams }) {
           ))}
         </div>
         {secondaryPosts.length === 0 ? (
-          <p className="empty-state">No posts matched your search yet. Try another keyword.</p>
+          <p className="empty-state">No stories found. Try another keyword.</p>
         ) : null}
       </section>
 
@@ -224,9 +217,8 @@ export default async function HomePage({ searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Most Read</span>
-              <h2>Most read stories on Century Blog right now</h2>
+              <h2>Popular with readers</h2>
             </div>
-            <p>The stories drawing the strongest reader attention across the site, from major developments to useful catch-up pieces.</p>
           </div>
           <div className="mini-post-grid">
             {mostReadPosts.map((post) => (
@@ -241,9 +233,8 @@ export default async function HomePage({ searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Editor&apos;s Picks</span>
-              <h2>Selected stories with stronger context and lasting value</h2>
+              <h2>Selected by our editors</h2>
             </div>
-            <p>Handpicked stories worth spending more time on, with sharper reporting, broader context, and clearer reader relevance.</p>
           </div>
           <div className="mini-post-grid">
             {editorPicks.map((post) => (
@@ -258,12 +249,8 @@ export default async function HomePage({ searchParams }) {
           <div className="section-header">
             <div>
               <span className="eyebrow">Major Sections</span>
-              <h2>Stronger coverage across the topics readers search most</h2>
+              <h2>Explore more coverage</h2>
             </div>
-            <p>
-              Explore key Century Blog sections with recent, higher-value stories that help search
-              engines and readers find the clearest coverage first.
-            </p>
           </div>
           <div className="category-spotlight-grid">
             {categorySpotlights.map((section) => (
@@ -297,14 +284,13 @@ export default async function HomePage({ searchParams }) {
 
       <AudienceGrowthPanel
         eyebrow="Century Briefing"
-        title="Get the Century Briefing and stay close to the stories that matter"
-        description="Join the email list for sharper Nigeria headlines, global updates, and selected stories across business, sports, technology, entertainment, health, lifestyle, and education. Then keep up through Century Blog's public channels for breaking developments and follow-up explainers."
+        title="News worth opening"
+        description="Selected Nigeria headlines, global updates, and useful explainers."
         actions={[
-          { href: "/blog", label: "Browse latest coverage" },
-          { href: "/category/nigeria", label: "Follow Nigeria news", variant: "secondary" },
-          { href: "/category/business", label: "Track business updates", variant: "secondary" }
+          { href: "/blog", label: "Browse stories" },
+          { href: "/category/nigeria", label: "Nigeria", variant: "secondary" },
+          { href: "/category/business", label: "Business", variant: "secondary" }
         ]}
-        note="Century Blog is built for readers who want clean navigation, quicker catch-up reading, and stronger context without clutter."
         showSocial
       />
 

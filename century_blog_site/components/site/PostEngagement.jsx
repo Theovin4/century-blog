@@ -333,7 +333,7 @@ export function PostEngagement({ slug, initialEngagement }) {
             </div>
           ) : (
             <div className="comment-empty-state">
-              <p>No comments yet. Be the first to spark the conversation.</p>
+              <p>No comments yet.</p>
             </div>
           )}
         </div>

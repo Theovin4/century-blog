@@ -35,7 +35,7 @@ export function ContactForm() {
 
     event.currentTarget.reset();
     startTransition(() => {
-      setMessage("Message sent successfully. We will reply through your email.");
+      setMessage("Message sent.");
     });
   }
 
