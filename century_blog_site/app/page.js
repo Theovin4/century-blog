@@ -291,7 +291,6 @@ export default async function HomePage({ searchParams }) {
           { href: "/category/nigeria", label: "Nigeria", variant: "secondary" },
           { href: "/category/business", label: "Business", variant: "secondary" }
         ]}
-        showSocial
       />
 
       <SiteFooter />

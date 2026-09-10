@@ -250,5 +250,293 @@ export const evergreenAuthorityTopics = [
     description: "A practical reading and learning explainer for readers who want deeper focus in a media environment built around constant interruption.",
     content: "Cover habit design, attention protection, note taking, reading goals, digital overload, and why slow reading still matters for students and professionals. Keep the piece useful for Nigerian readers who want more knowledge and less distraction.",
     sourceCountry: "Nigeria"
+  },
+  {
+    id: "verify-online-seller-before-payment-nigeria",
+    category: "business",
+    regionFocus: "nigeria",
+    title: "How to Check an Online Seller Before Sending Money in Nigeria",
+    description: "A practical guide to checking seller identity, payment requests, delivery promises, and complaint history before completing an online purchase.",
+    content: "Explain practical checks for social-commerce purchases, including account history, independent reviews, payment pressure, return terms, product evidence, and safe communication. Keep the advice useful for Nigerian buyers without promising that any single check guarantees safety.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "reduce-mobile-data-use-nigeria",
+    category: "tech",
+    regionFocus: "nigeria",
+    title: "How to Reduce Mobile Data Use Without Missing Important Updates",
+    description: "A useful technology guide to controlling background data, downloads, video quality, backups, and app settings on everyday smartphones.",
+    content: "Cover Android and iPhone habits in platform-neutral language, including background refresh, automatic media downloads, cloud backups, hotspot use, and data monitoring. Connect the advice to Nigerian students, workers, and small businesses managing limited data budgets.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "emergency-fund-irregular-income-nigeria",
+    category: "business",
+    regionFocus: "nigeria",
+    title: "How Nigerians With Irregular Income Can Build a Practical Emergency Fund",
+    description: "A cautious personal-finance explainer about creating a financial buffer when income changes from month to month.",
+    content: "Discuss realistic targets, separating business and household money, small automatic habits, access, inflation pressure, and when urgent debt needs take priority. Avoid investment advice, guaranteed outcomes, and rigid formulas; encourage readers to adapt decisions to their circumstances.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "verify-scholarship-opportunities-nigeria",
+    category: "education",
+    regionFocus: "nigeria",
+    title: "How Students Can Verify Scholarship Opportunities Before Applying",
+    description: "A step-by-step education guide to checking scholarship eligibility, official contacts, fees, deadlines, and document requests.",
+    content: "Help Nigerian students distinguish official scholarship information from copied announcements and payment scams. Cover domain checks, institutional confirmation, privacy, application planning, documentation, and what to do when an opportunity cannot be verified.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "football-streaming-safety-nigeria",
+    category: "sports",
+    regionFocus: "nigeria",
+    title: "How Football Fans Can Avoid Risky Streaming Links and Fake Match Updates",
+    description: "A sports and digital-safety guide for fans navigating unofficial streams, misleading score posts, and impersonation accounts.",
+    content: "Explain common streaming traps, notification scams, fake fixtures, account takeovers, and safer ways to confirm match information. Keep the tone lively and useful for Nigerian fans without promoting piracy or unverified services.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "home-food-storage-power-cuts-nigeria",
+    category: "lifestyle",
+    regionFocus: "nigeria",
+    title: "How to Store Food More Safely During Power Cuts in Nigeria",
+    description: "A practical household guide to planning refrigeration, reducing waste, and recognising when stored food may no longer be safe.",
+    content: "Cover refrigerator habits, freezer planning, opening frequency, cooking choices, vulnerable foods, cleanliness, and cautious disposal decisions. Avoid precise medical claims unless supported and advise readers to follow recognised public-health guidance where uncertainty exists.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "spot-fake-event-ticket-nigeria",
+    category: "entertainment",
+    regionFocus: "nigeria",
+    title: "How to Spot Fake Concert and Event Tickets Before You Pay",
+    description: "A practical entertainment guide to checking ticket sellers, event details, payment channels, and suspicious urgency.",
+    content: "Explain official sales channels, duplicate ticket risks, social-media impersonation, venue confirmation, resale caution, and evidence buyers should retain. Keep the examples relevant to Nigerian concerts, festivals, comedy shows, and cultural events.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "understand-exchange-rate-headlines-nigeria",
+    category: "business",
+    regionFocus: "nigeria",
+    title: "How to Read Exchange-Rate Headlines Without Misunderstanding the Naira",
+    description: "A clear business explainer on official rates, market quotes, percentage moves, timing, and why different reports can show different figures.",
+    content: "Teach readers how to interpret exchange-rate reporting, distinguish a daily move from a longer trend, check timestamps, and avoid treating headlines as personal financial advice. Do not forecast rates or invent statistics.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "protect-children-online-privacy-nigeria",
+    category: "tech",
+    regionFocus: "nigeria",
+    title: "How Families Can Protect Children's Privacy on Social Media",
+    description: "A practical guide to safer family sharing, account settings, location clues, school details, and conversations about consent online.",
+    content: "Cover oversharing, photographs, metadata, public profiles, impersonation, school identifiers, family boundaries, and age-appropriate digital education. Keep the tone calm and avoid fear-based claims.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "prepare-first-job-interview-nigeria",
+    category: "education",
+    regionFocus: "nigeria",
+    title: "How Nigerian Graduates Can Prepare for a First Professional Interview",
+    description: "An employment-readiness guide covering research, evidence of skills, interview answers, questions, presentation, and follow-up.",
+    content: "Provide practical preparation for in-person and remote interviews, including company checks, concise examples, portfolio evidence, salary-question caution, connectivity planning, and recognising suspicious recruitment requests.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "compare-phone-specifications-real-use",
+    category: "tech",
+    regionFocus: "global",
+    title: "How to Compare Phone Specifications With What You Actually Need",
+    description: "A plain-language guide to understanding processors, memory, storage, displays, cameras, batteries, updates, and repair support.",
+    content: "Explain where specification numbers help and where they mislead. Use realistic examples for work, school, content creation, gaming, and everyday communication, with buying context relevant to Nigeria and other price-sensitive markets.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "support-local-football-clubs-nigeria",
+    category: "sports",
+    regionFocus: "nigeria",
+    title: "Why Supporting Local Football Clubs Matters Beyond Match Day",
+    description: "A people-focused sports explainer about community identity, youth pathways, local commerce, attendance, and responsible fan culture.",
+    content: "Explore how local clubs connect supporters, vendors, young players, media, and neighbourhood pride. Address the practical barriers fans face and avoid unsupported claims about club finances or attendance.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "manage-notification-overload",
+    category: "lifestyle",
+    regionFocus: "global",
+    title: "How to Reduce Notification Overload Without Becoming Unreachable",
+    description: "A practical guide to setting communication priorities while protecting attention, rest, and focused work.",
+    content: "Cover notification categories, emergency contacts, group chats, work expectations, quiet hours, lock-screen privacy, and gradual habit changes. Keep the advice realistic for workers, students, parents, and business owners.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "read-health-claims-social-media",
+    category: "health",
+    regionFocus: "global",
+    title: "How to Evaluate Health Claims Before Sharing Them Online",
+    description: "A careful media-literacy guide to checking medical claims, miracle language, source quality, evidence, and official guidance.",
+    content: "Explain the difference between personal testimony, early research, professional guidance, and established evidence. Show readers how to check dates and original sources, and clearly state that the article does not replace medical advice.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "understand-inflation-personal-prices",
+    category: "business",
+    regionFocus: "nigeria",
+    title: "Why Your Personal Cost of Living May Feel Different From Inflation Headlines",
+    description: "A plain-language economics explainer about household spending patterns, price baskets, location, substitution, and changes over time.",
+    content: "Explain how official inflation measures and personal experience can differ without suggesting either is automatically false. Use cautious Nigerian examples, avoid invented figures, and help readers interpret reports rather than make investment decisions.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "music-release-credits-rights",
+    category: "entertainment",
+    regionFocus: "global",
+    title: "Why Music Credits Matter to Artists, Producers, and Fans",
+    description: "An accessible entertainment explainer about songwriting, production, performance credits, ownership, attribution, and discovery.",
+    content: "Explain common credit roles without giving legal advice or speculating about individual contracts. Include the relevance of accurate credits for Nigerian artists, producers, collaborators, journalists, and listeners.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "prepare-home-heavy-rain-nigeria",
+    category: "lifestyle",
+    regionFocus: "nigeria",
+    title: "How Households Can Prepare for Heavy Rain and Local Flooding",
+    description: "A practical safety guide to drainage awareness, documents, electricity, travel decisions, emergency contacts, and verified weather information.",
+    content: "Focus on low-cost preparation and responsible decisions before and during heavy rain. Avoid location-specific forecasts and direct readers to official emergency and weather authorities for current warnings.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "understand-data-privacy-app-permissions",
+    category: "tech",
+    regionFocus: "global",
+    title: "What App Permissions Reveal About Your Digital Privacy",
+    description: "A practical technology explainer on camera, microphone, contacts, location, storage, and background access permissions.",
+    content: "Show readers how to review permissions, question unnecessary access, recognise functional trade-offs, and revisit settings after updates. Keep instructions platform-neutral and relevant to everyday smartphone use.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "choose-secondary-school-family-nigeria",
+    category: "education",
+    regionFocus: "nigeria",
+    title: "What Families Should Consider When Choosing a Secondary School",
+    description: "A balanced education guide to teaching quality, safeguarding, distance, costs, communication, facilities, and student wellbeing.",
+    content: "Help families compare schools without producing rankings or unsupported claims. Cover visits, questions to ask, hidden costs, learning support, discipline, transport, and how a child's individual needs should shape the decision.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "follow-election-results-responsibly",
+    category: "nigeria",
+    regionFocus: "nigeria",
+    title: "How to Follow Election Results Without Spreading False Claims",
+    description: "A neutral civic-information guide to official announcements, collation stages, screenshots, premature projections, and corrections.",
+    content: "Explain why partial results and viral posts require caution, how to distinguish reporting from official declarations, and how readers can verify updates. Do not discuss a specific election outcome or favour any party.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "understand-diplomatic-dispute-headlines",
+    category: "world",
+    regionFocus: "global",
+    title: "How to Understand Diplomatic Disputes Beyond the First Headline",
+    description: "A world-affairs explainer on statements, negotiations, sanctions, trade, security interests, and the difference between rhetoric and policy.",
+    content: "Give readers a framework for following international disputes without predicting conflict or inventing motives. Include how global decisions can affect African countries through trade, travel, security, or commodity markets.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "avoid-counterfeit-skincare-products",
+    category: "health",
+    regionFocus: "nigeria",
+    title: "How to Reduce the Risk of Buying Counterfeit Skincare Products",
+    description: "A cautious consumer-health guide to seller checks, packaging, batch details, unrealistic claims, reactions, and professional support.",
+    content: "Help readers make safer purchasing decisions without diagnosing skin conditions or endorsing brands. Explain warning signs, record keeping after a reaction, and when to seek qualified medical or regulatory guidance.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "start-small-business-customer-records",
+    category: "business",
+    regionFocus: "nigeria",
+    title: "How Small Businesses Can Organise Customer Records Without Expensive Software",
+    description: "A practical guide to simple, privacy-conscious records for enquiries, orders, payments, delivery, and repeat customers.",
+    content: "Cover spreadsheets, notebooks, naming conventions, backups, access control, consent, and separating useful records from unnecessary personal data. Keep the systems realistic for small Nigerian businesses.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "understand-sports-statistics",
+    category: "sports",
+    regionFocus: "global",
+    title: "How to Read Football Statistics Without Losing the Story of the Match",
+    description: "A fan-friendly explainer on possession, shots, expected goals, passing, defensive actions, sample size, and match context.",
+    content: "Explain what common statistics can and cannot show, why tactical roles matter, and how fans can combine data with careful observation. Avoid claims about current teams or players that would quickly become outdated.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "verify-celebrity-relationship-rumours",
+    category: "daily-gist",
+    regionFocus: "global",
+    title: "How to Read Celebrity Relationship Rumours With Better Judgment",
+    description: "A media-literacy explainer about anonymous claims, promotional timing, edited clips, privacy, corrections, and responsible sharing.",
+    content: "Keep the article engaging without repeating gossip about real individuals. Explain how entertainment reporting can distinguish confirmed information from speculation and why readers should avoid treating silence as proof.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "build-professional-email-habits",
+    category: "education",
+    regionFocus: "global",
+    title: "Professional Email Habits Every Student and Early-Career Worker Should Learn",
+    description: "A practical communication guide covering subject lines, clarity, tone, attachments, follow-up, response time, and privacy.",
+    content: "Use realistic school, job, client, and application examples. Explain common mistakes without shaming readers and include relevance for Nigerian graduates entering formal workplaces or remote teams.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "safer-road-trip-planning-nigeria",
+    category: "lifestyle",
+    regionFocus: "nigeria",
+    title: "How to Plan a Safer Long-Distance Road Trip in Nigeria",
+    description: "A practical travel guide to vehicle checks, timing, trusted contacts, weather, rest, route information, and emergency preparation.",
+    content: "Focus on general preparation rather than claiming any route is safe. Encourage current checks with recognised transport, weather, and security authorities, and explain why fatigue and rushed decisions increase risk.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "recognise-burnout-warning-signs",
+    category: "health",
+    regionFocus: "global",
+    title: "How to Recognise When Everyday Stress May Be Turning Into Burnout",
+    description: "A careful wellbeing explainer on persistent exhaustion, detachment, reduced effectiveness, boundaries, rest, and professional support.",
+    content: "Avoid diagnosis and miracle solutions. Help readers distinguish a difficult day from a sustained pattern, discuss work and caregiving pressures, and explain when qualified health support may be appropriate.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "understand-cloud-storage-backups",
+    category: "tech",
+    regionFocus: "global",
+    title: "Cloud Storage Is Not the Same as a Backup: What Users Should Know",
+    description: "A plain-language guide to synchronisation, deletion, version history, account access, local copies, and recovery planning.",
+    content: "Explain common misunderstandings with practical examples for photos, schoolwork, business records, and shared files. Avoid endorsing a provider and give readers a simple framework for protecting important data.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "follow-global-food-price-news",
+    category: "world",
+    regionFocus: "global",
+    title: "Why Global Food Price News Matters to Households in Nigeria",
+    description: "A world-and-business explainer connecting production, shipping, exchange rates, local supply, seasons, and household prices.",
+    content: "Explain the chain carefully without claiming every global move immediately changes local prices. Help readers identify the verified indicators and local conditions worth watching, while avoiding forecasts and invented statistics.",
+    sourceCountry: "Global"
+  },
+  {
+    id: "protect-creative-work-online-nigeria",
+    category: "entertainment",
+    regionFocus: "nigeria",
+    title: "How Nigerian Creators Can Protect and Document Their Work Online",
+    description: "A practical creative-industry guide to working files, publication dates, credits, agreements, platform records, and respectful dispute handling.",
+    content: "Discuss evidence and attribution in general terms without offering legal advice. Cover musicians, photographers, designers, writers, filmmakers, and social creators, with an emphasis on professional habits before disputes arise.",
+    sourceCountry: "Nigeria"
+  },
+  {
+    id: "understand-public-policy-announcements-nigeria",
+    category: "nigeria",
+    regionFocus: "nigeria",
+    title: "How to Read Government Policy Announcements Beyond the Headline",
+    description: "A neutral civic explainer on proposals, approvals, implementation dates, budgets, agencies, legal instruments, and measurable outcomes.",
+    content: "Give Nigerian readers a practical checklist for separating an announcement from an implemented policy. Avoid commenting on a current administration or inventing examples, and emphasise official documents and follow-up reporting.",
+    sourceCountry: "Nigeria"
   }
 ];

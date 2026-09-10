@@ -83,7 +83,6 @@ export default async function BlogPage({ searchParams }) {
           { href: "/category/nigeria", label: "Nigeria", variant: "secondary" },
           { href: "/category/sports", label: "Sports", variant: "secondary" }
         ]}
-        showSocial
       />
       <SiteFooter />
     </main>
