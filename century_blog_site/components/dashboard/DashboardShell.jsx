@@ -342,6 +342,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     status: "active",
     password: ""
   });
+  const [userFormFeedback, setUserFormFeedback] = useState(null);
   const [logSearch, setLogSearch] = useState("");
   const [submitMode, setSubmitMode] = useState(() => (currentUser?.role === "admin" || currentUser?.role === "super_admin" ? "publish" : "submit"));
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
@@ -1216,6 +1217,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
     event.preventDefault();
     setSettingsBusy(true);
     setError("");
+    setUserFormFeedback(null);
     beginAction(userForm.id ? "update-user" : "create-user", userForm.id);
 
     try {
@@ -1246,6 +1248,8 @@ export function DashboardShell({ initialPosts, currentUser }) {
         }, "Unable to create account.");
       }
 
+      const wasEditing = Boolean(userForm.id);
+      const savedRole = userForm.role;
       await Promise.all([refreshUsers(), refreshLogs(), refreshNotifications()]);
       setUserForm({
         id: "",
@@ -1256,9 +1260,18 @@ export function DashboardShell({ initialPosts, currentUser }) {
         status: "active",
         password: ""
       });
-      setToast({ text: userForm.id ? "Team account updated." : "Team account created." });
+      setUserFormFeedback({
+        type: "success",
+        text: wasEditing
+          ? `Account updated successfully. The ${savedRole.replace(/_/g, " ")} role is now active.`
+          : `Account created successfully with the ${savedRole.replace(/_/g, " ")} role. They can now sign in at /dashboard.`
+      });
+      setToast({ text: wasEditing ? "Team account updated." : "Team account created." });
     } catch (nextError) {
-      setError(nextError.message || "Unable to save user.");
+      setUserFormFeedback({
+        type: "error",
+        text: nextError.message || "Unable to save this account. Check the details and try again."
+      });
     } finally {
       setSettingsBusy(false);
       endAction();
@@ -1266,6 +1279,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
   }
 
   function startUserEdit(user) {
+    setUserFormFeedback(null);
     setUserForm({
       id: user.id,
       name: user.name || "",
@@ -2131,7 +2145,18 @@ export function DashboardShell({ initialPosts, currentUser }) {
               </label>
               <label>
                 <span>Password {userForm.id ? "(leave blank to keep current)" : ""}</span>
-                <input type="password" value={userForm.password} onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))} />
+                <input
+                  type="password"
+                  value={userForm.password}
+                  onChange={(event) => setUserForm((current) => ({ ...current, password: event.target.value }))}
+                  required={!userForm.id}
+                  minLength={12}
+                  autoComplete="new-password"
+                  aria-describedby="team-password-help"
+                />
+                <small id="team-password-help" className="editor-form__hint">
+                  Use at least 12 characters, including uppercase, lowercase, and a number.
+                </small>
               </label>
             </div>
             <div className="editor-form__split">
@@ -2154,14 +2179,30 @@ export function DashboardShell({ initialPosts, currentUser }) {
             </div>
             <div className="editor-form__actions">
               <button type="submit" className="button button-primary" disabled={settingsBusy}>
-                {userForm.id ? "Update account" : "Add moderator"}
+                {settingsBusy && activeAction === (userForm.id ? "update-user" : "create-user")
+                  ? "Saving account..."
+                  : userForm.id
+                    ? "Update account"
+                    : `Create ${userForm.role.replace(/_/g, " ")} account`}
               </button>
               {userForm.id ? (
-                <button type="button" className="button button-secondary" onClick={() => setUserForm({ id: "", name: "", email: "", username: "", role: "moderator", status: "active", password: "" })}>
+                <button type="button" className="button button-secondary" onClick={() => {
+                  setUserForm({ id: "", name: "", email: "", username: "", role: "moderator", status: "active", password: "" });
+                  setUserFormFeedback(null);
+                }}>
                   Cancel edit
                 </button>
               ) : null}
             </div>
+            {userFormFeedback ? (
+              <p
+                className={userFormFeedback.type === "success" ? "form-success" : "form-error"}
+                role={userFormFeedback.type === "error" ? "alert" : "status"}
+                aria-live="polite"
+              >
+                {userFormFeedback.text}
+              </p>
+            ) : null}
           </form>
 
           <div className="dashboard-post-list">
