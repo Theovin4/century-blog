@@ -248,7 +248,6 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue, opti
 
 export async function writeJsonStore(localFilePath, publicId, payload, options) {
   const cacheKey = getCacheKey(localFilePath, publicId);
-  setCachedPayload(cacheKey, payload);
   const storeOptions = normalizeStoreOptions(options);
 
   try {
@@ -277,4 +276,7 @@ export async function writeJsonStore(localFilePath, publicId, payload, options) 
       await writeCloudinaryJson(publicId, payload, { deliveryType: storeOptions.deliveryType });
     }
   }
+
+  // Only expose the new value after every required durable write succeeds.
+  setCachedPayload(cacheKey, payload);
 }

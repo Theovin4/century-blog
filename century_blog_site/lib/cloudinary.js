@@ -87,8 +87,8 @@ function normalizeRawResourcePublicId(publicId) {
   return normalized.endsWith(".json") ? normalized : `${normalized}.json`;
 }
 
-function normalizeCloudinaryPublicIdWithoutExtension(publicId) {
-  return String(publicId || "").trim().replace(/^\/+/, "").replace(/\.json$/i, "");
+function normalizeCloudinaryJsonPublicId(publicId) {
+  return normalizeRawResourcePublicId(publicId);
 }
 
 async function getCloudinaryRawResource(publicId, { deliveryType = "upload" } = {}) {
@@ -206,7 +206,7 @@ function buildCloudinaryRawJsonUrl(publicId) {
 
 function buildProtectedCloudinaryJsonDownloadUrl(publicId, deliveryType) {
   return cloudinary.utils.private_download_url(
-    normalizeCloudinaryPublicIdWithoutExtension(publicId),
+    normalizeCloudinaryJsonPublicId(publicId),
     "json",
     {
       resource_type: "raw",
@@ -407,7 +407,7 @@ export async function deleteCloudinaryJson(publicId, { deliveryType = "upload" }
     throw new Error(getPersistentStorageErrorMessage());
   }
 
-  return cloudinary.uploader.destroy(normalizeCloudinaryPublicIdWithoutExtension(publicId), {
+  return cloudinary.uploader.destroy(normalizeCloudinaryJsonPublicId(publicId), {
     resource_type: "raw",
     type: deliveryType,
     invalidate: true

@@ -18,6 +18,18 @@ function normalizeStatus(status) {
   return userStatusOptions.includes(status) ? status : "active";
 }
 
+function assertAssignableRole(role) {
+  if (!roleOptions.includes(role) || role === "super_admin") {
+    throw new Error("Choose Admin, Moderator, or Editor as the account role.");
+  }
+}
+
+function assertUserStatus(status) {
+  if (!userStatusOptions.includes(status)) {
+    throw new Error("Choose Active, Suspended, or Soft deleted as the account status.");
+  }
+}
+
 function serializeUser(user) {
   return {
     id: user.id,
@@ -202,10 +214,13 @@ export async function createUser(input) {
   const username = String(input.username || "").trim().toLowerCase();
   const email = String(input.email || "").trim().toLowerCase();
   const password = String(input.password || "");
+  const role = String(input.role || "moderator").trim();
 
   if (!username || !email || !password) {
     throw new Error("Name, email, username, and password are required.");
   }
+
+  assertAssignableRole(role);
 
   const passwordError = validateStrongPassword(password);
   if (passwordError) {
@@ -226,7 +241,7 @@ export async function createUser(input) {
     name: input.name,
     email,
     username,
-    role: input.role,
+    role,
     status: "active",
     passwordHash: await hashPassword(password),
     createdAt: now,
@@ -246,6 +261,14 @@ export async function updateUser(id, patch) {
   }
 
   const current = users[index];
+
+  if (patch.role !== undefined) {
+    assertAssignableRole(String(patch.role || "").trim());
+  }
+
+  if (patch.status !== undefined) {
+    assertUserStatus(String(patch.status || "").trim());
+  }
   const username = patch.username ? String(patch.username).trim().toLowerCase() : current.username;
   const email = patch.email ? String(patch.email).trim().toLowerCase() : current.email;
 
