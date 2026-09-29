@@ -19,7 +19,7 @@ export async function GET() {
   }
 
   const [posts, users, logs, backupStatus, automationSettings, automationProviders] = await Promise.all([
-    getAllPosts(),
+    getAllPosts({ fresh: true }),
     hasPermission(user, "moderators:manage") ? getAllUsers() : Promise.resolve([]),
     hasPermission(user, "analytics:view") ? getActivityLogs() : Promise.resolve([]),
     getPostsBackupStatus().catch(() => ({

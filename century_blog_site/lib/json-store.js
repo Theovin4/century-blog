@@ -149,7 +149,8 @@ function normalizeStoreOptions(options) {
   return {
     deliveryType,
     migrateLegacyUpload: options?.migrateLegacyUpload !== false,
-    cacheBustRemoteRead: options?.cacheBustRemoteRead === true || deliveryType === "authenticated"
+    cacheBustRemoteRead: options?.cacheBustRemoteRead === true || deliveryType === "authenticated",
+    bypassCache: options?.bypassCache === true
   };
 }
 
@@ -158,7 +159,7 @@ export async function readJsonStore(localFilePath, publicId, fallbackValue, opti
   const cached = getCachedPayload(cacheKey);
   const storeOptions = normalizeStoreOptions(options);
 
-  if (cached !== undefined) {
+  if (!storeOptions.bypassCache && cached !== undefined) {
     return cached;
   }
 

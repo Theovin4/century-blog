@@ -93,7 +93,11 @@ function resolveWorkflowStatus(user, requestedStatus, scheduledFor = "") {
   const requested = normalizeWorkflowStatus(requestedStatus, hasPermission(user, "articles:publish") ? "published" : "draft");
 
   if (requested === "scheduled") {
-    return scheduledFor ? "scheduled" : hasPermission(user, "articles:publish") ? "published" : "pending_review";
+    if (!hasPermission(user, "articles:publish")) {
+      return "pending_review";
+    }
+
+    return scheduledFor ? "scheduled" : "published";
   }
 
   if (requested === "published" || requested === "approved") {
@@ -106,7 +110,7 @@ function resolveWorkflowStatus(user, requestedStatus, scheduledFor = "") {
 export async function GET() {
   const user = await getCurrentUser();
   const posts = user
-    ? (await getAllPosts()).filter((post) => (
+    ? (await getAllPosts({ fresh: true })).filter((post) => (
       hasPermission(user, "articles:edit:any") ||
       hasPermission(user, "articles:review") ||
       String(post.workflowStatus || "published") === "published" ||

@@ -284,9 +284,12 @@ function normalizeFeaturedPosts(posts) {
   }));
 }
 
-async function loadPostsSource() {
+async function loadPostsSource({ fresh = false } = {}) {
   const seedPosts = (await readLocalSeedPosts()).map(normalizePost);
-  const remotePosts = await readJsonStore(localFilePath, publicId, null);
+  const remotePosts = await readJsonStore(localFilePath, publicId, null, {
+    bypassCache: fresh,
+    cacheBustRemoteRead: fresh
+  });
 
   if (Array.isArray(remotePosts) && remotePosts.length) {
     return normalizeFeaturedPosts(dedupePosts(hydratePostsWithSeedDefaults(remotePosts, seedPosts)));
@@ -348,8 +351,8 @@ const readCachedPostSummariesSource = unstable_cache(
   }
 );
 
-async function readPostsSource() {
-  return loadPostsSource();
+async function readPostsSource({ fresh = false } = {}) {
+  return loadPostsSource({ fresh });
 }
 
 async function readPostSummariesSource() {
@@ -422,7 +425,7 @@ function shouldPublishScheduledPost(post, nowTimestamp) {
   return scheduledTimestamp > 0 && scheduledTimestamp <= nowTimestamp;
 }
 
-export async function publishDueScheduledPosts(now = new Date()) {
+export async function publishDueScheduledPosts(now = new Date(), { fresh = false } = {}) {
   if (scheduledPublishJob) {
     return scheduledPublishJob;
   }
@@ -430,7 +433,7 @@ export async function publishDueScheduledPosts(now = new Date()) {
   scheduledPublishJob = (async () => {
     const nowIso = now.toISOString();
     const nowTimestamp = now.getTime();
-    const posts = await readPostsSource();
+    const posts = await readPostsSource({ fresh });
     let publishedCount = 0;
 
     const updatedPosts = posts.map((post) => {
@@ -512,9 +515,9 @@ export async function getPosts() {
     .sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
 
-export async function getAllPosts() {
-  await publishDueScheduledPosts();
-  const posts = await readPostsSource();
+export async function getAllPosts({ fresh = false } = {}) {
+  await publishDueScheduledPosts(new Date(), { fresh });
+  const posts = await readPostsSource({ fresh });
   return posts.sort((a, b) => getPostTimestamp(b) - getPostTimestamp(a));
 }
 
@@ -545,7 +548,7 @@ export async function getPostSummaryBySlug(slug) {
 }
 
 export async function getPostById(id) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   return posts.find((post) => String(post.id) === String(id)) || null;
 }
 
@@ -679,7 +682,7 @@ async function buildPostRecord(posts, input, { mediaFile = null, remoteMediaUrl 
 }
 
 export async function createPost(input, mediaFile = null) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   const post = await buildPostRecord(posts, { ...input, type: "manual" }, { mediaFile });
   const updatedPosts = [post, ...posts];
   await writePostsSource(updatedPosts);
@@ -687,7 +690,7 @@ export async function createPost(input, mediaFile = null) {
 }
 
 export async function createPostFromRemoteMedia(input) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   const post = await buildPostRecord(
     posts,
     { ...input, type: "manual" },
@@ -701,7 +704,7 @@ export async function createPostFromRemoteMedia(input) {
 }
 
 export async function createAutoPost(input) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   const duplicate = findSimilarPost(input, posts);
 
   if (duplicate) {
@@ -735,7 +738,7 @@ export async function createAutoPost(input) {
 }
 
 export async function updatePost(id, input, mediaFile = null) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   const existing = posts.find((post) => String(post.id) === String(id));
 
   if (!existing) {
@@ -806,7 +809,7 @@ export async function updatePost(id, input, mediaFile = null) {
 }
 
 export async function deletePost(id) {
-  const posts = await getAllPosts();
+  const posts = await getAllPosts({ fresh: true });
   const exists = posts.some((post) => String(post.id) === String(id));
 
   if (!exists) {

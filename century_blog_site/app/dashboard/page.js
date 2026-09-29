@@ -17,7 +17,7 @@ export const metadata = {
 
 export default async function DashboardPage() {
   const currentUser = await getCurrentUser();
-  const posts = currentUser ? await getAllPosts() : [];
+  const posts = currentUser ? await getAllPosts({ fresh: true }) : [];
 
   return (
     <main className="dashboard-page">

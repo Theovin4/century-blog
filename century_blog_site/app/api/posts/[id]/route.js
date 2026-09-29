@@ -160,7 +160,7 @@ export async function PATCH(request, { params }) {
     ? requestedWorkflowStatus
     : current.workflowStatus || "published";
 
-  if ((workflowStatus === "published" || workflowStatus === "approved") && !hasPermission(user, "articles:publish")) {
+  if (["published", "approved", "scheduled"].includes(workflowStatus) && !hasPermission(user, "articles:publish")) {
     workflowStatus = "pending_review";
   }
 

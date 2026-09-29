@@ -317,6 +317,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
   const [activeAction, setActiveAction] = useState("");
   const [activePostId, setActivePostId] = useState("");
   const [postListFilter, setPostListFilter] = useState("all");
+  const [postsRefreshing, setPostsRefreshing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [users, setUsers] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
@@ -405,6 +406,17 @@ export function DashboardShell({ initialPosts, currentUser }) {
     );
   }, [posts]);
 
+  const postStatusCounts = useMemo(() => posts.reduce(
+    (totals, post) => {
+      const status = String(post.workflowStatus || "published");
+      if (Object.hasOwn(totals, status)) {
+        totals[status] += 1;
+      }
+      return totals;
+    },
+    { draft: 0, scheduled: 0, published: 0, pending_review: 0 }
+  ), [posts]);
+
   const visiblePosts = useMemo(() => {
     const scopedPosts = isAdmin
       ? orderedPosts
@@ -416,6 +428,10 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
     if (postListFilter === "review") {
       return scopedPosts.filter((post) => String(post.workflowStatus || "") === "pending_review");
+    }
+
+    if (["draft", "scheduled", "published"].includes(postListFilter)) {
+      return scopedPosts.filter((post) => String(post.workflowStatus || "published") === postListFilter);
     }
 
     return scopedPosts.filter((post) => (post.type || "manual") === postListFilter);
@@ -552,6 +568,39 @@ export function DashboardShell({ initialPosts, currentUser }) {
     };
   }, [canManageUsers]);
 
+  useEffect(() => {
+    let active = true;
+
+    async function refreshVisibleEditorialPosts() {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      try {
+        const data = await fetchWithFeedback(
+          "/api/posts",
+          { cache: "no-store" },
+          "Unable to refresh editorial posts."
+        );
+
+        if (active && Array.isArray(data)) {
+          setPosts(data);
+        }
+      } catch {
+        // Keep background refresh failures non-blocking; manual refresh reports errors.
+      }
+    }
+
+    const interval = window.setInterval(refreshVisibleEditorialPosts, 60000);
+    window.addEventListener("focus", refreshVisibleEditorialPosts);
+
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshVisibleEditorialPosts);
+    };
+  }, []);
+
   async function refreshPosts() {
     const data = await fetchWithFeedback("/api/posts", { cache: "no-store" }, "Unable to refresh published posts.");
 
@@ -561,6 +610,20 @@ export function DashboardShell({ initialPosts, currentUser }) {
 
     setPosts(data);
     return data;
+  }
+
+  async function handleRefreshPosts() {
+    setPostsRefreshing(true);
+    setError("");
+
+    try {
+      await Promise.all([refreshPosts(), refreshOverview()]);
+      setToast({ text: "Editorial posts refreshed." });
+    } catch (nextError) {
+      setError(nextError.message || "Unable to refresh editorial posts.");
+    } finally {
+      setPostsRefreshing(false);
+    }
   }
 
   async function refreshAutoDrafts() {
@@ -963,6 +1026,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
       setSubmitMode(isAdmin ? "publish" : "submit");
       event.currentTarget.reset();
       const refreshTasks = [
+        refreshPosts().catch(() => undefined),
         refreshOverview().catch(() => undefined),
         refreshNotifications().catch(() => undefined)
       ];
@@ -1391,7 +1455,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
             <span>{overview.publishedCount || 0}</span>
           </div>
           <div className="automation-panel__card">
-            <strong>Your drafts</strong>
+              <strong>{isAdmin ? "All drafts" : "Your drafts"}</strong>
             <span>{overview.draftCount || 0}</span>
           </div>
             <div className="automation-panel__card">
@@ -2014,6 +2078,9 @@ export function DashboardShell({ initialPosts, currentUser }) {
         <aside className="post-list-panel">
           <div className="editor-form__header">
             <h2>{isAdmin ? "Editorial posts" : "Your posts"}</h2>
+            <button type="button" className="button button-secondary" onClick={handleRefreshPosts} disabled={postsRefreshing}>
+              {postsRefreshing ? "Refreshing..." : "Refresh posts"}
+            </button>
           </div>
 
           <div className="filter-bar__chips filter-bar__chips--secondary">
@@ -2037,6 +2104,27 @@ export function DashboardShell({ initialPosts, currentUser }) {
               onClick={() => setPostListFilter("auto")}
             >
               Auto ({postTypeCounts.auto})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "draft" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("draft")}
+            >
+              Drafts ({postStatusCounts.draft})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "scheduled" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("scheduled")}
+            >
+              Scheduled ({postStatusCounts.scheduled})
+            </button>
+            <button
+              type="button"
+              className={`filter-chip ${postListFilter === "published" ? "is-active" : ""}`}
+              onClick={() => setPostListFilter("published")}
+            >
+              Published ({postStatusCounts.published})
             </button>
             {canReview ? (
               <button
@@ -2080,6 +2168,7 @@ export function DashboardShell({ initialPosts, currentUser }) {
                     : post.sourceName
                       ? `Source: ${post.sourceName}`
                       : "Century Blog post"}
+                  {` | Created by ${post.createdByName || post.author || "Century Blog Editorial Team"}`}
                 </p>
                 <div className="dashboard-post-card__actions">
                   {post.workflowStatus === "published" ? (
