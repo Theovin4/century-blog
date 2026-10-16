@@ -2604,63 +2604,46 @@ export async function runAutomatedNewsIngestion({ force = false } = {}) {
     return empty;
   }
 
+  // AI/provider material must always go through human editorial review.
+  // Passing the automated quality gate is not permission to publish.
   const createdPosts = [];
   const skippedPosts = [];
   const draftedPosts = [];
-  let evergreenPublishedCount = 0;
-  let newsPublishedCount = 0;
+  const seenCandidates = new Set();
 
   for (const candidate of candidates) {
-    if (createdPosts.length >= totalSlots) {
-      break;
-    }
-
-    if (!candidate.qualityReport?.passed) {
-      const savedDraft = await saveAutoDraft({
-        ...candidate,
-        qualityReport: candidate.qualityReport
-      });
-      draftedPosts.push(savedDraft);
-      skippedPosts.push({
-        title: candidate.title,
-        reason: "drafted-for-review",
-        details: candidate.qualityReport?.reasons || []
-      });
-      continue;
-    }
-
-    const result = await createAutoPost(candidate);
-
-    if (result.created) {
-      createdPosts.push(result.post);
-      if (String(candidate.autoProvider || "").trim().toLowerCase() === EVERGREEN_PROVIDER) {
-        evergreenPublishedCount += 1;
-      } else {
-        newsPublishedCount += 1;
+    if (draftedPosts.length >= totalSlots) break;
+    const key = String(candidate.sourceUrl || candidate.autoSourceId || candidate.title || "").trim().toLowerCase();
+    if (!key || seenCandidates.has(key)) continue;
+    seenCandidates.add(key);
+    const savedDraft = await saveAutoDraft({
+      ...candidate,
+      qualityReport: candidate.qualityReport || {
+        passed: false,
+        reasons: ["human-editorial-review-required"],
+        blockingReasons: ["human-editorial-review-required"]
       }
-    } else {
-      skippedPosts.push({
-        title: candidate.title,
-        reason: "duplicate"
-      });
-    }
+    });
+    draftedPosts.push(savedDraft);
+    skippedPosts.push({
+      title: candidate.title,
+      reason: "human-editorial-review-required",
+      details: candidate.qualityReport?.reasons || []
+    });
   }
 
-  const duplicateCount = skippedPosts.filter((item) => item.reason === "duplicate").length;
-  const draftCount = skippedPosts.filter((item) => item.reason === "drafted-for-review").length;
-
   const summary = {
-    status: createdPosts.length ? "success" : "idle",
-    message: createdPosts.length
-      ? `Published ${createdPosts.length} automated ${createdPosts.length === 1 ? "post" : "posts"} (${evergreenPublishedCount} evergreen, ${newsPublishedCount} news).`
-      : `Automation ran, but nothing was published. Duplicates: ${duplicateCount}. Drafted for review: ${draftCount}.`,
-    publishedCount: createdPosts.length,
+    status: draftedPosts.length ? "review_required" : "idle",
+    message: draftedPosts.length
+      ? `Saved ${draftedPosts.length} candidate(s) for human editorial review. No stories were published automatically.`
+      : "No new candidates were saved for review.",
+    publishedCount: 0,
     createdPosts,
     draftedPosts,
     skippedPosts,
     diagnostics,
-    evergreenPublishedCount,
-    newsPublishedCount
+    evergreenPublishedCount: 0,
+    newsPublishedCount: 0
   };
 
   await markAutomationRun(summary);
